@@ -40,7 +40,7 @@ someone else and land them exactly there.
 | `/yakanet/tatr-dashboard/list?q=:ui`           | the task list, filtered                               |
 | `/yakanet/tatr-dashboard/task/20260906-211234` | one task, rendered                                    |
 | `/yakanet/tatr-dashboard/board`                | backlog, in progress, done                            |
-| `/yakanet/tatr-dashboard/graph`                | which tasks cite which                                |
+| `/yakanet/tatr-dashboard/graph`                | which tasks cite which, a card per pivot task         |
 
 Nothing to sign in to, nothing to configure, no repository to register first.
 
@@ -49,8 +49,8 @@ the ones this repository has, which the References panel lists; an id belonging
 to somebody else's tracker stays text.
 
 It answers the keyboard throughout: `j`/`k` walk whatever the view is showing —
-rows, bars, graph nodes — `g g` and `G` reach the ends, `/` puts the caret in
-the query, `1`-`4` switch view, and `?` lists the rest.
+rows, bars, the titles on the graph's cards — `g g` and `G` reach the ends, `/`
+puts the caret in the query, `1`-`4` switch view, and `?` lists the rest.
 
 ## The query language you already know
 

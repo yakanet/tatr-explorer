@@ -131,13 +131,3 @@
 	border-radius: var(--radius-full);
 	white-space: nowrap;
 }
-
-/* An SVG node draws its own focus, on the circle rather than around the link. */
-svg a[data-key-focus] circle {
-	stroke: var(--accent-text);
-	stroke-width: 3;
-}
-
-svg a[data-key-focus] {
-	outline: none;
-}

@@ -59,6 +59,16 @@ h1 {
 	letter-spacing: -0.02em;
 }
 
+/* Read aloud, never seen: what a glyph or an empty header cell stands for. */
+.sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 /* Every view centres one column and chooses its own width. The distance from
    the header and the side gutter are shared, so switching views does not move
    the first thing under the header; the home and error pages, which have no

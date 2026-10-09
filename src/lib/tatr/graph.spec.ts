@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cliEdges from '../../../tests/fixtures/tatr-graph-edges.json' with { type: 'json' };
 import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { buildGraph } from './graph.ts';
+import { buildGraph, starCards } from './graph.ts';
 import { readTask, type Task } from './task.ts';
 
 /**
@@ -100,16 +100,17 @@ describe('buildGraph', () => {
 		expect(graph.linkCount).toBe(0);
 	});
 
-	it('puts the busiest task first in its cluster', () => {
-		const hub = make('20260101-000001');
+	it("lists a cluster's tasks oldest first", () => {
 		const graph = buildGraph([
-			hub,
-			make('20260101-000002', 'see 20260101-000001'),
-			make('20260101-000003', 'see 20260101-000001')
+			make('20260101-000003', 'see 20260101-000001'),
+			make('20260101-000001'),
+			make('20260101-000002', 'see 20260101-000001')
 		]);
-		expect(graph.clusters[0].nodes[0].task.id).toBe(hub.id);
-		expect(graph.clusters[0].nodes[0].degree).toBe(2);
-		expect(graph.clusters[0].nodes[0].in).toEqual(['20260101-000002', '20260101-000003']);
+		expect(graph.clusters[0].nodes.map((node) => node.task.id)).toEqual([
+			'20260101-000001',
+			'20260101-000002',
+			'20260101-000003'
+		]);
 	});
 
 	it('orders clusters largest first', () => {
@@ -125,5 +126,67 @@ describe('buildGraph', () => {
 
 	it('has nothing to draw for an empty repository', () => {
 		expect(buildGraph([])).toEqual({ clusters: [], isolated: [], linkCount: 0 });
+	});
+});
+
+describe('star cards', () => {
+	const graph = buildGraph(all);
+	const cards = starCards(graph);
+	const around = (card: (typeof cards)[number]) => card.links.map((link) => link.task);
+
+	it('draws every link exactly once', () => {
+		const drawn = cards.flatMap((card) =>
+			around(card).map((other) => [card.pivot.id, other.id].sort().join(' '))
+		);
+		expect(new Set(drawn).size).toBe(drawn.length);
+		expect(drawn).toHaveLength(graph.clusters.reduce((n, cluster) => n + cluster.edges.length, 0));
+	});
+
+	it('starts from the task with the most links, on the real repository', () => {
+		expect(cards).toHaveLength(15);
+		expect(cards[0].pivot.id).toBe('20260828-211200');
+		expect(around(cards[0])).toHaveLength(8);
+	});
+
+	it('keeps the direction of each link', () => {
+		for (const { pivot, links } of cards) {
+			for (const { task, kind } of links) {
+				expect(task.references.includes(pivot.id)).toBe(kind !== 'out');
+				expect(pivot.references.includes(task.id)).toBe(kind !== 'in');
+			}
+		}
+	});
+
+	it('lists what cites the pivot, then both ways, then what it cites', () => {
+		const order = { in: 0, both: 1, out: 2 };
+		for (const { links } of cards) {
+			const ranks = links.map((link) => order[link.kind]);
+			expect(ranks).toEqual([...ranks].sort());
+		}
+	});
+
+	it('makes one card of a pair, around the older task', () => {
+		const pair = starCards(
+			buildGraph([make('20260101-000002', 'see 20260101-000001'), make('20260101-000001')])
+		);
+		expect(pair).toHaveLength(1);
+		expect(pair[0].pivot.id).toBe('20260101-000001');
+		expect(pair[0].links.map(({ task, kind }) => [task.id, kind])).toEqual([
+			['20260101-000002', 'in']
+		]);
+	});
+
+	it('lets a task appear in more than one card', () => {
+		// a cites b and c; d cites b and c too. Two pivots, a and d, each with b
+		// and c beside it — or b and c as pivots. Either way some task is shown
+		// twice, which is the point: a card holds a pivot's own links only.
+		const tasks = [
+			make('20260101-000001', '20260101-000002 20260101-000003'),
+			make('20260101-000002'),
+			make('20260101-000003'),
+			make('20260101-000004', '20260101-000002 20260101-000003')
+		];
+		const shown = starCards(buildGraph(tasks)).flatMap((card) => around(card).map((t) => t.id));
+		expect(new Set(shown).size).toBeLessThan(shown.length);
 	});
 });

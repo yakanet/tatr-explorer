@@ -56,6 +56,14 @@
 	/* Text on a closed mark (a graph node's number): 4.6:1 here, 5.1:1 dark. */
 	--on-closed: #1d1b24;
 
+	/* The reference graph's arrows, by direction: what cites the task in the
+	   middle, what it cites, and both ways. Orchid and mint were checked apart
+	   for every colour-vision type (ΔE 15 here, 13.8 dark) and reach 3:1 on a
+	   card; as text, for the list's glyphs, mint is 5.3:1. */
+	--link-in: var(--accent);
+	--link-out: var(--dot-mint);
+	--link-both: var(--ink-2);
+
 	/* Status. Always shipped with a word. `--good` is teal-blue so it never
 	   rests on hue alone against `--danger`. */
 	--good: #0e6f86;
@@ -108,6 +116,8 @@
 
 		--series-closed: #85858f;
 		--on-closed: #121116;
+		/* The theme's own mint sits above the band an arrow needs; one step down. */
+		--link-out: #43a679;
 
 		--good: #3fbfd6;
 		--warning: #f5a524;
@@ -147,6 +157,7 @@
 
 	--series-closed: #85858f;
 	--on-closed: #121116;
+	--link-out: #43a679;
 
 	--good: #3fbfd6;
 	--warning: #f5a524;

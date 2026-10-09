@@ -1,6 +1,6 @@
 # Cross-reference graph
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 90
 - TAGS: ui
 
@@ -67,3 +67,31 @@ kept for real stars only.
 What is wanted instead: a card per pivot task, showing only the links into it
 and out of it, a task free to appear in several cards. A card is then a star
 by construction, whatever the repository.
+
+---
+
+Done, as a card per pivot. Each card draws one task in the middle and only
+its own links round it: what cites it on the left, mutual citations over the
+top, what it cites on the right, numbered against a list of titles beside the
+drawing. A card is a star by construction, so no line crosses another however
+dense the repository.
+
+Pivots are chosen so each link is drawn once: the task with the most links
+not yet drawn takes them all, the next takes what is left, ties going to the
+older task (`starCards`, tested against tsoding/tatr: 15 cards, every one of
+its 30 links exactly once). A link between two neighbours is drawn in one of
+their cards; a neighbour that has a card of its own carries a `+N` leading
+there, so the graph can be walked a star at a time. This repository comes out
+at 13 cards of one to five links.
+
+An arrow says its direction three ways: its head, its side of the drawing and
+its colour — orchid into the pivot, mint out of it, grey both ways, the list's
+glyphs matching. The first pair tried, orchid and sky, merged for a protan
+reader (ΔE 4.6); orchid and mint stay apart for every colour-vision type, with
+the dark theme's mint one step darker to keep it in the band an arrow needs.
+
+Tried and dropped on the way, in a canvas of six mockups: the stars as three
+columns of titles with CSS wires (readable, but a long page of full-width
+cards), a compact list form, one drawing per group with focus on click, an
+index of pivots, and arcs down a list of every task. What the cards no longer
+show at a glance — how the tasks hang together — the masthead says in words.

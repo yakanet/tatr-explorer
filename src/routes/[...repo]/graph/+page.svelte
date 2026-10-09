@@ -4,7 +4,8 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
-	import { buildGraph, type Cluster } from '#lib/tatr/graph.ts';
+	import { buildGraph, starCards, type StarCard } from '#lib/tatr/graph.ts';
+	import type { Task } from '#lib/tatr/task.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
 	let { data } = $props();
@@ -14,88 +15,23 @@
 	// Citations are history, like the calendar on the overview: a closed task that
 	// answered an open one is exactly what the reader is looking for.
 	const graph = $derived(buildGraph(repo.tasks));
+	const cards = $derived(starCards(graph));
 
+	/** How many links each pivot's own card holds, for a neighbour to point at it. */
+	const held = $derived(new Map(cards.map((card) => [card.pivot.id, card.links.length])));
+
+	const SIZE = 200;
+	const PIVOT_R = 18;
 	const NODE_R = 13;
-	/**
-	 * The middle of a star is drawn slightly larger, and not only because it is
-	 * the hub: every arrow in a star converges on it, and their heads need
-	 * somewhere to land without piling up. A little more rim goes a long way.
-	 */
-	const HUB_R = 15;
-	/**
-	 * How much bigger than its own units a drawing is allowed to render. The box
-	 * is sized to its contents, so pinning the scale is what keeps a node the
-	 * same size on a two-node card and on an eight-node one.
-	 */
-	const SCALE = 1.4;
-	/** Node diameter plus the breathing room two neighbours need between them. */
-	const SPACING = 2 * NODE_R + 16;
-	/** Ring radius floor, so a satellite never crowds the node in the middle. */
-	const RING_MIN = HUB_R + NODE_R + 24;
+	const RING = 74;
+	const HEAD_LENGTH = 10;
+	const HEAD_WIDTH = 8;
 
 	interface Point {
 		x: number;
 		y: number;
 		r: number;
 	}
-
-	/**
-	 * Where each node sits, and how tall the drawing has to be.
-	 *
-	 * Small components are laid out exactly rather than simulated: a pair on a
-	 * line, three or four evenly around a circle. Nothing to relax, nothing to
-	 * settle, and the same picture on every visit.
-	 *
-	 * Past four, a component that is a star — one task at least half the others
-	 * answer — has it in the middle and the rest ringing it. Anything looser goes
-	 * all on the ring: the middle is where the lines between ring nodes cross,
-	 * and a node sitting there reads as the end of every one of them. The ring
-	 * is sized from the number of nodes on it rather than fixed, because a radius
-	 * that suits five nodes has them overlapping at eight.
-	 */
-	function layout(
-		count: number,
-		star: boolean
-	): { points: Point[]; width: number; height: number } {
-		if (count === 1) {
-			return { points: [{ x: 48, y: 48, r: NODE_R }], width: 96, height: 96 };
-		}
-		if (count === 2) {
-			return {
-				points: [
-					{ x: 62, y: 48, r: NODE_R },
-					{ x: 178, y: 48, r: NODE_R }
-				],
-				width: 240,
-				height: 96
-			};
-		}
-
-		const centred = count >= 5 && star;
-		const onRing = centred ? count - 1 : count;
-		// Chord between neighbours is 2·r·sin(π/n); solve it for the spacing we need.
-		const ring = Math.max(centred ? RING_MIN : 44, SPACING / 2 / Math.sin(Math.PI / onRing));
-		const size = 2 * (ring + NODE_R + 6);
-		const centre = size / 2;
-
-		const points = Array.from({ length: onRing }, (_, i) => {
-			const angle = -Math.PI / 2 + (i * 2 * Math.PI) / onRing;
-			return {
-				x: centre + ring * Math.cos(angle),
-				y: centre + ring * Math.sin(angle),
-				r: NODE_R
-			};
-		});
-
-		return {
-			points: centred ? [{ x: centre, y: centre, r: HUB_R }, ...points] : points,
-			width: size,
-			height: size
-		};
-	}
-
-	const HEAD_LENGTH = 7;
-	const HEAD_WIDTH = 5.5;
 
 	/**
 	 * A triangle pointing at `at`, arriving along the unit vector (ux, uy), plus
@@ -111,7 +47,6 @@
 		const tipY = at.y - uy * (at.r + 1);
 		const baseX = tipX - ux * HEAD_LENGTH;
 		const baseY = tipY - uy * HEAD_LENGTH;
-		// Perpendicular to the direction, for the two back corners.
 		const px = -uy * (HEAD_WIDTH / 2);
 		const py = ux * (HEAD_WIDTH / 2);
 		return {
@@ -123,19 +58,15 @@
 		};
 	}
 
-	/** One connection, rim to rim, with a head on each end it points at. */
-	function connection(from: Point, to: Point, mutual: boolean) {
+	/** One spoke, rim to rim, with a head on each end it points at. */
+	function spoke(from: Point, to: Point, both: boolean) {
 		const dx = to.x - from.x;
 		const dy = to.y - from.y;
 		const length = Math.hypot(dx, dy) || 1;
 		const ux = dx / length;
 		const uy = dy / length;
-
 		const forward = head(to, ux, uy);
-		// A reciprocal citation gets a head at both ends. A bare line would read
-		// as "no direction" when what it means is "both".
-		const back = mutual ? head(from, -ux, -uy) : null;
-
+		const back = both ? head(from, -ux, -uy) : null;
 		return {
 			x1: back ? back.x : from.x + ux * (from.r + 2),
 			y1: back ? back.y : from.y + uy * (from.r + 2),
@@ -145,30 +76,51 @@
 		};
 	}
 
-	/** Everything one cluster needs to draw itself, computed once. */
-	function drawing(cluster: Cluster) {
-		// Nodes come busiest first, so the first is the only candidate for a hub.
-		const star = cluster.nodes[0].neighbours * 2 >= cluster.nodes.length - 1;
-		const { points, width, height } = layout(cluster.nodes.length, star);
-		const index = new Map(cluster.nodes.map((node, i) => [node.task.id, i]));
-		const lines = cluster.edges.map((edge) =>
-			connection(points[index.get(edge.from)!], points[index.get(edge.to)!], edge.mutual)
-		);
-		return { points, lines, width, height };
+	/**
+	 * A card's drawing: the pivot in the middle, its neighbours round it.
+	 *
+	 * Going round from the left in the card's reading order, those that cite the
+	 * pivot come first, the mutual ones over the top and those it cites on the
+	 * right, so a reader who has seen one card knows which way to look on the
+	 * next. The numbers are the list's beside it.
+	 */
+	function drawing(card: StarCard) {
+		const pivot: Point = { x: SIZE / 2, y: SIZE / 2, r: PIVOT_R };
+		const count = card.links.length;
+		const nodes = card.links.map(({ task, kind }, i) => {
+			// A lone neighbour sits to the right, where a reader looks next.
+			const angle = count === 1 ? 0 : Math.PI + (i * 2 * Math.PI) / count;
+			const at: Point = {
+				x: pivot.x + RING * Math.cos(angle),
+				y: pivot.y + RING * Math.sin(angle),
+				r: NODE_R
+			};
+			const line = kind === 'in' ? spoke(at, pivot, false) : spoke(pivot, at, kind === 'both');
+			return { task, kind, at, line };
+		});
+		return { pivot, nodes };
 	}
 
-	/** What a node says when pointed at: its title, and how it is connected. */
-	function describe(node: Cluster['nodes'][number]) {
-		const parts = [node.task.title];
-		if (node.out.length > 0) parts.push(`cites ${node.out.length}`);
-		if (node.in.length > 0) parts.push(`cited by ${node.in.length}`);
-		return parts.join(' — ');
-	}
+	const GLYPH = { in: '←', out: '→', both: '⇄' } as const;
+	const SAY = { in: 'cites it', out: 'cited by it', both: 'both ways' } as const;
 
 	const taskHref = (id: string) =>
 		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id });
 	const inline = (title: string, taskId: string) =>
 		renderInline(title, { ref, branch: repo.branch, taskId });
+	const anchor = (id: string) => `pivot-${id}`;
+
+	/**
+	 * The node or row under the pointer, or holding the keyboard focus: the
+	 * drawing and the list light it together, so a number is never more than a
+	 * glance from its title. Kept with its card, since a task can sit in several.
+	 */
+	let lit = $state<{ card: string; task: string } | null>(null);
+	const light = (card: StarCard, task: Task) => () =>
+		(lit = { card: card.pivot.id, task: task.id });
+	const unlight = () => (lit = null);
+	/** Which task is lit in this card, if any. */
+	const litIn = (card: StarCard) => (lit?.card === card.pivot.id ? lit.task : null);
 
 	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 </script>
@@ -183,75 +135,141 @@
 	{#if repo.phase === 'ready'}
 		<section class="masthead panel">
 			<h1>
-				{#if graph.clusters.length === 0}
+				{#if cards.length === 0}
 					<span class="highlight">No task cites another</span>
 				{:else}
 					<span class="highlight">{plural(graph.linkCount, 'citation', 'citations')}</span>
-					<span class="detail">
-						across {plural(graph.clusters.length, 'group', 'groups')} of tasks.
-					</span>
+					around {plural(cards.length, 'task', 'tasks')}.
 				{/if}
 			</h1>
-			{#if graph.isolated.length > 0}
+			<!-- A card holds one task's links, so what the cards no longer show at a
+			     glance is how the tasks hang together; it is said here instead. -->
+			{#if repo.tasks.length > 0}
 				<p class="aside">
-					{plural(graph.isolated.length, 'task cites', 'tasks cite')} nobody and
-					{graph.isolated.length === 1 ? 'is' : 'are'} cited by nobody.
+					{#if graph.clusters.length > 0}
+						The linked tasks form {plural(graph.clusters.length, 'group', 'groups')}, the largest of
+						{graph.clusters[0].nodes.length}.
+					{/if}
+					{#if graph.isolated.length > 0}
+						{plural(graph.isolated.length, 'task cites', 'tasks cite')} nobody and
+						{graph.isolated.length === 1 ? 'is' : 'are'} cited by nobody.
+					{/if}
+				</p>
+			{/if}
+			{#if cards.length > 0}
+				<p class="key">
+					<span><b class="in">←</b>cites the task in the middle</span>
+					<span><b class="out">→</b>is cited by it</span>
+					<span><b class="both">⇄</b>both ways</span>
+					<span><span class="jump">+3</span>has a card of its own</span>
 				</p>
 			{/if}
 		</section>
 
-		{#if graph.clusters.length > 0}
-			<div class="clusters">
-				{#each graph.clusters as cluster (cluster.nodes[0].task.id)}
-					{@const draw = drawing(cluster)}
-					<article class="cluster panel" class:wide={cluster.nodes.length >= 5}>
-						<svg viewBox="0 0 {draw.width} {draw.height}" style:max-width="{draw.width * SCALE}px">
-							{#each draw.lines as line, i (i)}
-								<line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
-								{#each line.heads as head (head)}
-									<polygon points={head} />
+		<!-- A card per pivot, and only the pivot's own links in it: a star by
+		     construction, so no line crosses another however dense the repository.
+		     A link between two of its neighbours is drawn in one of their cards. -->
+		<div class="cards">
+			{#each cards as card (card.pivot.id)}
+				{@const draw = drawing(card)}
+				{@const here = litIn(card)}
+				<article
+					class="card panel"
+					class:focusing={here !== null && here !== card.pivot.id}
+					id={anchor(card.pivot.id)}
+				>
+					<!-- The drawing repeats the list beside it, so it is left out of the
+					     accessibility tree and out of the tab order: the list carries the
+					     same links with the titles. -->
+					<svg viewBox="0 0 {SIZE} {SIZE}" width={SIZE} height={SIZE} aria-hidden="true">
+						{#each draw.nodes as node (node.task.id)}
+							<!-- The group carries the direction's colour, which its line
+							     and heads both take. -->
+							<g class={node.kind} class:hot={here === node.task.id}>
+								<line x1={node.line.x1} y1={node.line.y1} x2={node.line.x2} y2={node.line.y2} />
+								{#each node.line.heads as points (points)}
+									<polygon {points} />
 								{/each}
-							{/each}
-							<!-- The node is the link, so the drawing is navigable on its own
-							     and not just a picture of the legend below it. -->
-							{#each cluster.nodes as node, i (node.task.id)}
-								<a href={taskHref(node.task.id)} data-key-row>
-									<title>{describe(node)}</title>
-									<circle
-										cx={draw.points[i].x}
-										cy={draw.points[i].y}
-										r={draw.points[i].r}
-										class:closed={node.task.closed}
-									/>
-									<text
-										x={draw.points[i].x}
-										y={draw.points[i].y + 3.5}
-										class:closed={node.task.closed}>{i + 1}</text
-									>
-								</a>
-							{/each}
-						</svg>
+							</g>
+						{/each}
+						{@render dot(card, card.pivot, draw.pivot, null)}
+						{#each draw.nodes as node, i (node.task.id)}
+							{@render dot(card, node.task, node.at, i + 1)}
+						{/each}
+					</svg>
 
-						<!-- The numbers carry the drawing and the titles carry the meaning.
-						     Fitting a title inside a node is what stalled the upstream
-						     attempt at this graph; a legend sidesteps it entirely, and works
-						     without a pointer. -->
+					<div class="text">
+						<h2 class:hot={here === card.pivot.id}>
+							<a
+								href={taskHref(card.pivot.id)}
+								data-key-row
+								onmouseenter={light(card, card.pivot)}
+								onmouseleave={unlight}
+								onfocus={light(card, card.pivot)}
+								onblur={unlight}>{@html inline(card.pivot.title, card.pivot.id)}</a
+							>
+						</h2>
+						<p class="meta">
+							<code class="id">{card.pivot.id}</code> · {plural(draw.nodes.length, 'link', 'links')} here
+						</p>
 						<ol>
-							{#each cluster.nodes as node, i (node.task.id)}
-								<li>
-									<span class="marker" class:closed={node.task.closed}>{i + 1}</span>
-									<a href={taskHref(node.task.id)}>
-										{@html inline(node.task.title, node.task.id)}
-									</a>
+							{#each draw.nodes as node, i (node.task.id)}
+								<li
+									class:hot={here === node.task.id}
+									onmouseenter={light(card, node.task)}
+									onmouseleave={unlight}
+									onfocusin={light(card, node.task)}
+									onfocusout={unlight}
+								>
+									<span class="number" aria-hidden="true">{i + 1}</span>
+									<span class="glyph {node.kind}" title={SAY[node.kind]}
+										>{GLYPH[node.kind]}<span class="sr">{SAY[node.kind]}:</span></span
+									>
+									<span>
+										<a href={taskHref(node.task.id)} data-key-row
+											>{@html inline(node.task.title, node.task.id)}</a
+										>
+										<!-- A neighbour that is a pivot elsewhere leads on to its own
+										     card, so the reader can walk the graph a star at a time. -->
+										{#if held.has(node.task.id)}
+											<a
+												class="jump"
+												href="#{anchor(node.task.id)}"
+												title="Its own card, with {plural(
+													held.get(node.task.id)!,
+													'link',
+													'links'
+												)}">+{held.get(node.task.id)}</a
+											>
+										{/if}
+									</span>
 								</li>
 							{/each}
 						</ol>
-					</article>
-				{/each}
-			</div>
-		{/if}
+					</div>
+				</article>
+			{/each}
+		</div>
 	{/if}
 </main>
+
+<!-- One node of a drawing: the pivot when it has no number, a neighbour when it
+     has one. -->
+{#snippet dot(card: StarCard, task: Task, at: Point, number: number | null)}
+	<a
+		href={taskHref(task.id)}
+		tabindex="-1"
+		class:hot={litIn(card) === task.id}
+		onmouseenter={light(card, task)}
+		onmouseleave={unlight}
+	>
+		<title>{task.title}</title>
+		<circle class:pivot={number === null} class:closed={task.closed} cx={at.x} cy={at.y} r={at.r} />
+		{#if number !== null}
+			<text x={at.x} y={at.y + 3.5} class:closed={task.closed}>{number}</text>
+		{/if}
+	</a>
+{/snippet}
 
 <style>
 	main {
@@ -271,58 +289,71 @@
 		line-height: 1.3;
 	}
 
-	.detail {
-		color: var(--fg);
-	}
-
 	.aside {
 		margin: 0.75rem 0 0;
 		font-size: 0.875rem;
 		color: var(--muted);
 	}
 
-	.clusters {
+	.key {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.25rem;
+		margin: 0.85rem 0 0;
+		font-size: 0.8125rem;
+		color: var(--ink-2);
+	}
+
+	.key b {
+		margin-right: 0.4rem;
+	}
+
+	.cards {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
 		gap: var(--card-gap);
+		align-items: start;
 	}
 
-	/* A star is both taller and busier than a pair, so it takes two columns
-	   where there are two to take. */
-	.cluster.wide {
-		grid-column: span 2;
+	.card {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 1.1rem;
+		padding: 1rem 1.25rem 1rem 0.75rem;
+		scroll-margin-top: 1rem;
 	}
 
-	@media (max-width: 44rem) {
-		.cluster.wide {
-			grid-column: auto;
-		}
-	}
-
-	.cluster {
-		padding: 1rem 1.25rem 1.25rem;
+	/* Where a neighbour's "+N" leads: the card it names, marked on arrival. */
+	.card:target {
+		outline: 2px solid var(--accent-line);
+		outline-offset: 2px;
 	}
 
 	svg {
-		display: block;
-		width: 100%;
-		height: auto;
-		margin: 0 auto;
+		flex: none;
 	}
 
+	/* An arrow says its direction three ways: its head, its side of the drawing
+	   and its colour, the last matching the glyph in the list beside it. The
+	   colour is the group's (`.in`, `.out`, `.both` below), drawn by both. */
 	line {
-		stroke: var(--baseline);
-		stroke-width: 1.5;
+		stroke: currentColor;
+		stroke-width: 2;
 	}
 
-	svg a {
-		cursor: pointer;
+	polygon {
+		fill: currentColor;
+	}
+
+	/* The text shade of orchid is for glyphs; an arrow takes the mark's. */
+	g.in {
+		color: var(--link-in);
 	}
 
 	circle {
 		fill: var(--series-open);
-		/* A ring in the surface colour keeps two nodes readable where the ring
-		   packs them close, and marks the one under the pointer. */
+		/* A ring in the surface colour keeps a node clear of the line it ends. */
 		stroke: var(--surface);
 		stroke-width: 2;
 	}
@@ -331,13 +362,30 @@
 		fill: var(--series-closed);
 	}
 
-	svg a:hover circle,
-	svg a:focus-visible circle {
-		stroke: var(--accent-text);
+	/* The pivot carries a second ring, in the text colour, so it reads as the
+	   subject of the card before its title is read. */
+	circle.pivot {
+		stroke: var(--fg);
 	}
 
-	svg a:focus {
-		outline: none;
+	/* What the pointer or the focus is on, in the drawing and the list at once:
+	   its node ringed, its arrow thicker, the card's other arrows faded. */
+	svg a.hot circle {
+		stroke: var(--accent-text);
+		stroke-width: 3;
+	}
+
+	g.hot line {
+		stroke-width: 3;
+	}
+
+	.focusing g:not(.hot) {
+		opacity: 0.3;
+	}
+
+	h2.hot,
+	li.hot {
+		background: var(--tint);
 	}
 
 	text {
@@ -352,50 +400,94 @@
 		fill: var(--on-closed);
 	}
 
-	polygon {
-		fill: var(--baseline);
-	}
-
-	ol {
-		margin: 0.5rem 0 0;
-		padding: 0;
-		list-style: none;
+	.text {
+		flex: 1 1 14rem;
+		min-width: 0;
 		display: grid;
-		gap: 0.35rem;
+		gap: 0.5rem;
 	}
 
+	/* Padded out into the margin, so lighting a row moves nothing. */
+	h2,
 	li {
-		display: flex;
-		gap: 0.6rem;
-		align-items: baseline;
+		margin: 0 -0.35rem;
+		padding: 0.1rem 0.35rem;
+		border-radius: var(--radius-sm);
+	}
+
+	h2 {
 		font-size: 0.875rem;
 		line-height: 1.4;
 	}
 
-	.marker {
-		flex-shrink: 0;
-		width: 1.35rem;
-		height: 1.35rem;
-		display: grid;
-		place-items: center;
-		font-family: var(--font-mono);
+	.meta {
+		margin: -0.35rem 0 0;
 		font-size: 0.75rem;
+		color: var(--muted);
+	}
+
+	ol {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 0.2rem;
+	}
+
+	li {
+		display: grid;
+		grid-template-columns: 1.4rem 1rem minmax(0, 1fr);
+		gap: 0.4rem;
+		align-items: baseline;
+		font-size: 0.8125rem;
+		line-height: 1.4;
+	}
+
+	.number {
+		font-size: 0.6875rem;
 		font-weight: 700;
-		color: var(--on-accent);
-		background: var(--series-open);
-		border-radius: var(--radius-full);
+		text-align: right;
+		color: var(--muted);
 	}
 
-	.marker.closed {
-		color: var(--on-closed);
-		background: var(--series-closed);
+	.glyph {
+		font-weight: 700;
 	}
 
-	li a {
+	/* As text the orchid takes its text shade; mint and the grey read as they are. */
+	.in {
+		color: var(--accent-text);
+	}
+
+	.out {
+		color: var(--link-out);
+	}
+
+	.both {
+		color: var(--link-both);
+	}
+
+	.text a {
 		color: var(--fg);
 	}
 
-	li a:hover {
+	.text a:hover {
 		color: var(--accent-text);
+	}
+
+	.jump,
+	.text a.jump {
+		margin-left: 0.4rem;
+		padding: 0 0.4rem;
+		font-size: 0.75rem;
+		color: var(--accent-text);
+		background: var(--tint-lilac);
+		border-radius: var(--radius-full);
+		white-space: nowrap;
+	}
+
+	.text a.jump:hover {
+		color: var(--on-accent);
+		background: var(--accent);
 	}
 </style>
