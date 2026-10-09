@@ -75,7 +75,7 @@ a mistake is pointed at _the offending token_ instead of being silently coerced.
 Tag names and keywords complete as you type, with what each tag means alongside
 it — the repository's own vocabulary, which nothing else on screen lists.
 
-**Two additions of our own. The first: `~` searches titles**, and the CLI has
+**One addition to the language: `~` searches titles**, and the CLI has
 no notion of it. The divergence is deliberate and it runs one way only — every
 query `tatr ls` accepts behaves identically here, but a query written with `~`
 will not run there. A reader in a browser has no `grep` sitting beside the tool, and the
@@ -85,7 +85,7 @@ the match is loose — every word, in any order, case ignored — and quotes pro
 a phrase everywhere else; with `~` carrying that meaning, quotes are left
 grouping words that contain spaces and nothing more.
 
-**The second: `all`**, beside the query. `open` is `tatr ls` and `closed` is
+**And one beside it: `all`**, a status rather than a query. `open` is `tatr ls` and `closed` is
 `tatr ls -c`, which lists the closed tasks _only_; the CLI has no single
 command for both. The dashboard needs one: its "in total" and "untagged" count
 every task, and each opens the list on the very tasks it counted. Like `~`, it
