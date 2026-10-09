@@ -1,6 +1,6 @@
 # Move from the SvelteKit 3 release candidate to the stable release
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 80
 - TAGS: infra
 
@@ -50,3 +50,34 @@ what is installed.
 Done when the lockfile holds the stable releases, no deprecated API is called,
 `check`, the suite and a `BASE_PATH` build pass, and the graph's keyboard paths
 and the list's and board's addresses have been tried in a browser.
+
+---
+
+Done. `@sveltejs/kit` 3.0.1, adapter-static 4.0.0, and Svelte 5.57.2, since
+3.0.1 asks for `^5.57.1` where the release candidate asked for `^5.56.4`.
+`check`, the suite and the `BASE_PATH` build passed on the bump alone.
+
+**The shallow `goto` is not a drop-in for `replaceState`.** SvelteKit's client
+runs the navigation hooks for it, and skips them for `replaceState` only "for
+backwards compatibility". The layout's `onNavigate` therefore read the query
+back from the address the list had just written — trimmed — on every keystroke,
+and each space vanished as it was typed: `priority ge 60` became
+`priorityge60`. The layout now skips a shallow `goto`, which is only ever the
+view writing its own address; going back through history is a `popstate` and is
+still read.
+
+`invalidateAll` became `refreshAll` in the folder picker. That path was not
+tried on screen: it needs a folder chosen through the browser's dialog.
+
+Checked on screen against the dev server: in the list and the board, a typed
+query keeps its spaces, the focus and the caret, and the address follows without
+adding a history entry; the list, which writes its address on mount and so
+starts a shallow `goto` inside the navigation that brought it, still opens at the
+top when entered from a page scrolled 1,500 px down; going back from the board
+restores the list's status;
+a `+N` lands on its card with the `:target` outline, and going back restores the
+scroll; following a graph node that had focus leaves the focus on the page, not
+on a removed SVG link; `j` and `k` still walk the titles.
+
+The two calls above were the only deprecated APIs in use; `error(404, …)` already
+passes its message as a string.

@@ -21,14 +21,17 @@
 
 	// One query too: the charts filter the list and vice versa. A link that
 	// carries a query sets it, so the dashboard's counts and bars can be plain
-	// links; typing rewrites the URL without navigating, so it never comes back
-	// through here to trim the text under the cursor.
+	// links. Typing in the list or the board rewrites the URL through a shallow
+	// `goto`, which SvelteKit reports as a navigation like any other; it is
+	// skipped here, or the address it just wrote, trimmed, would come back and eat
+	// the space under the cursor. Only the `goto`: going back to such an address
+	// is reported as shallow too, and that one has to be read.
 	const query = new QueryState();
 	query.read(page.url.searchParams);
 	// Before the new page renders rather than after, so it does not draw once
 	// with the old query only to be filtered again.
-	onNavigate(({ to }) => {
-		if (to) query.read(to.url.searchParams);
+	onNavigate(({ to, type, shallow }) => {
+		if (to && !(type === 'goto' && shallow)) query.read(to.url.searchParams);
 	});
 	setContext(QUERY, query);
 

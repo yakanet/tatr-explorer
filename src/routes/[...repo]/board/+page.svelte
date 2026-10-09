@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import QueryBar from '#lib/components/QueryBar.svelte';
@@ -46,7 +46,7 @@
 	function syncUrl() {
 		const url = new URL(page.url.href);
 		url.search = query.searchOf('board');
-		replaceState(url, page.state);
+		goto(url, { shallow: true, replace: true });
 	}
 
 	const taskHref = (id: string) =>

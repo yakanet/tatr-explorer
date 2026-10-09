@@ -50,7 +50,7 @@
 		}
 		error = null;
 		openFolder(folder, handle);
-		await goto(resolve('/[...repo]', { repo: 'local' }), { invalidateAll: true });
+		await goto(resolve('/[...repo]', { repo: 'local' }), { refreshAll: true });
 	}
 
 	async function pick() {

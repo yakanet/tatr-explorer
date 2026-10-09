@@ -204,7 +204,7 @@ copied here; the viewer is an independent implementation of the same format.
 
 |                 |                                                      |
 | --------------- | ---------------------------------------------------- |
-| Framework       | SvelteKit 3 (release candidate), Svelte 5 runes      |
+| Framework       | SvelteKit 3, Svelte 5 runes                          |
 | Build           | Vite 8, `adapter-static`, prerendered to plain files |
 | Markdown        | markdown-it                                          |
 | Tests           | Vitest                                               |
