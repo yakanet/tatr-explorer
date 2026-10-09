@@ -12,6 +12,7 @@
  * `.panel` and the focus ring — if two views would have to keep it in step,
  * it is here.
  */
+@import './styles/font.css';
 @import './styles/tokens.css';
 @import './styles/base.css';
 @import './styles/panel.css';

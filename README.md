@@ -129,9 +129,8 @@ behind the same IP address, so:
   stays on screen and the header says it was not renewed, rather than trading a
   true copy for an error page.
 
-Beyond those, the only third-party request is the webfont stylesheet, and
-bringing it in-house is
-[task `20260906-211248`](https://github.broutin.dev/tatr-dashboard/yakanet/tatr-dashboard/task/20260906-211248).
+Beyond those, the site asks nobody for anything: even its typeface is served
+from the same folder as the page.
 
 ## Or a folder on your own machine
 

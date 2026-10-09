@@ -1,6 +1,6 @@
 # Self-host JetBrains Mono
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 70
 - TAGS: infra
 
@@ -58,3 +58,30 @@ a real italic would be a second file of 43 kB.
 License, which asks that its notice go with the font. Shipping it from this
 repository puts that notice in `NOTICE`, beside the fixtures' — the file that
 exists for exactly this, the repository being MIT with stated exceptions.
+
+---
+
+Done as planned, with the 9 kB decided the cheap way: the package's latin file
+as it ships. It is a hashed, immutable asset, downloaded once and then cached
+for good, where an instanced file of our own would have needed a regeneration
+step that nobody would remember.
+
+- The `@font-face` is written by hand in `src/styles/font.css`, under the plain
+  family name, so `--font-mono` did not change and the rename above never came
+  into play. Vite resolves the package path inside `url()` directly, so nothing
+  is copied into `static/`.
+- SvelteKit does not preload fonts by default. `src/hooks.server.ts` adds them
+  to `resolve`'s `preload` filter. It runs at build time only, which is enough:
+  the link lands in the prerendered homepage and in `404.html`, the shell every
+  other route is served from, with the base path applied.
+- `app.html` lost the stylesheet and both preconnects. `NOTICE` names the font
+  and its licence, the site distributing the file even though the repository
+  does not hold it.
+
+Verified on a `BASE_PATH` build in preview: a single woff2 of 40.4 kB in the
+output, the face reported as loaded from the site's own folder, and no host
+contacted besides the site, `api.github.com` and `raw.githubusercontent.com`.
+The arrows and `⏎` still come from the fallback face and emphasis is still
+slanted by the browser, both as planned. What did change is everything outside
+latin: Polish or Cyrillic in a task used to be drawn by Google's other subsets
+and now falls back too — accepted, the tasks this viewer reads being English.

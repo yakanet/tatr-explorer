@@ -31,6 +31,22 @@ the README quotes upstream typos to explain why repository content is shown
 verbatim. Both are attributed where they appear.
 
 
+The webfont
+-----------
+
+The built site serves JetBrains Mono, the latin file of the npm package
+@fontsource-variable/jetbrains-mono, unchanged. It is installed rather than
+committed, so nothing of it is in this repository; it is named here because
+the site distributes it.
+
+  Copyright 2020 The JetBrains Mono Project Authors
+  <https://github.com/JetBrains/JetBrainsMono>
+
+It is under the SIL Open Font License, version 1.1 <https://openfontlicense.org>.
+The file carries that copyright and the licence's address in its own metadata,
+and the package carries the licence's full text.
+
+
 What is not borrowed
 --------------------
 
