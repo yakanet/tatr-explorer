@@ -46,12 +46,17 @@
 	 * line, three or four evenly around a circle. Nothing to relax, nothing to
 	 * settle, and the same picture on every visit.
 	 *
-	 * Past four, a component is in practice a star — one task everything else
-	 * answers — so the busiest goes in the middle and the rest ring it. The ring
-	 * is sized from the number of satellites rather than fixed, because a radius
+	 * Past four, a component that is a star — one task at least half the others
+	 * answer — has it in the middle and the rest ringing it. Anything looser goes
+	 * all on the ring: the middle is where the lines between ring nodes cross,
+	 * and a node sitting there reads as the end of every one of them. The ring
+	 * is sized from the number of nodes on it rather than fixed, because a radius
 	 * that suits five nodes has them overlapping at eight.
 	 */
-	function layout(count: number): { points: Point[]; width: number; height: number } {
+	function layout(
+		count: number,
+		star: boolean
+	): { points: Point[]; width: number; height: number } {
 		if (count === 1) {
 			return { points: [{ x: 48, y: 48, r: NODE_R }], width: 96, height: 96 };
 		}
@@ -66,7 +71,7 @@
 			};
 		}
 
-		const centred = count >= 5;
+		const centred = count >= 5 && star;
 		const onRing = centred ? count - 1 : count;
 		// Chord between neighbours is 2·r·sin(π/n); solve it for the spacing we need.
 		const ring = Math.max(centred ? RING_MIN : 44, SPACING / 2 / Math.sin(Math.PI / onRing));
@@ -142,7 +147,9 @@
 
 	/** Everything one cluster needs to draw itself, computed once. */
 	function drawing(cluster: Cluster) {
-		const { points, width, height } = layout(cluster.nodes.length);
+		// Nodes come busiest first, so the first is the only candidate for a hub.
+		const star = cluster.nodes[0].neighbours * 2 >= cluster.nodes.length - 1;
+		const { points, width, height } = layout(cluster.nodes.length, star);
 		const index = new Map(cluster.nodes.map((node, i) => [node.task.id, i]));
 		const lines = cluster.edges.map((edge) =>
 			connection(points[index.get(edge.from)!], points[index.get(edge.to)!], edge.mutual)

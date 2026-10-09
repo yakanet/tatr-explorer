@@ -12,9 +12,7 @@
  * show a title: `neato` needs short labels, and the upstream task that asked
  * for this graph stalled on exactly that. So the result is grouped by connected
  * component, and each component is drawn with numbered nodes against a legend —
- * a title then has nowhere it needs to fit. Components are small in practice,
- * four tasks on tsoding/tatr and eight on this repository, which is what makes
- * them worth drawing one at a time.
+ * a title then has nowhere it needs to fit.
  */
 import type { Task } from './task.ts';
 
@@ -34,6 +32,8 @@ export interface GraphNode {
 	in: string[];
 	/** Citations touching this task, in either direction. */
 	degree: number;
+	/** Distinct tasks it is linked to, a mutual citation counting once. */
+	neighbours: number;
 }
 
 /** Tasks reachable from one another once direction is ignored. */
@@ -128,10 +128,16 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 					const task = known.get(member)!;
 					const cites = out.get(member) ?? [];
 					const cited = (incoming.get(member) ?? []).sort();
-					return { task, out: cites, in: cited, degree: cites.length + cited.length };
+					return {
+						task,
+						out: cites,
+						in: cited,
+						degree: cites.length + cited.length,
+						neighbours: neighbours.get(member)?.size ?? 0
+					};
 				})
-				// Busiest first, so the hub of a cluster is the one drawn at its centre.
-				.sort((a, b) => b.degree - a.degree || byId(a.task, b.task)),
+				// Busiest first: the most tasks linked to, then the most citations.
+				.sort((a, b) => b.neighbours - a.neighbours || b.degree - a.degree || byId(a.task, b.task)),
 			edges: [...edges.values()]
 				.filter((edge) => inCluster.has(edge.from))
 				.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1))

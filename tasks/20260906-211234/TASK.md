@@ -1,6 +1,6 @@
 # Cross-reference graph
 
-- STATUS: CLOSED
+- STATUS: OPEN
 - PRIORITY: 90
 - TAGS: ui
 
@@ -55,3 +55,15 @@ seen so far does.
 
 Nodes are links, so the drawing navigates on its own rather than being a picture
 of the legend below it.
+
+---
+
+Reopened. A card per component stopped scaling: this repository's tasks now
+form one component of 22, and a ring of 22 crossed by its chords is a drawing
+nobody can read. The busiest task in the middle made it worse — every chord
+passed behind it and read as one of its links — which is why the middle is now
+kept for real stars only.
+
+What is wanted instead: a card per pivot task, showing only the links into it
+and out of it, a task free to appear in several cards. A card is then a star
+by construction, whatever the repository.
