@@ -105,8 +105,8 @@
 	<h1>Explore any <code class="highlight">tasks/</code> folder.</h1>
 	<p class="lead">
 		Point it at any repository that follows the
-		<a href="https://github.com/tsoding/tatr">tatr</a> layout, or at a folder on this machine. Nothing
-		is uploaded — the files are read in your browser.
+		<a href="https://github.com/tsoding/tatr#task-tracker">tatr</a> layout, or at a folder on this machine.
+		Nothing is uploaded — the files are read in your browser.
 	</p>
 
 	<!-- Two ways in, one at a time: each needs a line of explanation, and stacked
