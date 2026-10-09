@@ -3,7 +3,7 @@ import { parseRepoPath } from '../repo/ref.ts';
 import { renderInline, renderMarkdown, resolveAttachment, splitJournal } from './markdown.ts';
 
 const options = {
-	ref: parseRepoPath('tsoding/tatr')!,
+	ref: parseRepoPath('owner/repo')!,
 	branch: 'main',
 	taskId: '20260826-200847'
 };
@@ -83,19 +83,19 @@ describe('hostile input', () => {
 describe('attachments', () => {
 	it('resolves a relative image against the task folder', () => {
 		expect(render('![shot](./screenshot.png)')).toContain(
-			'https://raw.githubusercontent.com/tsoding/tatr/main/tasks/20260826-200847/screenshot.png'
+			'https://raw.githubusercontent.com/owner/repo/main/tasks/20260826-200847/screenshot.png'
 		);
 	});
 
 	it('resolves a bare filename too', () => {
 		expect(resolveAttachment(options, 'shot.png')).toBe(
-			'https://raw.githubusercontent.com/tsoding/tatr/main/tasks/20260826-200847/shot.png'
+			'https://raw.githubusercontent.com/owner/repo/main/tasks/20260826-200847/shot.png'
 		);
 	});
 
 	it('resolves a sibling task, which cross-references use', () => {
 		expect(resolveAttachment(options, '../20260315-160715/TASK.md')).toBe(
-			'https://raw.githubusercontent.com/tsoding/tatr/main/tasks/20260315-160715/TASK.md'
+			'https://raw.githubusercontent.com/owner/repo/main/tasks/20260315-160715/TASK.md'
 		);
 	});
 
@@ -112,7 +112,7 @@ describe('attachments', () => {
 	});
 
 	it('keeps an image already pointing at raw', () => {
-		const url = 'https://raw.githubusercontent.com/tsoding/tatr/main/tasks/x/a.png';
+		const url = 'https://raw.githubusercontent.com/owner/repo/main/tasks/x/a.png';
 		expect(render(`![x](${url})`)).toContain(url);
 	});
 });

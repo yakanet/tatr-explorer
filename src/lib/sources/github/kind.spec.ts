@@ -3,7 +3,7 @@ import { githubKind } from './kind.ts';
 import { ListingError } from '../source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
-const ref = parseRepoInput('tsoding/tatr')!;
+const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
 /** Through the contract, which is the only way the application reaches these. */
@@ -12,7 +12,7 @@ const open = (repo = ref, branch?: string) => githubKind.open(repo, branch ? { b
 describe('the URL of a file', () => {
 	it('reads it from the CDN that costs no budget', () => {
 		expect(open().assetUrl(path)).toBe(
-			'https://raw.githubusercontent.com/tsoding/tatr/HEAD/tasks/20260304-115038/TASK.md'
+			'https://raw.githubusercontent.com/owner/repo/HEAD/tasks/20260304-115038/TASK.md'
 		);
 	});
 
@@ -20,7 +20,7 @@ describe('the URL of a file', () => {
 		// `feature%2Fweb-ui` is a branch of that literal name, which nobody has, so
 		// encoding the whole thing at once made every read of such a repository
 		// fail.
-		expect(open(ref, 'feature/web-ui').assetUrl(path)).toContain('/tatr/feature/web-ui/tasks/');
+		expect(open(ref, 'feature/web-ui').assetUrl(path)).toContain('/repo/feature/web-ui/tasks/');
 	});
 
 	it('encodes what a segment cannot carry', () => {
@@ -31,7 +31,7 @@ describe('the URL of a file', () => {
 describe('the URL of its page on the forge', () => {
 	it('points at the file, where its history is', () => {
 		expect(open().fileUrl?.(path)).toBe(
-			'https://github.com/tsoding/tatr/blob/HEAD/tasks/20260304-115038/TASK.md'
+			'https://github.com/owner/repo/blob/HEAD/tasks/20260304-115038/TASK.md'
 		);
 	});
 

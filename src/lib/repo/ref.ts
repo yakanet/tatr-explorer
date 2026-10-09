@@ -142,7 +142,7 @@ export function repoKey(ref: RepoRef): string {
 }
 
 /**
- * How a reference reads on screen: `tsoding/tatr`, or a folder's own name.
+ * How a reference reads on screen: `owner/name`, or a folder's own name.
  *
  * A local folder has no owner to qualify it, so its name stands alone — and
  * before one is picked there is nothing to name at all.

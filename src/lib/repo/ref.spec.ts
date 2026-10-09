@@ -11,36 +11,36 @@ import {
 
 describe('parseRepoPath', () => {
 	it('defaults the host to github.com', () => {
-		expect(parseRepoPath('tsoding/tatr')).toEqual({
+		expect(parseRepoPath('owner/repo')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr'
+			owner: 'owner',
+			name: 'repo'
 		});
 	});
 
 	it('accepts an explicit forge host', () => {
-		expect(parseRepoPath('gitlab.com/tsoding/tatr')).toEqual({
+		expect(parseRepoPath('gitlab.com/owner/repo')).toEqual({
 			host: 'gitlab.com',
-			owner: 'tsoding',
-			name: 'tatr'
+			owner: 'owner',
+			name: 'repo'
 		});
 	});
 
 	it('reads a branch from the @ suffix', () => {
-		expect(parseRepoPath('tsoding/tatr@dev')).toEqual({
+		expect(parseRepoPath('owner/repo@dev')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr',
+			owner: 'owner',
+			name: 'repo',
 			branch: 'dev'
 		});
 	});
 
 	it('keeps slashes inside branch names', () => {
-		expect(parseRepoPath('tsoding/tatr@feature/web-ui')?.branch).toBe('feature/web-ui');
+		expect(parseRepoPath('owner/repo@feature/web-ui')?.branch).toBe('feature/web-ui');
 	});
 
 	it('tolerates surrounding slashes', () => {
-		expect(parseRepoPath('/tsoding/tatr/')?.name).toBe('tatr');
+		expect(parseRepoPath('/owner/repo/')?.name).toBe('repo');
 	});
 
 	it('allows dots in repository names, which are not hosts', () => {
@@ -51,45 +51,45 @@ describe('parseRepoPath', () => {
 		});
 	});
 
-	it.each(['', '/', 'tsoding', 'a/b/c', 'tsoding/', 'tsoding/ta tr'])('rejects %o', (input) => {
+	it.each(['', '/', 'owner', 'a/b/c', 'owner/', 'owner/re po'])('rejects %o', (input) => {
 		expect(parseRepoPath(input)).toBeNull();
 	});
 });
 
 describe('parseRepoInput', () => {
 	it('accepts a browser URL', () => {
-		expect(parseRepoInput('https://github.com/tsoding/tatr')).toEqual({
+		expect(parseRepoInput('https://github.com/owner/repo')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr'
+			owner: 'owner',
+			name: 'repo'
 		});
 	});
 
 	it('takes the branch from a tree URL', () => {
-		expect(parseRepoInput('https://github.com/tsoding/tatr/tree/dev/tasks')).toEqual({
+		expect(parseRepoInput('https://github.com/owner/repo/tree/dev/tasks')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr',
+			owner: 'owner',
+			name: 'repo',
 			branch: 'dev'
 		});
 	});
 
 	it('keeps only the first segment after tree, since the path is inseparable', () => {
-		expect(parseRepoInput('https://github.com/tsoding/tatr/tree/feature/web-ui')?.branch).toBe(
+		expect(parseRepoInput('https://github.com/owner/repo/tree/feature/web-ui')?.branch).toBe(
 			'feature'
 		);
 	});
 
 	it('accepts an SSH remote and strips the .git suffix', () => {
-		expect(parseRepoInput('git@github.com:tsoding/tatr.git')).toEqual({
+		expect(parseRepoInput('git@github.com:owner/repo.git')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr'
+			owner: 'owner',
+			name: 'repo'
 		});
 	});
 
 	it('accepts the bare shorthand', () => {
-		expect(parseRepoInput('  tsoding/tatr  ')?.owner).toBe('tsoding');
+		expect(parseRepoInput('  owner/repo  ')?.owner).toBe('owner');
 	});
 
 	it('does not mistake a URL scheme for an SSH host', () => {
@@ -99,10 +99,10 @@ describe('parseRepoInput', () => {
 
 describe('formatRepoPath', () => {
 	it.each([
-		['tsoding/tatr'],
-		['tsoding/tatr@dev'],
-		['gitlab.com/tsoding/tatr'],
-		['gitlab.com/tsoding/tatr@feature/web-ui']
+		['owner/repo'],
+		['owner/repo@dev'],
+		['gitlab.com/owner/repo'],
+		['gitlab.com/owner/repo@feature/web-ui']
 	])('round-trips %o', (path) => {
 		const ref = parseRepoPath(path);
 		expect(ref).not.toBeNull();
@@ -116,8 +116,8 @@ describe('formatRepoPath', () => {
 
 describe('repoKey', () => {
 	it('separates the default branch from a named one', () => {
-		const implicit = repoKey(parseRepoPath('tsoding/tatr')!);
-		const explicit = repoKey(parseRepoPath('tsoding/tatr@main')!);
+		const implicit = repoKey(parseRepoPath('owner/repo')!);
+		const explicit = repoKey(parseRepoPath('owner/repo@main')!);
 		expect(implicit).not.toBe(explicit);
 	});
 });
@@ -129,12 +129,12 @@ describe('a folder on this machine', () => {
 	});
 
 	it('cannot be confused with a repository, which needs an owner too', () => {
-		expect(parseRepoPath('local/tatr')).toEqual({
+		expect(parseRepoPath('local/repo')).toEqual({
 			host: 'github.com',
 			owner: 'local',
-			name: 'tatr'
+			name: 'repo'
 		});
-		expect(isLocal(parseRepoPath('local/tatr')!)).toBe(false);
+		expect(isLocal(parseRepoPath('local/repo')!)).toBe(false);
 	});
 
 	it('keeps the folder name out of the URL, which nobody else could follow', () => {
@@ -144,6 +144,6 @@ describe('a folder on this machine', () => {
 	it('reads on screen as the folder name, having no owner to qualify it', () => {
 		expect(describeRef(localRef('my-project'))).toBe('my-project');
 		expect(describeRef(localRef())).toBe('a folder on this machine');
-		expect(describeRef(parseRepoPath('tsoding/tatr')!)).toBe('tsoding/tatr');
+		expect(describeRef(parseRepoPath('owner/repo')!)).toBe('owner/repo');
 	});
 });

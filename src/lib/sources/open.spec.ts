@@ -5,7 +5,7 @@ import { fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
 const refs: RepoRef[] = [
-	parseRepoPath('tsoding/tatr')!,
+	parseRepoPath('owner/repo')!,
 	parseRepoPath('owner/repo@main')!,
 	parseRepoPath('gitlab.com/group/project')!,
 	localRef('my-project')
@@ -40,16 +40,16 @@ describe('the registry', () => {
 
 describe('openSource', () => {
 	it('opens a repository on a forge', () => {
-		const source = openSource(parseRepoPath('tsoding/tatr')!);
+		const source = openSource(parseRepoPath('owner/repo')!);
 		expect(source?.id).toBe('github');
-		expect(source?.label).toBe('tsoding/tatr');
-		expect(source?.cacheKey).toBe('github.com/tsoding/tatr@');
+		expect(source?.label).toBe('owner/repo');
+		expect(source?.cacheKey).toBe('github.com/owner/repo@');
 		expect(source?.fileUrl?.('tasks/a/TASK.md')).toContain('/blob/HEAD/tasks/a/TASK.md');
 	});
 
 	it('reads a forge at the branch it was asked for', () => {
-		const source = openSource(parseRepoPath('tsoding/tatr')!, { branch: 'dev' });
-		expect(source?.assetUrl('tasks/a/shot.png')).toContain('/tatr/dev/tasks/a/shot.png');
+		const source = openSource(parseRepoPath('owner/repo')!, { branch: 'dev' });
+		expect(source?.assetUrl('tasks/a/shot.png')).toContain('/repo/dev/tasks/a/shot.png');
 	});
 
 	it('opens the folder on this machine', () => {
@@ -76,7 +76,7 @@ function dropped(path: string, text: string): File {
  * through, which nothing else touches directly.
  */
 describe('reading through a forge', () => {
-	const ref = parseRepoPath('tsoding/tatr')!;
+	const ref = parseRepoPath('owner/repo')!;
 
 	it('reads a file from the CDN', async () => {
 		const asked: string[] = [];
@@ -87,7 +87,7 @@ describe('reading through a forge', () => {
 
 		const source = openSource(ref, { fetchImpl })!;
 		expect(await source.read('tasks/a/TASK.md')).toBe('# a task\n');
-		expect(asked).toEqual(['https://raw.githubusercontent.com/tsoding/tatr/HEAD/tasks/a/TASK.md']);
+		expect(asked).toEqual(['https://raw.githubusercontent.com/owner/repo/HEAD/tasks/a/TASK.md']);
 	});
 
 	it('answers null for a file the CDN refuses, rather than throwing', async () => {
