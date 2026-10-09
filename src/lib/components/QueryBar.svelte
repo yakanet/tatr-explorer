@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { formatDiagnostic } from '#lib/tql/query.ts';
 	import { apply, complete, type TagOption } from '#lib/tql/complete.ts';
-	import type { QueryState } from '#lib/state/query.svelte.ts';
+	import { STATUSES, type QueryState } from '#lib/state/query.svelte.ts';
 
 	let {
 		query,
@@ -10,7 +10,7 @@
 		pool,
 		tags,
 		onchange,
-		closedToggle = true
+		chooseStatus = true
 	}: {
 		query: QueryState;
 		matched: number;
@@ -19,11 +19,11 @@
 		tags: TagOption[];
 		onchange?: () => void;
 		/**
-		 * False where hiding closed tasks means nothing. On the board they are a
-		 * column of their own, and a switch that emptied it would be answering a
-		 * question the columns already answer.
+		 * False where choosing open or closed means nothing. On the board the
+		 * closed tasks are a column of their own, and a switch that emptied it
+		 * would be answering a question the columns already answer.
 		 */
-		closedToggle?: boolean;
+		chooseStatus?: boolean;
 	} = $props();
 
 	let field = $state<HTMLInputElement | null>(null);
@@ -174,11 +174,17 @@
 		<span class="count"
 			><strong>{matched}</strong> matched <span class="of">/ {pool} shown</span></span
 		>
-		{#if closedToggle}
-			<label class="closed">
-				<input type="checkbox" bind:checked={query.showClosed} {onchange} />
-				closed
-			</label>
+		{#if chooseStatus}
+			<!-- `tatr ls`, `tatr ls -c`, and both at once. Radios, so the arrow keys
+			     move the choice and a screen reader hears one choice of three. -->
+			<div class="segmented status" role="radiogroup" aria-label="Which tasks">
+				{#each STATUSES as status (status)}
+					<label>
+						<input type="radio" name="status" value={status} bind:group={query.status} {onchange} />
+						{status}
+					</label>
+				{/each}
+			</div>
 		{/if}
 	</div>
 
@@ -339,24 +345,17 @@
 		color: var(--muted);
 	}
 
-	/* The CLI's `-c`, as a chip the size of a thumb, pulled into the bar's
-	   padding so its curve stays concentric with the bar's. */
-	.closed {
+	/* The status, a segmented control sized to sit inside the bar and pulled into
+	   its padding so the two curves stay concentric. */
+	.status {
 		margin-right: -0.6rem;
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		min-height: 2.25rem;
-		padding: 0 0.85rem;
-		font-size: 0.8125rem;
-		color: var(--ink-2);
-		background: var(--tint);
-		border-radius: var(--radius-full);
-		cursor: pointer;
+		padding: 0.1875rem;
 	}
 
-	.closed input {
-		accent-color: var(--accent);
+	.status label {
+		min-height: 2rem;
+		padding: 0 0.85rem;
+		font-size: 0.8125rem;
 	}
 
 	.diagnostic,

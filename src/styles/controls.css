@@ -36,11 +36,11 @@
 
 /*
  * One choice out of a few, shown as a segmented control: the current one filled
- * with the accent, the others on a grey track. The header's views and the home
- * page's two ways in are the same idiom, so they are one rule. The current item
- * is whichever the markup already marks for assistive technology — a link's
- * `aria-current`, a tab's `aria-selected` — so the look cannot drift from what
- * a screen reader announces.
+ * with the accent, the others on a grey track. The header's views, the home
+ * page's two ways in and the query's status are the same idiom, so they are one
+ * rule. The current item is whichever the markup already marks for assistive
+ * technology — a link's `aria-current`, a tab's `aria-selected`, a radio's
+ * `checked` — so the look cannot drift from what a screen reader announces.
  */
 .segmented {
 	display: inline-flex;
@@ -69,17 +69,28 @@
 }
 
 .segmented > [aria-current='page'],
-.segmented > [aria-selected='true'] {
+.segmented > [aria-selected='true'],
+.segmented > :has(:checked) {
 	color: var(--on-accent);
 	background: var(--accent);
 	font-weight: 700;
 }
 
+/* A segment that is a radio keeps its input for the keyboard and for assistive
+   technology, out of sight: the segment itself shows the choice. */
+.segmented input[type='radio'] {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
 /*
  * A text field drawn as a pill. The box rather than the input owns the border
  * and the focus ring (see `keyboard.css`), because it also holds what sits
- * beside the input: a glyph on the home page, a prompt and a toggle in the
- * query bar. `:not([type])` leaves that toggle's checkbox alone.
+ * beside the input: a glyph on the home page, a prompt and the status in the
+ * query bar. The ring follows the text field only, so the status, which rings
+ * its own segment, does not light the whole bar as well; `:not([type])` is what
+ * tells the text field from the status's radios.
  */
 .input-pill {
 	background: var(--surface);

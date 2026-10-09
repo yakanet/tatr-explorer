@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
@@ -19,10 +19,17 @@
 	const repo = new RepositoryState();
 	setContext(REPOSITORY, repo);
 
-	// One query too: the charts filter the list and vice versa.
+	// One query too: the charts filter the list and vice versa. A link that
+	// carries a query sets it, so the dashboard's counts and bars can be plain
+	// links; typing rewrites the URL without navigating, so it never comes back
+	// through here to trim the text under the cursor.
 	const query = new QueryState();
-	query.text = page.url.searchParams.get('q') ?? '';
-	query.showClosed = page.url.searchParams.get('closed') === '1';
+	query.read(page.url.searchParams);
+	// Before the new page renders rather than after, so it does not draw once
+	// with the old query only to be filtered again.
+	onNavigate(({ to }) => {
+		if (to) query.read(to.url.searchParams);
+	});
 	setContext(QUERY, query);
 
 	$effect(() => {
@@ -49,28 +56,33 @@
 	 */
 	const repeatable = $derived(openSource(ref)?.repeatable ?? false);
 
-	/** The query travels with the link, so a filtered view stays shareable. */
-	const search = $derived.by(() => {
-		const params = new URLSearchParams();
-		if (query.text.trim()) params.set('q', query.text.trim());
-		if (query.showClosed) params.set('closed', '1');
-		const rendered = params.toString();
-		return rendered ? `?${rendered}` : '';
-	});
-
 	let helping = $state(false);
 
+	/**
+	 * The query travels with the link, so a filtered view stays shareable — but
+	 * each view's address carries only what that view uses (see `searchOf`).
+	 * What a view ignores stays in memory rather than in its URL, and comes back
+	 * with the next view that uses it.
+	 */
 	const views = $derived([
-		{ name: 'Overview', base: resolve('/[...repo]', { repo: path }) },
-		{ name: 'List', base: resolve('/[...repo]/list', { repo: path }) },
-		{ name: 'Board', base: resolve('/[...repo]/board', { repo: path }) },
-		{ name: 'References', base: resolve('/[...repo]/graph', { repo: path }) }
+		{ name: 'Overview', base: resolve('/[...repo]', { repo: path }), search: '' },
+		{
+			name: 'List',
+			base: resolve('/[...repo]/list', { repo: path }),
+			search: query.searchOf('list')
+		},
+		{
+			name: 'Board',
+			base: resolve('/[...repo]/board', { repo: path }),
+			search: query.searchOf('board')
+		},
+		{ name: 'References', base: resolve('/[...repo]/graph', { repo: path }), search: '' }
 	]);
 
 	/** `1`-`9` counts positions in the nav, so an absent view simply does nothing. */
 	function switchTo(index: number) {
 		const view = views[index];
-		if (view) goto(view.base + search);
+		if (view) goto(view.base + view.search);
 	}
 
 	/** Escape closes what is open, in the order a reader would expect. */
@@ -101,7 +113,7 @@
 	<nav class="segmented">
 		{#each views as view (view.base)}
 			<a
-				href={view.base + search}
+				href={view.base + view.search}
 				aria-current={page.url.pathname === view.base ? 'page' : undefined}>{view.name}</a
 			>
 		{/each}

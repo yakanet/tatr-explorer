@@ -6,7 +6,7 @@
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
 	import { tagHue } from '#lib/render/tag-hue.ts';
-	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
+	import { searchFor, type Status } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import {
 		byMonth,
@@ -21,7 +21,6 @@
 	let { data } = $props();
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
-	const query = getContext<QueryState>(QUERY);
 
 	// The dashboard is the whole repository at a glance. Filtering happens in the
 	// list; a chart that filtered itself would leave the reader on a picture to
@@ -45,17 +44,16 @@
 	const maxTag = $derived(Math.max(1, ...tags.map((bucket) => bucket.count)));
 	const maxMonth = $derived(Math.max(1, ...months.map((bucket) => bucket.open + bucket.closed)));
 
+	/** The list showing exactly what a figure counted; the layout reads the query from it. */
+	const listOf = (text: string, status: Status) =>
+		resolve('/[...repo]/list', { repo: formatRepoPath(ref) }) + searchFor(text, status);
+
 	/**
 	 * Clicking a bar means "show me those tasks", so it opens the filtered list —
-	 * open only, matching what the bar counted.
+	 * open only, matching what the bar counted, whatever status was chosen
+	 * before.
 	 */
-	function pick(term: string) {
-		query.text = term;
-		query.showClosed = false;
-		goto(
-			`${resolve('/[...repo]/list', { repo: formatRepoPath(ref) })}?q=${encodeURIComponent(term)}`
-		);
-	}
+	const pick = (term: string) => goto(listOf(term, 'open'));
 
 	const inline = (title: string, taskId: string) =>
 		renderInline(title, { ref, branch: repo.branch, taskId });
@@ -91,21 +89,22 @@
 				</h1>
 			</div>
 			<!-- Each figure keeps one tint wherever it appears, so the colour
-			     says which count it is before the label does. -->
-			<dl class="figures">
-				<div class="closed">
-					<dt>closed</dt>
-					<dd>{stats.closed}</dd>
-				</div>
-				<div class="untagged">
-					<dt>untagged</dt>
-					<dd>{stats.untagged}</dd>
-				</div>
-				<div class="total">
-					<dt>in total</dt>
-					<dd>{stats.total}</dd>
-				</div>
-			</dl>
+			     says which count it is before the label does. Each opens the list
+			     on exactly the tasks it counts, the same number at the top of it:
+			     untagged is counted over every task, so it brings the closed ones. -->
+			<ul class="figures">
+				<li class="closed">
+					<a href={listOf('', 'closed')}><strong>{stats.closed}</strong> <span>closed</span></a>
+				</li>
+				<li class="untagged">
+					<a href={listOf('not tagged', 'all')}
+						><strong>{stats.untagged}</strong> <span>untagged</span></a
+					>
+				</li>
+				<li class="total">
+					<a href={listOf('', 'all')}><strong>{stats.total}</strong> <span>in total</span></a>
+				</li>
+			</ul>
 		</section>
 
 		<div class="charts">
@@ -288,39 +287,46 @@
 		flex-wrap: wrap;
 		gap: 0.625rem;
 		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
-	.figures div {
+	/* A link that does not look like a button: no border, no fill change. It
+	   says so on hover by underlining its label, and on focus by the ring. */
+	.figures a {
 		display: flex;
-		flex-direction: column-reverse;
+		flex-direction: column;
 		align-items: center;
 		min-width: 5.75rem;
 		padding: 0.75rem;
+		font-size: 0.75rem;
+		color: var(--ink-2);
 		border-radius: var(--radius-lg);
 	}
 
-	.figures .closed {
+	.figures a:hover span {
+		color: var(--fg);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.figures .closed a {
 		background: var(--tint-mint);
 	}
 
-	.figures .untagged {
+	.figures .untagged a {
 		background: var(--tint-sky);
 	}
 
-	.figures .total {
+	.figures .total a {
 		background: var(--tint-lilac);
 	}
 
-	.figures dd {
-		margin: 0;
+	.figures strong {
 		font-size: 1.75rem;
 		font-weight: 800;
 		line-height: 1.2;
-	}
-
-	.figures dt {
-		font-size: 0.75rem;
-		color: var(--ink-2);
+		color: var(--fg);
 	}
 
 	.charts {

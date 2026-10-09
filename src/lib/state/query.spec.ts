@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QueryState } from './query.svelte.ts';
+import { QueryState, searchFor } from './query.svelte.ts';
 import { formatDiagnostic } from '../tql/query.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 
@@ -37,10 +37,16 @@ describe('QueryState', () => {
 		).toEqual(['20260101-000001']);
 	});
 
-	it('honours the closed toggle', () => {
+	it('honours the status', () => {
 		const query = withText(':bug');
-		query.showClosed = true;
+		query.status = 'all';
 		expect(query.apply(tasks)).toHaveLength(2);
+	});
+
+	it('lists the closed tasks only, as `tatr ls -c` does', () => {
+		const query = withText('');
+		query.status = 'closed';
+		expect(query.apply(tasks).map((task) => task.id)).toEqual(['20260101-000003']);
 	});
 
 	it('reports a syntax error rather than filtering', () => {
@@ -92,7 +98,7 @@ describe('the ~ term, through the state', () => {
 	it('still hides closed tasks unless asked', () => {
 		const query = withText('~t');
 		expect(query.apply(tasks)).toHaveLength(2);
-		query.showClosed = true;
+		query.status = 'all';
 		expect(query.apply(tasks)).toHaveLength(3);
 	});
 
@@ -121,5 +127,67 @@ describe('the ~ term, through the state', () => {
 
 	it('has a source even when nothing is wrong with it', () => {
 		expect(withText('  :bug  ').source).toBe(':bug');
+	});
+});
+
+describe('the query in a URL', () => {
+	it('writes nothing for an empty query', () => {
+		expect(searchFor('')).toBe('');
+		expect(searchFor('  ')).toBe('');
+	});
+
+	it('writes the status only when given one', () => {
+		expect(searchFor(' not tagged ', 'all')).toBe('?q=not+tagged&status=all');
+		expect(searchFor('', 'closed')).toBe('?status=closed');
+		expect(searchFor(':bug')).toBe('?q=%3Abug');
+		expect(searchFor(':bug', 'open')).toBe('?q=%3Abug&status=open');
+	});
+
+	it("writes the list's status even when open, and the board's never", () => {
+		const query = withText(':bug');
+		expect(query.searchOf('list')).toBe('?q=%3Abug&status=open');
+		query.status = 'closed';
+		expect(query.searchOf('list')).toBe('?q=%3Abug&status=closed');
+		expect(query.searchOf('board')).toBe('?q=%3Abug');
+	});
+
+	it('reads back what it writes', () => {
+		const query = new QueryState();
+		query.read(new URLSearchParams('q=not+tagged&status=all'));
+		expect([query.text, query.status]).toEqual(['not tagged', 'all']);
+	});
+
+	it('clears the text when a URL names a status without one', () => {
+		const query = withText(':bug');
+		query.read(new URLSearchParams('status=closed'));
+		expect([query.text, query.status]).toEqual(['', 'closed']);
+	});
+
+	it('keeps the status through a view that does not use it', () => {
+		// The board's address carries the text alone; coming back to the list
+		// must find the status the reader chose there.
+		const query = withText(':bug');
+		query.status = 'closed';
+		query.read(new URLSearchParams('q=%3Atql'));
+		expect([query.text, query.status]).toEqual([':tql', 'closed']);
+	});
+
+	it('leaves the query alone when the URL carries none', () => {
+		const query = withText(':bug');
+		query.status = 'all';
+		query.read(new URLSearchParams(''));
+		expect([query.text, query.status]).toEqual([':bug', 'all']);
+	});
+
+	it('opens a link from before the status had three values', () => {
+		const query = new QueryState();
+		query.read(new URLSearchParams('q=:bug&closed=1'));
+		expect([query.text, query.status]).toEqual([':bug', 'all']);
+	});
+
+	it('ignores a status it does not know', () => {
+		const query = new QueryState();
+		query.read(new URLSearchParams('status=done'));
+		expect(query.status).toBe('open');
 	});
 });

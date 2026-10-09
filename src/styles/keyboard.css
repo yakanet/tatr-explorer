@@ -11,7 +11,8 @@
  * override it.
  */
 :focus-visible,
-.input-pill:focus-within {
+.input-pill:has(input:not([type]):focus),
+.segmented > :has(:focus-visible) {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }

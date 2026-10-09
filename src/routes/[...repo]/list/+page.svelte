@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -25,12 +25,14 @@
 			// Priority descending, as `tatr ls` does by default.
 			.toSorted((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
 	);
-	const pool = $derived(query.showClosed ? repo.tasks.length : repo.open.length);
+	// What the status admits, before the text narrows it.
+	const admitted = $derived(query.pool(repo.tasks));
+	const pool = $derived(admitted.length);
 
 	// Counted over what the reader is actually looking at, so the tally beside a
 	// tag agrees with the list they get by picking it.
 	const tagOptions = $derived(
-		byTag(query.showClosed ? repo.tasks : repo.open).map(({ tag, count }) => ({
+		byTag(admitted).map(({ tag, count }) => ({
 			name: tag,
 			description: repo.tags.descriptions.get(tag),
 			count
@@ -39,12 +41,14 @@
 
 	function syncUrl() {
 		const url = new URL(page.url.href);
-		if (query.text.trim()) url.searchParams.set('q', query.text.trim());
-		else url.searchParams.delete('q');
-		if (query.showClosed) url.searchParams.set('closed', '1');
-		else url.searchParams.delete('closed');
+		url.search = query.searchOf('list');
 		replaceState(url, page.state);
 	}
+
+	// An address that arrived without a status — typed, or from before there was
+	// one — is rewritten to carry the status in force, so coming back to it
+	// through history shows what was shown rather than whatever was chosen since.
+	onMount(syncUrl);
 
 	function toggleTag(tag: string) {
 		query.toggle(`:${tag}`);

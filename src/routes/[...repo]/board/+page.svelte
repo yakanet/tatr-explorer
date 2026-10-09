@@ -45,8 +45,7 @@
 
 	function syncUrl() {
 		const url = new URL(page.url.href);
-		if (query.text.trim()) url.searchParams.set('q', query.text.trim());
-		else url.searchParams.delete('q');
+		url.search = query.searchOf('board');
 		replaceState(url, page.state);
 	}
 
@@ -62,7 +61,7 @@
 </svelte:head>
 
 <main>
-	<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} closedToggle={false} />
+	<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} chooseStatus={false} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
