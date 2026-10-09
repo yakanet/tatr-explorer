@@ -106,99 +106,112 @@
 	}
 </script>
 
-<div class="bar input-pill" class:invalid={query.error !== null}>
-	<span class="prompt">&gt;</span>
-	<div class="field">
-		<input
-			bind:this={field}
-			bind:value={query.text}
-			oninput={typed}
-			onclick={track}
-			onkeyup={track}
-			{onkeydown}
-			onblur={() => (dismissed = true)}
-			placeholder="any"
-			spellcheck="false"
-			autocapitalize="off"
-			autocorrect="off"
-			autocomplete="off"
-			aria-label="Query"
-			data-key-search
-			role="combobox"
-			aria-expanded={found !== null}
-			aria-controls="query-completions"
-			aria-activedescendant={found ? `completion-${selected}` : undefined}
-		/>
+<div class="query">
+	<div class="bar input-pill" class:invalid={query.error !== null}>
+		<span class="prompt">&gt;</span>
+		<div class="field">
+			<input
+				bind:this={field}
+				bind:value={query.text}
+				oninput={typed}
+				onclick={track}
+				onkeyup={track}
+				{onkeydown}
+				onblur={() => (dismissed = true)}
+				placeholder="any"
+				spellcheck="false"
+				autocapitalize="off"
+				autocorrect="off"
+				autocomplete="off"
+				aria-label="Query"
+				data-key-search
+				role="combobox"
+				aria-expanded={found !== null}
+				aria-controls="query-completions"
+				aria-activedescendant={found ? `completion-${selected}` : undefined}
+			/>
 
-		{#if found}
-			<div class="menu">
-				<ul id="query-completions" role="listbox" aria-label="Completions">
-					{#each found.items as item, i (item.value)}
-						<li
-							id="completion-{i}"
-							role="option"
-							aria-selected={i === selected}
-							class:active={i === selected}
-						>
-							<!-- Pointer down rather than click: the field blurs first
-							     otherwise, which closes the menu before the click lands. -->
-							<button type="button" onpointerdown={() => accept(item.value)}>
-								<span class="value mono" class:keyword={item.kind === 'keyword'}>{item.value}</span>
-								<span class="detail">{item.detail}</span>
-								{#if item.count !== undefined}<span class="tally mono">{item.count}</span>{/if}
-							</button>
-						</li>
-					{/each}
-				</ul>
+			{#if found}
+				<div class="menu">
+					<ul id="query-completions" role="listbox" aria-label="Completions">
+						{#each found.items as item, i (item.value)}
+							<li
+								id="completion-{i}"
+								role="option"
+								aria-selected={i === selected}
+								class:active={i === selected}
+							>
+								<!-- Pointer down rather than click: the field blurs first
+								     otherwise, which closes the menu before the click lands. -->
+								<button type="button" onpointerdown={() => accept(item.value)}>
+									<span class="value mono" class:keyword={item.kind === 'keyword'}
+										>{item.value}</span
+									>
+									<span class="detail">{item.detail}</span>
+									{#if item.count !== undefined}<span class="tally mono">{item.count}</span>{/if}
+								</button>
+							</li>
+						{/each}
+					</ul>
 
-				<!-- The grammar is small enough to print in full, which saves the
-				     reader guessing that comparisons are words and groups are
-				     brackets. -->
-				<p class="grammar mono">~word &nbsp; priority lt 50 &nbsp; not tagged &nbsp; [ a or b ]</p>
-				<!-- Said out loud, because a menu that answers the keyboard and never
-				     says so is a menu people reach for with the mouse. -->
-				<p class="keys">
-					<kbd>↑</kbd><kbd>↓</kbd> choose <kbd>⏎</kbd> insert <kbd>esc</kbd> close
-				</p>
-				{#if found.items.some((item) => item.kind === 'tag' && item.detail)}
-					<p class="source">Tag descriptions come from <code>tasks/tags</code></p>
-				{/if}
-			</div>
+					<!-- The grammar is small enough to print in full, which saves the
+					     reader guessing that comparisons are words and groups are
+					     brackets. -->
+					<p class="grammar mono">
+						~word &nbsp; priority lt 50 &nbsp; not tagged &nbsp; [ a or b ]
+					</p>
+					<!-- Said out loud, because a menu that answers the keyboard and never
+					     says so is a menu people reach for with the mouse. -->
+					<p class="keys">
+						<kbd>↑</kbd><kbd>↓</kbd> choose <kbd>⏎</kbd> insert <kbd>esc</kbd> close
+					</p>
+					{#if found.items.some((item) => item.kind === 'tag' && item.detail)}
+						<p class="source">Tag descriptions come from <code>tasks/tags</code></p>
+					{/if}
+				</div>
+			{/if}
+		</div>
+		<span class="count"
+			><strong>{matched}</strong> matched <span class="of">/ {pool} shown</span></span
+		>
+		{#if closedToggle}
+			<label class="closed">
+				<input type="checkbox" bind:checked={query.showClosed} {onchange} />
+				closed
+			</label>
 		{/if}
 	</div>
-	<span class="count"
-		><strong>{matched}</strong> matched <span class="of">/ {pool} shown</span></span
-	>
-	{#if closedToggle}
-		<label class="closed">
-			<input type="checkbox" bind:checked={query.showClosed} {onchange} />
-			closed
-		</label>
+
+	{#if query.error}
+		<!-- The help and the source line read in grey, the message alone in the
+		     danger colour: it is the one line that says what to change. -->
+		{@const report = formatDiagnostic(query.source, query.error)}
+		{@const cut = report.lastIndexOf('\n') + 1}
+		<pre class="diagnostic">{report.slice(0, cut)}<span class="message">{report.slice(cut)}</span
+			></pre>
+	{:else if query.warnings.length > 0}
+		<p class="warning">{query.warnings[0].message}</p>
 	{/if}
 </div>
 
-{#if query.error}
-	<!-- The help and the source line read in grey, the message alone in the
-	     danger colour: it is the one line that says what to change. -->
-	{@const report = formatDiagnostic(query.source, query.error)}
-	{@const cut = report.lastIndexOf('\n') + 1}
-	<pre class="diagnostic">{report.slice(0, cut)}<span class="message">{report.slice(cut)}</span
-		></pre>
-{:else if query.warnings.length > 0}
-	<p class="warning">{query.warnings[0].message}</p>
-{/if}
-
 <style>
-	/* A pill like the header above it, so the query reads as a thing to hold
-	   rather than a band across the page. */
+	/* The query is a control of the view rather than of the site, so it sits in
+	   the view's column: as wide as what it filters, and nearer to it than to
+	   the header, which spans the page. Two bars of one width, one under the
+	   other, read as the same thing said twice. */
+	.query {
+		display: grid;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
 	.bar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem 0.75rem;
 		min-height: 3rem;
-		margin: 0.75rem 1.5rem 0;
-		padding: 0.25rem 0.5rem 0.25rem 1.1rem;
+		padding: 0.25rem 1.1rem;
 	}
 
 	.bar.invalid {
@@ -326,8 +339,10 @@
 		color: var(--muted);
 	}
 
-	/* The CLI's `-c`, as a chip the size of a thumb. */
+	/* The CLI's `-c`, as a chip the size of a thumb, pulled into the bar's
+	   padding so its curve stays concentric with the bar's. */
 	.closed {
+		margin-right: -0.6rem;
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
@@ -346,7 +361,7 @@
 
 	.diagnostic,
 	.warning {
-		margin: 0.5rem 1.5rem 0;
+		margin: 0;
 		padding: 0.85rem 1.1rem;
 		font-family: var(--font-mono);
 		font-size: 0.8125rem;

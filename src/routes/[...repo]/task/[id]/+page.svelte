@@ -233,7 +233,6 @@
 <style>
 	main {
 		max-width: 70rem;
-		padding: 1.75rem 1.5rem 3rem;
 		display: grid;
 		grid-template-columns: 1fr 18rem;
 		gap: var(--card-gap);

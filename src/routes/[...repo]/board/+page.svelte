@@ -61,9 +61,8 @@
 	<title>{repo.name} — board</title>
 </svelte:head>
 
-<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} closedToggle={false} />
-
 <main>
+	<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} closedToggle={false} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
@@ -119,7 +118,7 @@
 <style>
 	main {
 		max-width: 84rem;
-		padding: 1.5rem 1.5rem 4rem;
+		padding-bottom: 4rem;
 	}
 
 	.board {

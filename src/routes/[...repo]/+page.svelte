@@ -236,7 +236,6 @@
 <style>
 	main {
 		max-width: 64rem;
-		padding: 1.75rem 1.5rem 3rem;
 		display: flex;
 		flex-direction: column;
 		gap: var(--card-gap);

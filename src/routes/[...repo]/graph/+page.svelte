@@ -249,7 +249,7 @@
 <style>
 	main {
 		max-width: 68rem;
-		padding: 1.75rem 1.5rem 4rem;
+		padding-bottom: 4rem;
 	}
 
 	.masthead {

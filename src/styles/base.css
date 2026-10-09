@@ -59,8 +59,11 @@ h1 {
 	letter-spacing: -0.02em;
 }
 
-/* Every view centres one column and chooses its own width, so only the
-   centring is shared. */
+/* Every view centres one column and chooses its own width. The distance from
+   the header and the side gutter are shared, so switching views does not move
+   the first thing under the header; the home and error pages, which have no
+   header, set their own. */
 main {
 	margin: 0 auto;
+	padding: 1.75rem 1.5rem 3rem;
 }

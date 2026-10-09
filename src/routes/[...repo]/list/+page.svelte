@@ -62,9 +62,8 @@
 	<title>{repo.name} — list</title>
 </svelte:head>
 
-<QueryBar {query} matched={visible.length} {pool} tags={tagOptions} onchange={syncUrl} />
-
 <main>
+	<QueryBar {query} matched={visible.length} {pool} tags={tagOptions} onchange={syncUrl} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
@@ -144,7 +143,6 @@
 <style>
 	main {
 		max-width: 70rem;
-		padding: 1.25rem 1.5rem 3rem;
 	}
 
 	/* A card like every other surface, holding the table so the table can be
