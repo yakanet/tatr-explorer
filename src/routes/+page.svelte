@@ -73,9 +73,9 @@
 		goto(resolve('/[...repo]', { repo: formatRepoPath(ref) }));
 	}
 
-	/** "64 tasks, 23 still open", or what the reference repository is. */
+	/** "64 tasks, 23 still open", or why the fallback is offered. */
 	function describe(one: Suggestion): string {
-		if (one.storedAt === null) return 'The reference implementation';
+		if (one.storedAt === null) return "This viewer's own backlog";
 		const tasks = `${one.total} ${one.total === 1 ? 'task' : 'tasks'}`;
 		return one.open === 0 ? `${tasks}, all closed` : `${tasks}, ${one.open} still open`;
 	}

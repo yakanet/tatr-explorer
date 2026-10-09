@@ -3,8 +3,9 @@
  *
  * A reader who has opened three is far likelier to want a fourth visit than a
  * first one, so the cache is the list — and the counts a card shows are already
- * in it, which means a card costs no request at all. With nothing cached, the
- * reference implementation is the one repository certain to be worth showing.
+ * in it, which means a card costs no request at all. With nothing cached, this
+ * project's own repository is offered: it is certain to exist and to follow the
+ * layout, since it tracks its own work with tatr.
  *
  * Kept apart from the page so that turning cache rows into cards can be
  * asserted: the parsing of a key, the counting, the fallback and the order.
@@ -26,8 +27,8 @@ export interface Suggestion {
 	storedAt: number | null;
 }
 
-/** The repository the format comes from, shown when the cache is empty. */
-export const REFERENCE: RepoRef = { host: 'github.com', owner: 'tsoding', name: 'tatr' };
+/** This project's own repository, offered when the cache is empty. */
+export const FALLBACK: RepoRef = { host: 'github.com', owner: 'yakanet', name: 'tatr-explorer' };
 
 /**
  * A cache key back into a reference.
@@ -65,5 +66,5 @@ export function toSuggestions(
 
 	if (found.length > 0) return found;
 
-	return [{ ref: REFERENCE, path: format(REFERENCE), total: 0, open: 0, storedAt: null }];
+	return [{ ref: FALLBACK, path: format(FALLBACK), total: 0, open: 0, storedAt: null }];
 }

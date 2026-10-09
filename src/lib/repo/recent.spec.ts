@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatRepoPath } from './ref.ts';
-import { parseKey, REFERENCE, toSuggestions, type CachedShape } from './recent.ts';
+import { parseKey, FALLBACK, toSuggestions, type CachedShape } from './recent.ts';
 
 const row = (key: string, closed: number, open: number, storedAt = 1) => ({
 	key,
@@ -17,25 +17,25 @@ const suggest = (rows: ReturnType<typeof row>[]) => toSuggestions(rows, formatRe
 
 describe('parseKey', () => {
 	it('reads back what repoKey writes', () => {
-		expect(parseKey('github.com/tsoding/tatr@')).toEqual({
+		expect(parseKey('github.com/owner/repo@')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr'
+			owner: 'owner',
+			name: 'repo'
 		});
 	});
 
 	it('keeps a branch', () => {
-		expect(parseKey('github.com/tsoding/tatr@dev')).toEqual({
+		expect(parseKey('github.com/owner/repo@dev')).toEqual({
 			host: 'github.com',
-			owner: 'tsoding',
-			name: 'tatr',
+			owner: 'owner',
+			name: 'repo',
 			branch: 'dev'
 		});
 	});
 
 	it('keeps a branch containing slashes', () => {
 		// Splitting on the last segment would have lost half of this.
-		expect(parseKey('github.com/tsoding/tatr@feature/web-ui')?.branch).toBe('feature/web-ui');
+		expect(parseKey('github.com/owner/repo@feature/web-ui')?.branch).toBe('feature/web-ui');
 	});
 
 	it('gives up on a key it cannot read', () => {
@@ -46,10 +46,10 @@ describe('parseKey', () => {
 
 describe('toSuggestions', () => {
 	it('counts what each cached repository holds', () => {
-		expect(suggest([row('github.com/tsoding/tatr@', 41, 23)])).toEqual([
+		expect(suggest([row('github.com/owner/repo@', 41, 23)])).toEqual([
 			{
-				ref: { host: 'github.com', owner: 'tsoding', name: 'tatr' },
-				path: 'tsoding/tatr',
+				ref: { host: 'github.com', owner: 'owner', name: 'repo' },
+				path: 'owner/repo',
 				total: 64,
 				open: 23,
 				storedAt: 1
@@ -64,10 +64,10 @@ describe('toSuggestions', () => {
 
 	it('shows a branch in the path, so two views of one repository differ', () => {
 		const found = suggest([
-			row('github.com/tsoding/tatr@', 0, 1),
-			row('github.com/tsoding/tatr@dev', 0, 1)
+			row('github.com/owner/repo@', 0, 1),
+			row('github.com/owner/repo@dev', 0, 1)
 		]);
-		expect(found.map((one) => one.path)).toEqual(['tsoding/tatr', 'tsoding/tatr@dev']);
+		expect(found.map((one) => one.path)).toEqual(['owner/repo', 'owner/repo@dev']);
 	});
 
 	it('skips a key it cannot read rather than offering a dead card', () => {
@@ -75,9 +75,9 @@ describe('toSuggestions', () => {
 		expect(found.map((one) => one.path)).toEqual(['a/one']);
 	});
 
-	it('falls back to the reference implementation on an empty cache', () => {
+	it("falls back to this project's own repository on an empty cache", () => {
 		expect(suggest([])).toEqual([
-			{ ref: REFERENCE, path: 'tsoding/tatr', total: 0, open: 0, storedAt: null }
+			{ ref: FALLBACK, path: formatRepoPath(FALLBACK), total: 0, open: 0, storedAt: null }
 		]);
 	});
 
