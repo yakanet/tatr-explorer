@@ -37,7 +37,7 @@ jobs:
 
       - name: Build
         env:
-          # The site is served from https://github.broutin.dev/tatr-dashboard
+          # The site is served from https://github.broutin.dev/<repository name>
           BASE_PATH: '/${{ github.event.repository.name }}'
         run: pnpm run build
 

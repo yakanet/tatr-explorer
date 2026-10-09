@@ -66,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>{repo.name} — tatr dashboard</title>
+	<title>{repo.name} — overview</title>
 </svelte:head>
 
 <main>

@@ -4,8 +4,8 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 /**
- * The site is served from https://github.broutin.dev/tatr-dashboard rather than
- * from the root, so the deploy workflow passes the repository name as
+ * The site is served from https://github.broutin.dev/<repository name> rather
+ * than from the root, so the deploy workflow passes the repository name as
  * `BASE_PATH`.
  *
  * That domain belongs to the account rather than to this project: it is set on

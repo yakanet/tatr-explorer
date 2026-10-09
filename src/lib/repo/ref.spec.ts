@@ -138,11 +138,11 @@ describe('a folder on this machine', () => {
 	});
 
 	it('keeps the folder name out of the URL, which nobody else could follow', () => {
-		expect(formatRepoPath(localRef('tatr-site'))).toBe('local');
+		expect(formatRepoPath(localRef('my-project'))).toBe('local');
 	});
 
 	it('reads on screen as the folder name, having no owner to qualify it', () => {
-		expect(describeRef(localRef('tatr-site'))).toBe('tatr-site');
+		expect(describeRef(localRef('my-project'))).toBe('my-project');
 		expect(describeRef(localRef())).toBe('a folder on this machine');
 		expect(describeRef(parseRepoPath('tsoding/tatr')!)).toBe('tsoding/tatr');
 	});

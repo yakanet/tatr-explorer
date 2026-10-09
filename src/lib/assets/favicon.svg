@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-	<title>tatr dashboard</title>
+	<title>tatr explorer</title>
 	<!-- Three task lines and an open bullet: the format is a list of folders,
 	     and an unfilled circle is how this viewer draws a task still open. -->
 	<g fill="none" stroke="#9b2fae" stroke-width="3.2" stroke-linecap="round">

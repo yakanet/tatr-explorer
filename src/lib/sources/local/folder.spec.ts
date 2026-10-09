@@ -84,8 +84,8 @@ describe('isWorthKeeping', () => {
 
 describe('fromFileList', () => {
 	it('takes the folder name from the paths, there being no handle to ask', () => {
-		const folder = fromFileList([entry('tatr-site/tasks/20260101-000001/TASK.md')]);
-		expect(folder?.name).toBe('tatr-site');
+		const folder = fromFileList([entry('my-project/tasks/20260101-000001/TASK.md')]);
+		expect(folder?.name).toBe('my-project');
 		expect([...(folder?.files.keys() ?? [])]).toEqual(['tasks/20260101-000001/TASK.md']);
 	});
 
@@ -115,7 +115,7 @@ describe('fromFileList', () => {
 describe('fromDirectoryHandle', () => {
 	it('walks down to the task files', async () => {
 		const folder = await fromDirectoryHandle(
-			directory('tatr-site', {
+			directory('my-project', {
 				'tasks/20260101-000001/TASK.md': '# a\n',
 				'tasks/20260101-000001/shot.png': 'png',
 				'tasks/tags': 'ui , screens\n',
@@ -123,7 +123,7 @@ describe('fromDirectoryHandle', () => {
 				'src/app.css': 'body{}'
 			})
 		);
-		expect(folder.name).toBe('tatr-site');
+		expect(folder.name).toBe('my-project');
 		expect([...folder.files.keys()].toSorted()).toEqual([
 			'.git/HEAD',
 			'tasks/20260101-000001/TASK.md',
@@ -362,7 +362,7 @@ function entryTree(name: string, tree: Record<string, string>, page = 2): FileSy
 describe('fromDirectoryEntry', () => {
 	it('reads a dropped repository', async () => {
 		const folder = await fromDirectoryEntry(
-			entryTree('tatr-site', {
+			entryTree('my-project', {
 				'tasks/20260101-000001/TASK.md': '# a\n',
 				'tasks/20260101-000002/TASK.md': '# b\n',
 				'tasks/tags': 'ui , screens\n',
@@ -370,7 +370,7 @@ describe('fromDirectoryEntry', () => {
 				'src/app.css': 'body{}'
 			})
 		);
-		expect(folder.name).toBe('tatr-site');
+		expect(folder.name).toBe('my-project');
 		expect([...folder.files.keys()].toSorted()).toEqual([
 			'.git/HEAD',
 			'tasks/20260101-000001/TASK.md',

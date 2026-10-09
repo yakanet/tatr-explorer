@@ -6,9 +6,9 @@ import { closeFolder, openFolder } from './local/kind.ts';
 
 const refs: RepoRef[] = [
 	parseRepoPath('tsoding/tatr')!,
-	parseRepoPath('yakanet/tatr-dashboard@main')!,
+	parseRepoPath('owner/repo@main')!,
 	parseRepoPath('gitlab.com/group/project')!,
-	localRef('tatr-site')
+	localRef('my-project')
 ];
 
 describe('the registry', () => {

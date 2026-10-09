@@ -25,8 +25,8 @@ To decide before writing it:
 - **Updates.** A worker serving the old build after a deploy is the classic
   trap. SvelteKit 3 checks for a new version on focus and every hour by default;
   the worker has to step aside when it finds one.
-- **The base path and the fallback.** The site lives under `/tatr-dashboard`,
-  and `404.html` is the shell every repository address is served from. Offline,
+- **The base path and the fallback.** The site lives under the repository's
+  name, and `404.html` is the shell every repository address is served from. Offline,
   the worker has to answer those addresses with that shell, or a deep link opens
   on the browser's own error page.
 

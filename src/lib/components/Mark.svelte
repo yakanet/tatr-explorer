@@ -1,6 +1,8 @@
 <script lang="ts">
 	// The logo, inline rather than an <img>, so it takes the accent from the
-	// theme it is drawn in and needs no request of its own.
+	// theme it is drawn in and needs no request of its own. It always sits beside
+	// the name in text, so it is hidden from screen readers rather than labelled:
+	// a label would have them read the name twice.
 	let { size = 22 }: { size?: number } = $props();
 </script>
 
@@ -8,8 +10,7 @@
 	viewBox="0 0 32 32"
 	width={size}
 	height={size}
-	role="img"
-	aria-label="tatr dashboard"
+	aria-hidden="true"
 	fill="none"
 	stroke="currentColor"
 	stroke-width="3.2"

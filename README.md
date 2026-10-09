@@ -1,21 +1,21 @@
 <div align="center">
 
-# tatr dashboard
+# tatr explorer
 
 **Any repository's `tasks/` folder, read like an issue tracker.**<br>
 In the browser. No server, no backend, no clone.
 
-[**Open it →**](https://github.broutin.dev/tatr-dashboard) &nbsp;·&nbsp;
-[Watch it read its own backlog](https://github.broutin.dev/tatr-dashboard/yakanet/tatr-dashboard) &nbsp;·&nbsp;
+[**Open it →**](https://github.broutin.dev/tatr-explorer) &nbsp;·&nbsp;
+[Watch it read its own backlog](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer) &nbsp;·&nbsp;
 [What is tatr?](https://github.com/tsoding/tatr)
 
-[![Deploy](https://github.com/yakanet/tatr-dashboard/actions/workflows/deploy.yml/badge.svg)](https://github.com/yakanet/tatr-dashboard/actions/workflows/deploy.yml)
+[![Deploy](https://github.com/yakanet/tatr-explorer/actions/workflows/deploy.yml/badge.svg)](https://github.com/yakanet/tatr-explorer/actions/workflows/deploy.yml)
 
 </div>
 
-![The dashboard reading this repository](docs/overview.jpg)
+![tatr explorer reading this repository](docs/overview.jpg)
 
-<div align="center"><sub>Reading <a href="https://github.com/yakanet/tatr-dashboard"><code>yakanet/tatr-dashboard</code></a>, this repository, which tracks its own work with tatr.</sub></div>
+<div align="center"><sub>Reading <a href="https://github.com/yakanet/tatr-explorer"><code>yakanet/tatr-explorer</code></a>, this repository, which tracks its own work with tatr.</sub></div>
 
 ## Your tasks already live in git. Now you can see them.
 
@@ -33,14 +33,14 @@ Paste a repository name. That is the entire setup.
 The repository _is_ the route, so anything you are looking at can be sent to
 someone else and land them exactly there.
 
-| URL                                            | Shows                                                 |
-| ---------------------------------------------- | ----------------------------------------------------- |
-| `/yakanet/tatr-dashboard`                      | the dashboard for `github.com/yakanet/tatr-dashboard` |
-| `/yakanet/tatr-dashboard@main`                 | the same repository, pinned to a branch by name       |
-| `/yakanet/tatr-dashboard/list?q=:ui`           | the task list, filtered                               |
-| `/yakanet/tatr-dashboard/task/20260906-211234` | one task, rendered                                    |
-| `/yakanet/tatr-dashboard/board`                | backlog, in progress, done                            |
-| `/yakanet/tatr-dashboard/graph`                | which tasks cite which, a card per pivot task         |
+| URL                                           | Shows                                              |
+| --------------------------------------------- | -------------------------------------------------- |
+| `/yakanet/tatr-explorer`                      | the overview of `github.com/yakanet/tatr-explorer` |
+| `/yakanet/tatr-explorer@main`                 | the same repository, pinned to a branch by name    |
+| `/yakanet/tatr-explorer/list?q=:ui`           | the task list, filtered                            |
+| `/yakanet/tatr-explorer/task/20260906-211234` | one task, rendered                                 |
+| `/yakanet/tatr-explorer/board`                | backlog, in progress, done                         |
+| `/yakanet/tatr-explorer/graph`                | which tasks cite which, a card per pivot task      |
 
 Nothing to sign in to, nothing to configure, no repository to register first.
 
@@ -220,7 +220,7 @@ pnpm run dev
 ```sh
 pnpm run check                            # svelte-check, kept at zero errors
 pnpm test                                 # the full suite
-BASE_PATH=/tatr-dashboard pnpm run build  # what CI builds
+BASE_PATH=/tatr-explorer pnpm run build   # what CI builds
 ```
 
 Deploying is a push to `main`: the workflow type-checks, runs the tests, builds
@@ -232,7 +232,7 @@ fallback.
 
 This repository keeps its own work in its own `tasks/` folder, in the tatr
 format — which is why every example above is a live URL. Open
-[`/yakanet/tatr-dashboard`](https://github.broutin.dev/tatr-dashboard/yakanet/tatr-dashboard)
+[`/yakanet/tatr-explorer`](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer)
 and you are reading the backlog of the thing you are reading it with. Its tags
 are documented in `tasks/tags`, exactly as tatr expects:
 
@@ -246,7 +246,7 @@ infra , build, deploy and tooling
 ```
 
 What comes next is not listed here, where it would go stale. It is
-[whatever is open](https://github.broutin.dev/tatr-dashboard/yakanet/tatr-dashboard/list),
+[whatever is open](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer/list),
 highest priority first.
 
 ## Credits

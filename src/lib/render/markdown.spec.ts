@@ -124,14 +124,13 @@ describe('task ids in a body', () => {
 	const KNOWN = new Set(['20260907-011003', '20260826-200847', '20260907-011003-b']);
 	const linking = {
 		...options,
-		taskUrl: (id: string) =>
-			id !== options.taskId && KNOWN.has(id) ? `/tatr-dashboard/t/${id}` : null
+		taskUrl: (id: string) => (id !== options.taskId && KNOWN.has(id) ? `/base/t/${id}` : null)
 	};
 	const link = (source: string) => renderMarkdown(source, linking);
 
 	it('links an id the repository has, leaving the sentence around it', () => {
 		expect(link('depends on 20260907-011003 first')).toBe(
-			'<p>depends on <a href="/tatr-dashboard/t/20260907-011003">20260907-011003</a> first</p>\n'
+			'<p>depends on <a href="/base/t/20260907-011003">20260907-011003</a> first</p>\n'
 		);
 	});
 

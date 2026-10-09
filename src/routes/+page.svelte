@@ -82,7 +82,7 @@
 </script>
 
 <svelte:head>
-	<title>tatr dashboard</title>
+	<title>tatr explorer</title>
 </svelte:head>
 
 <!-- The page a reader arrives on was the only one without a keyboard. There is
@@ -100,9 +100,9 @@
 {/if}
 
 <main>
-	<p class="brand"><Mark size={26} /> <span>tatr dashboard</span></p>
+	<p class="brand"><Mark size={26} /> <span>tatr explorer</span></p>
 
-	<h1>Read any <code class="highlight">tasks/</code> folder as a dashboard.</h1>
+	<h1>Explore any <code class="highlight">tasks/</code> folder.</h1>
 	<p class="lead">
 		Point it at any repository that follows the
 		<a href="https://github.com/tsoding/tatr">tatr</a> layout, or at a folder on this machine. Nothing
