@@ -97,12 +97,15 @@
 
 /* A task id beside its title: small and quiet, the title being what is read.
    Code, but not in a well — a column of wells would be louder than the
-   titles. */
+   titles. Never broken at its hyphen: half an id is not an id, and beside a
+   long title the browser would otherwise take the room from it rather than
+   from the words, which can wrap. */
 .id {
 	padding: 0;
 	font-size: 0.75rem;
 	color: var(--muted);
 	background: none;
+	white-space: nowrap;
 }
 
 /* What a view says when a query matches nothing. */
