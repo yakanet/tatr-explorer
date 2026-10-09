@@ -2,7 +2,7 @@
 
 - STATUS: OPEN
 - PRIORITY: 90
-- TAGS: format
+- TAGS: format,scope
 
 `is_valid_huid` in `src/huid.c` checks the shape of a folder name and nothing
 else: eight digits, a dash, six digits, an optional suffix. `src/task.c` loads

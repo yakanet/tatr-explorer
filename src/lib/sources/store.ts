@@ -132,12 +132,23 @@ function openDatabase(): Promise<IDBDatabase> {
 	});
 }
 
+let shared: RepoStore | null = null;
+
 /**
  * The persistent store, falling back to memory wherever IndexedDB cannot be
  * used. Failures are silent by design: the cache is an optimisation, and a
  * visitor with storage disabled should still see their repository.
+ *
+ * One per page. The loader and the homepage each ask for it, and a store
+ * apiece would give each its own fallback: with IndexedDB unavailable, what a
+ * load wrote went into a memory nobody read again, and the homepage listed
+ * nothing.
  */
 export function openStore(): RepoStore {
+	return (shared ??= persistentStore());
+}
+
+function persistentStore(): RepoStore {
 	const fallback = memoryStore();
 	let db: Promise<IDBDatabase> | null = null;
 

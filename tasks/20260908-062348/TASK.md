@@ -1,8 +1,8 @@
 # Audit the code for complexity, gaps and simplifications
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 60
-- TAGS: infra,ui,scope
+- TAGS: infra,ui
 
 Asked because the code felt like too much of it. Four read-only reviews ran over
 the views, the source layer, the domain libraries and the test suite; every claim
@@ -219,3 +219,27 @@ query invocations against the fixtures, the 60 requests an hour, `1`-`4`
 switching among exactly four views, the `404.html` the build emits, and every
 query in the table appearing in the CLI replay.
 
+
+---
+
+Closed, after checking each defect of the opening list against the code rather
+than against this journal, which had stopped accounting for two of them.
+
+**"Reading the body…" could stick** was fixed in 655107e, the commit that opened
+this task, along with the list explaining the wrong tag.
+
+**The cache's memory fallback was still rebuilt per call.** `openStore()` made a
+new store each time it was asked, the loader asked once per load and the
+homepage once more, so with IndexedDB unavailable every write went into a memory
+nobody read again and the homepage listed nothing — exactly as reported. There is
+one store per page now, and the test that says so fails without it. It also
+stops each load from opening its own IndexedDB connection.
+
+**The `AbortSignal` still does not reach a local folder, and stays that way.** The
+folder's reads are of files the browser has already handed over, the source has
+no cache key so nothing is written, and the repository state checks the signal
+before taking a result. Stopping those reads would save milliseconds of work
+whose outcome is already thrown away.
+
+What remains of the audit is the view tests, which were already
+20260906-232421.

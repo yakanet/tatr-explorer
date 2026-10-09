@@ -69,6 +69,12 @@ describe('openStore', () => {
 		await store.clear();
 		expect(await store.read('k')).toBeNull();
 	});
+
+	it('is one store per page, so what a load writes the homepage can list', async () => {
+		await openStore().write('k', { ok: true });
+		expect((await openStore().list()).map((row) => row.key)).toEqual(['k']);
+		await openStore().clear();
+	});
 });
 
 /**
