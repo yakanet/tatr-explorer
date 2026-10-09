@@ -2,7 +2,7 @@
 
 - STATUS: OPEN
 - PRIORITY: 60
-- TAGS: ui,tql
+- TAGS: ui,tql,scope
 
 The whole claim of this viewer is that a query means the same thing here as in
 the terminal, and the only place that claim is written down is the README. Put

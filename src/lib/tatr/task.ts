@@ -31,7 +31,8 @@ export function extractReferences(taskMd: string, selfId?: string): string[] {
 export interface Task {
 	/** Folder name, which is also the creation timestamp. */
 	id: string;
-	created: Date;
+	/** `null` when the id's digits are no real instant. */
+	created: Date | null;
 	/** Team suffix, when the id carries one. */
 	suffix?: string;
 	title: string;

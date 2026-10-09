@@ -120,11 +120,13 @@
 			<div class="meta">
 				<span class="status" class:closed={task.closed}>{task.status}</span>
 				<span class="prio">priority {task.priority}</span>
-				<span class="muted">·</span>
-				<span class="muted">
-					created {task.created.toISOString().slice(0, 10)}
-					{task.created.toISOString().slice(11, 16)} UTC
-				</span>
+				{#if task.created}
+					<span class="muted">·</span>
+					<span class="muted">
+						created {task.created.toISOString().slice(0, 10)}
+						{task.created.toISOString().slice(11, 16)} UTC
+					</span>
+				{/if}
 			</div>
 
 			<h1>{@html inline(task.title)}</h1>

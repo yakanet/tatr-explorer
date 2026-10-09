@@ -5,9 +5,12 @@
  * suffix of alphanumerics and dashes, which teams use to keep ids unique when
  * they generate them in parallel branches.
  *
- * Because the id *is* a timestamp, every task has a creation date without a
- * single extra request. The format is the one `src/huid.c` defines; what is
- * written here follows its behaviour, which the spec pins case by case.
+ * Because the id *is* a timestamp, a task has a creation date without a single
+ * extra request — when its digits form a real instant. The CLI writes them from
+ * the clock but never reads them back, so `20260231-000000` is a task to it like
+ * any other, and is one here too, without a date. The format is the one
+ * `src/huid.c` defines; what is written here follows its behaviour, which the
+ * spec pins case by case.
  */
 
 const HUID = /^(\d{8})-(\d{6})(?:-([A-Za-z0-9-]*))?$/;
@@ -15,24 +18,23 @@ const HUID = /^(\d{8})-(\d{6})(?:-([A-Za-z0-9-]*))?$/;
 export interface Huid {
 	/** The full id, as it appears on disk. */
 	id: string;
-	/** Creation instant, read as UTC. */
-	created: Date;
+	/** Creation instant, read as UTC; `null` when the digits are no real one. */
+	created: Date | null;
 	/** The optional team suffix, without its leading dash. */
 	suffix?: string;
 }
 
 /**
  * Whether a text is a task id, as `is_valid_huid` in `src/huid.c` decides it:
- * by its shape alone, the digits never read as a date. `20260231-000000` is an
- * id here as it is to the CLI; {@link parseHuid} is the one that refuses it.
+ * by its shape alone, the digits never read as a date.
  */
 export function isValidHuid(id: string): boolean {
 	return HUID.test(id);
 }
 
 /**
- * Parses a task id. Returns `null` when the name is not a HUID, or when its
- * digits do not form a real instant (`20260231-000000`, say).
+ * Parses a task id. Returns `null` when the name is not a HUID; one whose
+ * digits form no real instant (`20260231-000000`, say) has no `created`.
  */
 export function parseHuid(id: string): Huid | null {
 	const match = HUID.exec(id);
@@ -46,18 +48,9 @@ export function parseHuid(id: string): Huid | null {
 	const minute = Number(time.slice(2, 4));
 	const second = Number(time.slice(4, 6));
 
-	const created = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-	// Date.UTC rolls invalid components over, so round-trip to reject them.
-	if (
-		created.getUTCFullYear() !== year ||
-		created.getUTCMonth() !== month - 1 ||
-		created.getUTCDate() !== day ||
-		created.getUTCHours() !== hour ||
-		created.getUTCMinutes() !== minute ||
-		created.getUTCSeconds() !== second
-	) {
-		return null;
-	}
+	const instant = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+	// Date.UTC rolls invalid components over, so round-trip to tell them apart.
+	const created = formatHuid(instant) === `${date}-${time}` ? instant : null;
 
 	return suffix ? { id, created, suffix } : { id, created };
 }

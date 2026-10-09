@@ -106,6 +106,12 @@ describe('byMonth', () => {
 		expect(byMonth([])).toEqual([]);
 	});
 
+	it('leaves out a task whose id is no real instant, and says nothing of it', () => {
+		const months = byMonth([make('20260101-000001', 100, []), make('20260231-000000', 100, [])]);
+		expect(months).toEqual([{ month: '2026-01', open: 1, closed: 0 }]);
+		expect(byMonth([make('20260231-000000', 100, [])])).toEqual([]);
+	});
+
 	it('sums to the number of tasks', () => {
 		const months = byMonth(all);
 		expect(months.reduce((n, m) => n + m.open + m.closed, 0)).toBe(79);

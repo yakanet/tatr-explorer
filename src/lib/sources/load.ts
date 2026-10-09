@@ -20,7 +20,7 @@ import { snapshot, type Snapshot } from '../tatr/changes.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
-import { parseHuid } from '../tatr/huid.ts';
+import { isValidHuid } from '../tatr/huid.ts';
 import { describeRef, type RepoRef } from '../repo/ref.ts';
 import { ListingError, NoSourceError, type OpenOptions } from './source.ts';
 import { openSource } from './open.ts';
@@ -115,10 +115,7 @@ function assemble(
 
 	for (const { path, text } of contents) {
 		const id = path.split('/')[1];
-		// Stricter than the CLI, which loads an impossible date like any other id:
-		// a task's creation date is read from its id, and nothing here copes with
-		// one that does not exist yet. That divergence is 20261009-162447.
-		if (!parseHuid(id)) {
+		if (!isValidHuid(id)) {
 			skipped.push({ id, reason: 'Folder name is not a task id' });
 			continue;
 		}

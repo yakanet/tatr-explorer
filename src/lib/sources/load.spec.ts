@@ -7,6 +7,7 @@ import { NoSourceError } from './source.ts';
 import { githubKind } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
+import { compareById, compareByPriority } from '../tatr/task.ts';
 import { localRef } from '../repo/ref.ts';
 import { ListingError, type Listing, type OpenOptions } from './source.ts';
 
@@ -260,7 +261,7 @@ describe('caching', () => {
 			fetchImpl: fetchFixture,
 			store
 		});
-		const earliest = cached.tasks.reduce((a, b) => (a.created < b.created ? a : b));
+		const earliest = cached.tasks.reduce((a, b) => (a.id < b.id ? a : b));
 		expect(earliest.created).toBeInstanceOf(Date);
 		expect(earliest.id).toBe('20251205-071347');
 	});
@@ -472,6 +473,35 @@ describe('a folder on this machine', () => {
 		const second = await loadRepository(ref, { store });
 		expect(second.fromCache).toBe(false);
 		expect(second.tasks[0].priority).toBe(110);
+	});
+
+	it('lists an id that is no real date, in the order `tatr ls` gives it', async () => {
+		// Recorded with the binary built from tatr 9b0d752, over these five folders
+		// with these statuses and priorities: `tatr ls` printed the four open ones
+		// in this order, `tatr ls -c` the closed one. The CLI checks an id's shape
+		// and never its date, so all five are tasks.
+		const ref = open([
+			task('20260101-120000', 50),
+			task('20260231-000000', 50),
+			task('20261399-999999', 70),
+			task('20260231-000000-x', 50, 'CLOSED'),
+			task('00000000-000000', 50)
+		]);
+		const result = await loadRepository(ref, { store });
+		expect(result.skipped).toEqual([]);
+		const listed = (closed: boolean) =>
+			result.tasks
+				.filter((one) => one.closed === closed)
+				.toSorted((a, b) => compareByPriority(a, b) || compareById(a, b))
+				.map((one) => one.id);
+		expect(listed(false)).toEqual([
+			'20261399-999999',
+			'00000000-000000',
+			'20260101-120000',
+			'20260231-000000'
+		]);
+		expect(listed(true)).toEqual(['20260231-000000-x']);
+		expect(result.tasks.find((one) => one.id === '20260231-000000')?.created).toBeNull();
 	});
 
 	it('reads the tag descriptions, which are a file like any other', async () => {

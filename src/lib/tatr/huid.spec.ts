@@ -4,14 +4,14 @@ import { formatHuid, isValidHuid, parseHuid, scanHuidSpans, scanHuids } from './
 describe('parseHuid', () => {
 	it('reads the timestamp as UTC', () => {
 		const huid = parseHuid('20260826-200847');
-		expect(huid?.created.toISOString()).toBe('2026-08-26T20:08:47.000Z');
+		expect(huid?.created?.toISOString()).toBe('2026-08-26T20:08:47.000Z');
 		expect(huid?.suffix).toBeUndefined();
 	});
 
 	it('keeps a team suffix', () => {
 		const huid = parseHuid('20260830-000838-rexim');
 		expect(huid?.suffix).toBe('rexim');
-		expect(huid?.created.toISOString()).toBe('2026-08-30T00:08:38.000Z');
+		expect(huid?.created?.toISOString()).toBe('2026-08-30T00:08:38.000Z');
 	});
 
 	it('allows dashes and digits inside the suffix', () => {
@@ -30,14 +30,20 @@ describe('parseHuid', () => {
 		expect(parseHuid(id)).toBeNull();
 	});
 
-	it('rejects digits that are not a real instant', () => {
-		// Date.UTC would roll 31 February over into March.
-		expect(parseHuid('20260231-000000')).toBeNull();
-		expect(parseHuid('20260830-250000')).toBeNull();
+	it('keeps an id whose digits are no real instant, without a date', () => {
+		// The CLI never reads them, so these are tasks to it. Date.UTC would roll
+		// 31 February over into March, which is why there is no date rather than
+		// a wrong one.
+		expect(parseHuid('20260231-000000')).toEqual({ id: '20260231-000000', created: null });
+		expect(parseHuid('20260830-250000-x')).toEqual({
+			id: '20260830-250000-x',
+			created: null,
+			suffix: 'x'
+		});
 	});
 
 	it('accepts a leap day', () => {
-		expect(parseHuid('20240229-120000')?.created.toISOString()).toBe('2024-02-29T12:00:00.000Z');
+		expect(parseHuid('20240229-120000')?.created?.toISOString()).toBe('2024-02-29T12:00:00.000Z');
 	});
 });
 
@@ -64,7 +70,7 @@ describe('isValidHuid', () => {
 describe('formatHuid', () => {
 	it('round-trips', () => {
 		const id = '20260906-211152';
-		expect(formatHuid(parseHuid(id)!.created)).toBe(id);
+		expect(formatHuid(parseHuid(id)!.created!)).toBe(id);
 	});
 
 	it('pads every component', () => {

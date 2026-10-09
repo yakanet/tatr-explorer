@@ -70,15 +70,19 @@ export interface MonthBucket {
  * empty months included, because their emptiness is the point. Repositories
  * like this one are written in bursts, and a series that silently skips the
  * quiet months would hide that.
+ *
+ * A task whose id is no real instant has no month, and is left out without a
+ * word: it is counted everywhere else, and the chart is about when.
  */
 export function byMonth(tasks: Task[]): MonthBucket[] {
-	if (tasks.length === 0) return [];
+	const dated = tasks.flatMap(({ created, closed }) => (created ? [{ created, closed }] : []));
+	if (dated.length === 0) return [];
 
 	const key = (date: Date) =>
 		`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
 	const seen = new Map<string, MonthBucket>();
-	for (const task of tasks) {
+	for (const task of dated) {
 		const month = key(task.created);
 		const bucket = seen.get(month) ?? { month, open: 0, closed: 0 };
 		if (task.closed) bucket.closed += 1;
@@ -86,7 +90,7 @@ export function byMonth(tasks: Task[]): MonthBucket[] {
 		seen.set(month, bucket);
 	}
 
-	const times = tasks.map((task) => task.created.getTime());
+	const times = dated.map((task) => task.created.getTime());
 	const first = new Date(Math.min(...times));
 	const last = new Date(Math.max(...times));
 

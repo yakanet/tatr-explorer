@@ -72,8 +72,8 @@ describe('conformance with the tatr parser', () => {
 
 	it('reads a creation date for every task, straight from its id', () => {
 		const tasks = Object.entries(sources).map(([id, source]) => readTask(id, source)!);
-		expect(tasks.every((task) => !Number.isNaN(task.created.getTime()))).toBe(true);
-		const earliest = tasks.reduce((a, b) => (a.created < b.created ? a : b));
+		expect(tasks.filter((task) => task.created === null)).toEqual([]);
+		const earliest = tasks.reduce((a, b) => (a.created! < b.created! ? a : b));
 		expect(earliest.id).toBe('20251205-071347');
 	});
 
