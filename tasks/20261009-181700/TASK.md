@@ -58,3 +58,15 @@ padding, after 16px read as cramped.
 
 Left as they were: the board's column names keep their capitals, and the
 README's screenshots still show the old palette.
+
+---
+
+Seen once the site was in use on a wider screen:
+
+- Beside a long title, the dashboard's leaderboard wrapped an id at its
+  hyphen rather than wrapping the title. `.id` no longer wraps anywhere.
+- The query bar, a pill as wide as the header right under it, read as a second
+  header. It now sits in each view's column, as wide as what it filters, and
+  the views share their top padding so it does not move between them.
+- The views sit at the middle of the header, over the column every view
+  centres, and take a row of their own under 64rem.

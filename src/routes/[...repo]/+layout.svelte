@@ -90,59 +90,58 @@
 	<KeyHelp views={views.map((view) => view.name)} onclose={() => (helping = false)} />
 {/if}
 
+<!-- Three zones: whose tasks on the left, which view in the middle, how fresh
+     the reading is on the right. -->
 <header>
-	<!-- Brand, path and views are set at three sizes, so they are grouped and
-	     aligned on their shared baseline: centring them instead lines up the
-	     middle of each box, which leaves the smaller type sitting low. -->
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
 		<span class="repo">{label}</span>
-
-		<nav class="segmented">
-			{#each views as view (view.base)}
-				<a
-					href={view.base + search}
-					aria-current={page.url.pathname === view.base ? 'page' : undefined}>{view.name}</a
-				>
-			{/each}
-		</nav>
 	</div>
 
-	<span class="spacer"></span>
+	<nav class="segmented">
+		{#each views as view (view.base)}
+			<a
+				href={view.base + search}
+				aria-current={page.url.pathname === view.base ? 'page' : undefined}>{view.name}</a
+			>
+		{/each}
+	</nav>
 
-	{#if repo.phase === 'ready'}
-		<span class="age">
-			{repo.fromCache ? 'cached' : 'read'}
-			{describeAge(repo.storedAt)}
-			<!-- The reading stayed; only renewing it failed, which is worth one
-			     clause rather than a panel over tasks that are still true. -->
-			{#if repo.refreshFailure}
-				<span class="stale">· not refreshed: {repo.refreshFailure.message}</span>
+	<div class="reading">
+		{#if repo.phase === 'ready'}
+			<span class="age">
+				{repo.fromCache ? 'cached' : 'read'}
+				{describeAge(repo.storedAt)}
+				<!-- The reading stayed; only renewing it failed, which is worth one
+				     clause rather than a panel over tasks that are still true. -->
+				{#if repo.refreshFailure}
+					<span class="stale">· not refreshed: {repo.refreshFailure.message}</span>
+				{/if}
+				<!-- What the reading could not use. Said here because it is a fact about
+				     the reading rather than about a view, and because a count that does
+				     not match `tatr ls` is worse than a count with a reason beside it.
+				     The folders and the reasons are in the tooltip: naming them on the
+				     header would push the whole line around for a case that is rare. -->
+				{#if repo.skipped.length > 0}
+					<span
+						class="stale"
+						title={repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')}
+					>
+						· {repo.skipped.length}
+						{repo.skipped.length === 1 ? 'folder' : 'folders'} skipped
+					</span>
+				{/if}
+			</span>
+			{#if repeatable}
+				<button class="action" onclick={() => repo.load(ref, true)}>Refresh</button>
+			{:else}
+				<!-- A reading that cannot be taken again: a directory input hands over
+				     files and no way back to the folder they came from, so refreshing
+				     means asking for it again rather than pretending. -->
+				<FolderPicker label="Reopen…" />
 			{/if}
-			<!-- What the reading could not use. Said here because it is a fact about
-			     the reading rather than about a view, and because a count that does
-			     not match `tatr ls` is worse than a count with a reason beside it.
-			     The folders and the reasons are in the tooltip: naming them on the
-			     header would push the whole line around for a case that is rare. -->
-			{#if repo.skipped.length > 0}
-				<span
-					class="stale"
-					title={repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')}
-				>
-					· {repo.skipped.length}
-					{repo.skipped.length === 1 ? 'folder' : 'folders'} skipped
-				</span>
-			{/if}
-		</span>
-		{#if repeatable}
-			<button class="action" onclick={() => repo.load(ref, true)}>Refresh</button>
-		{:else}
-			<!-- A reading that cannot be taken again: a directory input hands over
-			     files and no way back to the folder they came from, so refreshing
-			     means asking for it again rather than pretending. -->
-			<FolderPicker label="Reopen…" />
 		{/if}
-	{/if}
+	</div>
 </header>
 
 {@render children()}
@@ -151,24 +150,38 @@
 	/* A floating pill rather than a ruled band: the bar is a thing on the page,
 	   like the cards under it, and a band edge-to-edge would be the only hard
 	   line left on a site made of rounded surfaces. */
+	/* The sides share what is left equally, so the views sit at the middle of
+	   the page, over the column every view centres below it — however long the
+	   repository's name or the reading's age. When one side outgrows its share
+	   the views give way rather than overlap it. */
 	header {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
 		gap: 0.5rem 1rem;
 		margin: 1rem 1.5rem 0;
-		padding: 0.375rem 0.375rem 0.375rem 1.25rem;
+		padding: 0.375rem 1.25rem;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-full);
 		background: var(--surface);
 		box-shadow: var(--shadow-card);
 	}
 
-	.identity {
+	/* Kept on one line, so a side that needs more room takes it from the
+	   views' centring rather than wrapping inside the pill. */
+	.identity,
+	.reading {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.25rem 1rem;
+		white-space: nowrap;
+	}
+
+	/* Pulled into the bar's padding, so Refresh sits concentric with the pill's
+	   end while the padding itself stays even and the middle stays the middle. */
+	.reading {
+		justify-content: flex-end;
+		margin-right: -0.875rem;
 	}
 
 	.brand {
@@ -186,10 +199,6 @@
 		color: var(--ink-2);
 	}
 
-	.spacer {
-		flex-grow: 1;
-	}
-
 	.age {
 		font-size: 0.8125rem;
 		color: var(--muted);
@@ -197,5 +206,26 @@
 
 	.stale {
 		color: var(--warning);
+	}
+
+	/* Too narrow for three zones on one line: the views take a row of their
+	   own, and the bar a card's radius, since a pill two rows tall bulges. */
+	@media (max-width: 64rem) {
+		header {
+			grid-template-columns: 1fr auto;
+			border-radius: var(--radius-xl);
+		}
+
+		nav {
+			grid-row: 2;
+			grid-column: 1 / -1;
+			justify-self: center;
+		}
+
+		.identity,
+		.reading {
+			flex-wrap: wrap;
+			white-space: normal;
+		}
 	}
 </style>
