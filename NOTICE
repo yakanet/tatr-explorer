@@ -2,7 +2,8 @@ Third-party content in this repository
 ======================================
 
 Everything here is under the MIT licence in LICENSE, with one exception: the
-recordings under tests/fixtures/, which are not this project's to relicense.
+recordings of tatr's own repository under tests/fixtures/, which are not this
+project's to relicense.
 
 
 tests/fixtures/
@@ -13,17 +14,22 @@ running the real `tatr` binary over the 79 tasks of its own repository:
 
   tsoding-tatr-raw.json   the complete text of those 79 TASK.md files
   tatr-ls-output.json     their ids, titles, statuses, priorities and tags
-  tsoding-tatr.json       the same fields, from a second invocation
+  tsoding-tatr.json       the same rows, sorted by id
   tatr-graph-edges.json   the task ids they cite, as pairs
   tql-cli-cases.json      50 queries, and the ids the CLI printed for each
   tatr-query-errors.json  invalid queries, and the diagnostics the CLI printed
 
 The task text, the titles and the diagnostics in them are the work of the
 authors of tatr <https://github.com/tsoding/tatr> and are covered by that
-project's licence, the GNU General Public License version 2. They are kept here
-as test data, and they earn their place: the suite replays them field by field,
-so a divergence between this viewer and the reference implementation fails the
-build rather than reaching a reader.
+project's licence, the GNU General Public License version 2 or, at your
+option, any later version. They are kept here as test data, and they earn their
+place: the suite replays them field by field, so a divergence between this
+viewer and the reference implementation fails the build rather than reaching a
+reader.
+
+The files beginning with `corpus-` are not among them. They hold a corpus of
+edge cases written for this project and the binary's output over it, and are
+under the MIT licence like the rest.
 
 Two smaller quotations, for completeness. src/lib/tatr/board.ts quotes one
 sentence of an upstream task in a comment, as the reason a decision was made;

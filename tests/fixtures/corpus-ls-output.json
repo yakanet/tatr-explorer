@@ -1,0 +1,152 @@
+[
+ {
+  "id": "20260105-110000",
+  "status": "OPEN",
+  "priority": 999999,
+  "tags": [],
+  "title": "!!! INVALID: TASK TITLE MUST START WITH # !!!"
+ },
+ {
+  "id": "20260104-100000",
+  "status": "OPEN",
+  "priority": 999999,
+  "tags": [],
+  "title": "No properties at all"
+ },
+ {
+  "id": "20261399-999999",
+  "status": "OPEN",
+  "priority": 70,
+  "tags": [],
+  "title": "Month thirteen, hour ninety-nine"
+ },
+ {
+  "id": "20260102-080000-team-a",
+  "status": "OPEN",
+  "priority": 60,
+  "tags": [
+   "data"
+  ],
+  "title": "A suffix holding a dash"
+ },
+ {
+  "id": "20260112-180000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui",
+   "data",
+   "infra"
+  ],
+  "title": "Tags with spaces"
+ },
+ {
+  "id": "00000000-000000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "All zeros"
+ },
+ {
+  "id": "20260101-120000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "A task like any other"
+ },
+ {
+  "id": "20260231-000000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "The thirty-first of February"
+ },
+ {
+  "id": "20260110-160000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "Cites TASK(20260101-120000) in its title"
+ },
+ {
+  "id": "20260107-130000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui",
+   "données"
+  ],
+  "title": "Écrire en français — 日本語 aussi"
+ },
+ {
+  "id": "20260103-090000",
+  "status": "WIP",
+  "priority": 40,
+  "tags": [
+   "data"
+  ],
+  "title": "A status that is neither"
+ },
+ {
+  "id": "20260109-150000",
+  "status": "closed",
+  "priority": 30,
+  "tags": [
+   "data"
+  ],
+  "title": "closed, in lower case"
+ },
+ {
+  "id": "20260106-120000",
+  "status": "OPEN",
+  "priority": 20,
+  "tags": [
+   "ui"
+  ],
+  "title": "# Two hashes"
+ },
+ {
+  "id": "20260108-140000",
+  "status": "OPEN",
+  "priority": 20,
+  "tags": [
+   "data"
+  ],
+  "title": "Priority given twice"
+ },
+ {
+  "id": "20260111-170000",
+  "status": "OPEN",
+  "priority": -5,
+  "tags": [
+   "infra"
+  ],
+  "title": "A negative priority"
+ },
+ {
+  "id": "20260113-190000",
+  "status": "CLOSED",
+  "priority": 80,
+  "tags": [
+   "infra"
+  ],
+  "title": "Trailing spaces   "
+ },
+ {
+  "id": "20260231-000000-x",
+  "status": "CLOSED",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "An impossible date with a suffix"
+ }
+]

@@ -7,7 +7,6 @@ import { NoSourceError } from './source.ts';
 import { githubKind } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
-import { compareById, compareByPriority } from '../tatr/task.ts';
 import { localRef } from '../repo/ref.ts';
 import { ListingError, type Listing, type OpenOptions } from './source.ts';
 
@@ -475,32 +474,14 @@ describe('a folder on this machine', () => {
 		expect(second.tasks[0].priority).toBe(110);
 	});
 
-	it('lists an id that is no real date, in the order `tatr ls` gives it', async () => {
-		// Recorded with the binary built from tatr 9b0d752, over these five folders
-		// with these statuses and priorities: `tatr ls` printed the four open ones
-		// in this order, `tatr ls -c` the closed one. The CLI checks an id's shape
-		// and never its date, so all five are tasks.
-		const ref = open([
-			task('20260101-120000', 50),
-			task('20260231-000000', 50),
-			task('20261399-999999', 70),
-			task('20260231-000000-x', 50, 'CLOSED'),
-			task('00000000-000000', 50)
-		]);
-		const result = await loadRepository(ref, { store });
+	it('loads an id that is no real date, as `tatr ls` does', async () => {
+		// The CLI checks an id's shape and never its date; the corpus spec compares
+		// such tasks with its output field by field. What is the loader's is letting
+		// the folders through.
+		const ids = ['20260101-120000', '20260231-000000', '20261399-999999', '00000000-000000'];
+		const result = await loadRepository(open(ids.map((id) => task(id, 50))), { store });
 		expect(result.skipped).toEqual([]);
-		const listed = (closed: boolean) =>
-			result.tasks
-				.filter((one) => one.closed === closed)
-				.toSorted((a, b) => compareByPriority(a, b) || compareById(a, b))
-				.map((one) => one.id);
-		expect(listed(false)).toEqual([
-			'20261399-999999',
-			'00000000-000000',
-			'20260101-120000',
-			'20260231-000000'
-		]);
-		expect(listed(true)).toEqual(['20260231-000000-x']);
+		expect(result.tasks.map((one) => one.id).sort()).toEqual(ids.toSorted());
 		expect(result.tasks.find((one) => one.id === '20260231-000000')?.created).toBeNull();
 	});
 

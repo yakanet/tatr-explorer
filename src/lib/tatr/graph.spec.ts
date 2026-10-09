@@ -6,10 +6,8 @@ import { readTask, type Task } from './task.ts';
 
 /**
  * `tatr-graph-edges.json` holds the arrows the compiled `tatr graph` wrote into
- * its `graph.dot` for tsoding/tatr, sorted. Regenerating it needs the checkout
- * and a compiler: run `tatr graph` there and read the `.dot` it leaves behind —
- * the SVG step fails without Graphviz, which does not matter, the file is
- * written first.
+ * its `graph.dot` for tsoding/tatr, sorted. To regenerate: `pnpm run fixtures`,
+ * with the checkout at `../tatr` built.
  */
 const sources = rawTasks as Record<string, string>;
 const all = Object.entries(sources).map(([id, source]) => readTask(id, source)!);

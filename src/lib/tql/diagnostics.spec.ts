@@ -19,8 +19,7 @@ import { compile, formatDiagnostic, parseWithWarnings, TqlError } from './query.
  *
  * Two differences are deliberate and normalised away below rather than hidden.
  *
- * To regenerate: run each query through `tatr ls` in the checkout at `../tatr`
- * and capture stderr.
+ * To regenerate: `pnpm run fixtures`, with the checkout at `../tatr` built.
  */
 interface ErrorCase {
 	query: string;

@@ -12,9 +12,7 @@ import { compile } from './query.ts';
  * query through this library and asserts it selects exactly the same task ids,
  * so a divergence from the C implementation fails the suite.
  *
- * To regenerate: build tatr, then for each query run
- *   ./build/tatr ls [-c] "<query>"
- * and record the matched ids.
+ * To regenerate: `pnpm run fixtures`, with the checkout at `../tatr` built.
  */
 interface CliCase {
 	query: string;

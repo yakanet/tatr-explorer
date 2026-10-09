@@ -11,7 +11,7 @@ import { compareByPriority, readTask } from './task.ts';
  * same folder. Every field the CLI shows — status, priority, tags, title — is
  * re-derived here and compared, so a divergence from the C parser fails the suite.
  *
- * To regenerate: build tatr, then run `tatr ls` and `tatr ls -c` in its checkout.
+ * To regenerate: `pnpm run fixtures`, with the checkout at `../tatr` built.
  */
 interface CliRow {
 	id: string;

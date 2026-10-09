@@ -185,17 +185,21 @@ the C source, not from the README, which simplifies. All three are covered by
   the help, the caret and the message;
 - **36 arrows** of `tatr graph`, compared one by one.
 
-A divergence fails the suite. When upstream moves, the recordings are made
-again from a single commit, and they earn it: the last time, they caught an
-arrow `tatr graph` draws from an id cited only in a title, which this viewer had
-missed.
+A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks —
+impossible dates, suffixes, a status that is neither, a title without its `#`, a
+priority given twice, text outside ASCII — run through the same binary.
+
+A divergence fails the suite. When upstream moves, `pnpm run fixtures` records
+everything again from the checkout at `../tatr`, and the recordings earn it: the
+last time, they caught an arrow `tatr graph` draws from an id cited only in a
+title, which this viewer had missed.
 
 The same discipline governs what reaches the screen: repository content is shown
 **verbatim**, typos and straight quotes included, because polishing it would
 show a screen the product cannot produce.
 
-Those recordings carry upstream's own task text, which makes them the one thing
-in this repository that is not MIT — see [`NOTICE`](NOTICE). No code from tatr is
+The recordings of `tsoding/tatr` carry upstream's own task text, which makes them
+the one thing in this repository that is not MIT — see [`NOTICE`](NOTICE). No code from tatr is
 copied here; the viewer is an independent implementation of the same format.
 
 ![One task, rendered](docs/task.jpg)

@@ -1,0 +1,20 @@
+{
+ "00000000-000000": "# All zeros\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui\n",
+ "20260101-120000": "# A task like any other\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui\n\nThe plain case, which the others cite.\n",
+ "20260102-080000-team-a": "# A suffix holding a dash\n\n- STATUS: OPEN\n- PRIORITY: 60\n- TAGS: data\n\nDepends on TASK(20260231-000000).\n",
+ "20260103-090000": "# A status that is neither\n\n- STATUS: WIP\n- PRIORITY: 40\n- TAGS: data\n\nNot CLOSED, so `tatr ls` lists it with the open ones.\n",
+ "20260104-100000": "# No properties at all\n\nNo status, no priority, no tags: the defaults decide.\n",
+ "20260105-110000": "Title without its hash\n\n- STATUS: CLOSED\n- PRIORITY: 10\n- TAGS: ui\n\nThe first line lacks its `#`.\n",
+ "20260106-120000": "## Two hashes\n\n- STATUS: OPEN\n- PRIORITY: 20\n- TAGS: ui\n",
+ "20260107-130000": "# Écrire en français — 日本語 aussi\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui,données\n\nText outside ASCII, in the title and in a tag.\n",
+ "20260108-140000": "# Priority given twice\n\n- STATUS: OPEN\n- PRIORITY: 10\n- PRIORITY: 20\n- TAGS: data\n",
+ "20260109-150000": "# closed, in lower case\n\n- STATUS: closed\n- PRIORITY: 30\n- TAGS: data\n\nOnly `CLOSED` exactly is closed.\n",
+ "20260110-160000": "# Cites TASK(20260101-120000) in its title\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui\n\nAlso cites 20260107-130000, and itself: 20260110-160000.\n\n## NOTE(20260110-170000)\n\nA journal entry whose timestamp names no task.\n",
+ "20260111-170000": "# A negative priority\n\n- STATUS: OPEN\n- PRIORITY: -5\n- TAGS: infra\n",
+ "20260112-180000": "# Tags with spaces\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui, data ,  infra\n",
+ "20260113-190000": "# Trailing spaces   \n\n- STATUS: CLOSED   \n- PRIORITY:  80  \n- TAGS: infra  \n",
+ "20260231-000000": "# The thirty-first of February\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui\n\nIts id is no real date, which the CLI never checks. See 20260101-120000.\n",
+ "20260231-000000-x": "# An impossible date with a suffix\n\n- STATUS: CLOSED\n- PRIORITY: 50\n- TAGS: ui\n",
+ "20261399-999999": "# Month thirteen, hour ninety-nine\n\n- STATUS: OPEN\n- PRIORITY: 70\n- TAGS:\n\nThe right shape, and no instant at all.\n",
+ "notes": "# Not a task id\n\n- STATUS: OPEN\n- PRIORITY: 100\n"
+}
