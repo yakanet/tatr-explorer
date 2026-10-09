@@ -124,31 +124,14 @@ const MONTH_NAMES = [
 	'December'
 ];
 
-/** `2026-03` as `March 2026`. */
+/**
+ * `2026-03` as `March 2026`, joined by a no-break space: the masthead's
+ * sentence is set large enough to wrap, and a month on one line with its year
+ * on the next reads as two things.
+ */
 export function monthName(month: string): string {
 	const [year, index] = month.split('-').map(Number);
-	return `${MONTH_NAMES[index - 1]} ${year}`;
-}
-
-const WORDS = [
-	'no',
-	'one',
-	'two',
-	'three',
-	'four',
-	'five',
-	'six',
-	'seven',
-	'eight',
-	'nine',
-	'ten',
-	'eleven',
-	'twelve'
-];
-
-/** Small numbers read better as words in a sentence. */
-function inWords(n: number): string {
-	return WORDS[n] ?? String(n);
+	return `${MONTH_NAMES[index - 1]}\u00a0${year}`;
 }
 
 export interface Summary {
@@ -168,17 +151,18 @@ export interface Summary {
  * checked against the data — nothing here is a template with a number dropped
  * into it, and when nothing stands out the sentence simply stops.
  *
- * Each clause names what it counts. "Four of the last seven months" would be
- * ambiguous twice over: the window is the span the tasks cover, not the seven
- * months before today, and a bare "them" would seem to refer to the open tasks
- * in the lead when the figure is over all of them.
+ * Each clause says what happened rather than what did not: a reader opens a
+ * repository to see its work, and the chart below already shows the quiet
+ * months. A sleeping repository still says so, as the month its latest task
+ * arrived. Each clause also names what it counts: a bare "them" would seem to
+ * refer to the open tasks in the lead when the figure is over all of them.
  *
- * This describes a whole repository. Do not call it on a filtered subset: "no
- * task was created in four of those months" is false about one, since tasks
- * were created then, just not matching ones.
+ * This describes a whole repository. Do not call it on a filtered subset: "29
+ * were created in August alone" would read as a fact about the repository the
+ * masthead names, when it is one about whatever the filter kept.
  */
 export function summarise(tasks: Task[], now = new Date()): Summary {
-	const { open, total, untagged } = counts(tasks);
+	const { open, closed, total } = counts(tasks);
 
 	const lead =
 		total === 0
@@ -189,38 +173,36 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 
 	if (total === 0) return { lead, leadCount: 0, detail: null };
 
-	const months = byMonth(tasks);
-	const empty = months.filter((month) => month.open + month.closed === 0).length;
-
-	// A repository that has gone quiet is the most useful thing to lead with,
-	// and it is checked first because the other clauses would bury it.
-	const last = months.at(-1);
-	if (last) {
-		const [year, month] = last.month.split('-').map(Number);
-		const monthsSince = (now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month);
-		if (monthsSince >= 3) {
-			return { lead, leadCount: open, detail: `nothing new since ${monthName(last.month)}` };
-		}
-	}
-
-	// Quiet stretches say more about a repository than any average. "Those N
-	// months" is the span the tasks cover, which the masthead states above it.
-	if (empty >= 2 && months.length >= 3) {
+	// Progress first. Not when everything is closed, which the lead already says.
+	if (open > 0 && closed * 3 >= total) {
 		return {
 			lead,
 			leadCount: open,
-			detail: `no task was created in ${inWords(empty)} of those ${inWords(months.length)} months`
+			detail: `${closed} of the ${total} ${closed === 1 ? 'is' : 'are'} already closed`
 		};
 	}
 
-	// A repository whose tags are mostly absent cannot be filtered by them.
-	if (untagged * 2 > total) {
-		return { lead, leadCount: open, detail: `${untagged} of the ${total} carry no tag at all` };
+	// Repositories like this one are written in bursts, and the month that holds
+	// a third of everything is the one worth naming — if it stands alone, since a
+	// tie has no month to name, and over a span long enough to be a burst in.
+	const months = byMonth(tasks);
+	const sizes = months.map((month) => month.open + month.closed);
+	const most = Math.max(...sizes);
+	if (months.length >= 3 && most * 3 >= total && sizes.filter((n) => n === most).length === 1) {
+		const busiest = months[sizes.indexOf(most)];
+		return {
+			lead,
+			leadCount: open,
+			detail: `${most} were created in ${monthName(busiest.month)} alone`
+		};
 	}
 
-	const closed = total - open;
-	if (closed * 10 >= total * 6) {
-		return { lead, leadCount: open, detail: `${closed} of the ${total} are already closed` };
+	// A repository that has gone quiet: the month its latest task arrived, which
+	// a reader can place, rather than a duration they would have to count back.
+	const last = months[months.length - 1];
+	const [year, month] = last.month.split('-').map(Number);
+	if ((now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month) >= 3) {
+		return { lead, leadCount: open, detail: `the latest arrived in ${monthName(last.month)}` };
 	}
 
 	return { lead, leadCount: open, detail: null };

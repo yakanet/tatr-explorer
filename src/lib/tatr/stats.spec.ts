@@ -136,11 +136,9 @@ describe('topByPriority', () => {
 
 describe('summarise', () => {
 	it('states the real repository in a sentence', () => {
-		const summary = summarise(all, new Date('2026-09-07T00:00:00Z'));
+		const summary = summarise(all, new Date('2026-10-09T00:00:00Z'));
 		expect(summary.lead).toBe('33 tasks still open');
-		// December 2025 through September 2026 is ten months; five have nothing.
-		// "those ten months" is the span the tasks cover, which the masthead names.
-		expect(summary.detail).toBe('no task was created in five of those ten months');
+		expect(summary.detail).toBe('46 of the 79 are already closed');
 	});
 
 	it('counts the quiet months correctly', () => {
@@ -149,36 +147,49 @@ describe('summarise', () => {
 		expect(months.filter((m) => m.open + m.closed === 0)).toHaveLength(5);
 	});
 
+	it('leads with progress once a third is closed, in whole tasks and in agreement', () => {
+		const tasks = [
+			make('20260801-000001', 100, ['bug'], true),
+			make('20260901-000001', 100, ['bug']),
+			make('20260901-000002', 100, ['bug'])
+		];
+		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
+			'1 of the 3 is already closed'
+		);
+	});
+
+	it('does not repeat the lead when everything is closed', () => {
+		const tasks = [make('20260901-000001', 100, ['bug'], true)];
+		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z'))).toEqual({
+			lead: 'Nothing left open, out of 1',
+			leadCount: 0,
+			detail: null
+		});
+	});
+
+	it('names the month a burst came in', () => {
+		const tasks = [
+			make('20260101-000001', 100, ['bug']),
+			make('20260301-000001', 100, ['bug']),
+			make('20260301-000002', 100, ['bug']),
+			make('20260301-000003', 100, ['bug'])
+		];
+		expect(summarise(tasks, new Date('2026-04-01T00:00:00Z')).detail).toBe(
+			'3 were created in March 2026 alone'
+		);
+	});
+
+	it('names no month when two share the most', () => {
+		const tasks = [make('20260101-000001', 100, ['bug']), make('20260301-000001', 100, ['bug'])];
+		expect(summarise(tasks, new Date('2026-04-01T00:00:00Z')).detail).toBeNull();
+	});
+
 	it('names the month a quiet repository stopped at, not a duration', () => {
 		// "nothing new in seven months" reads as a countdown from today and invites
 		// the reader to work out when that was; the month itself does not.
 		const tasks = [make('20260101-000001', 100, ['bug']), make('20260201-000001', 100, ['bug'])];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
-			'nothing new since February 2026'
-		);
-	});
-
-	it('says what the untagged figure counts, rather than "them"', () => {
-		// The lead is about open tasks; this figure is over all of them, so a bare
-		// pronoun would attach it to the wrong number.
-		const tasks = [
-			make('20260801-000001', 100, []),
-			make('20260901-000001', 100, []),
-			make('20260901-000002', 100, ['bug'])
-		];
-		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
-			'2 of the 3 carry no tag at all'
-		);
-	});
-
-	it('says how much is closed in whole tasks, not a percentage', () => {
-		const tasks = [
-			make('20260801-000001', 100, ['bug'], true),
-			make('20260801-000002', 100, ['bug'], true),
-			make('20260901-000001', 100, ['bug'])
-		];
-		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
-			'2 of the 3 are already closed'
+			'the latest arrived in February 2026'
 		);
 	});
 
@@ -196,13 +207,5 @@ describe('summarise', () => {
 
 	it('says "1 task", not "1 tasks"', () => {
 		expect(summarise([make('20260901-000001', 100, ['bug'])]).lead).toBe('1 task still open');
-	});
-
-	it('is meant for a whole repository, and says so', () => {
-		// Calling it on a subset would state something false about the calendar,
-		// which is why the dashboard shows the repository and the list filters.
-		expect(summarise(all, new Date('2026-09-07T00:00:00Z')).detail).toBe(
-			'no task was created in five of those ten months'
-		);
 	});
 });
