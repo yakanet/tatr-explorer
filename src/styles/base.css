@@ -3,6 +3,7 @@ body {
 	background: var(--bg);
 	color: var(--fg);
 	font-family: var(--font-sans);
+	font-size: 0.875rem;
 	line-height: 1.5;
 }
 
@@ -15,26 +16,47 @@ a:hover {
 	color: var(--accent-strong);
 }
 
-/* Monospace is reserved for repository content: ids, tags, priorities,
-   queries, property keys and file names. */
+/* The browser's own monospace is not this one, hence the family. */
 code,
 kbd,
 samp {
 	font-family: var(--font-mono);
-	font-size: 0.9em;
+	font-size: 0.93em;
 }
 
-/* Only columns that align vertically get equal-width digits. */
-.tabular {
-	font-variant-numeric: tabular-nums;
+/* Everything is monospace now, so code is told apart by a well rather than a
+   face: the same grey a legend chip sits on. Not inside a `pre`, whose block is
+   already the well. */
+:not(pre) > code {
+	padding: 0.05rem 0.35rem;
+	background: var(--tint);
+	border-radius: var(--radius-sm);
 }
 
-/* Display face for headings and the masthead figure. */
-h1,
-h2,
-.display {
+/* A key cap: raised by a heavier bottom edge, rounded like everything else. */
+kbd {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.5rem;
+	height: 1.5rem;
+	padding: 0 0.35rem;
+	box-sizing: border-box;
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: var(--fg);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-bottom-width: 2px;
+	border-radius: var(--radius-sm);
+}
+
+/* A page's title is the same face at a heavier weight; a monospace set tight
+   at that size reads as one word per line rather than as letters in boxes.
+   Smaller headings keep the face's own spacing. */
+h1 {
 	font-family: var(--font-display);
-	letter-spacing: -0.025em;
+	letter-spacing: -0.02em;
 }
 
 /* Every view centres one column and chooses its own width, so only the

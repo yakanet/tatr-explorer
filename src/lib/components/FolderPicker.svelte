@@ -141,7 +141,7 @@
 <svelte:window ondragenter={entered} ondragleave={left} ondragover={hovered} ondrop={dropped} />
 
 <span class="offer">
-	<button type="button" onclick={pick}>{label}</button>
+	<button type="button" class="action" onclick={pick}>{label}</button>
 	{#if droppable}
 		<span class="hint">or drop one anywhere</span>
 	{/if}
@@ -198,39 +198,24 @@
 		padding: 3rem 4rem;
 		text-align: center;
 		border: 2px dashed var(--accent);
-		border-radius: 0.75rem;
+		border-radius: var(--radius-xl);
 		background: var(--surface);
+		box-shadow: var(--shadow-menu);
 	}
 
 	.veil strong {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
+		font-size: 1.0625rem;
 		font-weight: 700;
 	}
 
 	.veil span {
-		font-size: 0.85rem;
+		font-size: 0.875rem;
 		color: var(--ink-2);
 	}
 
-	button {
-		padding: 0.55rem 1rem;
-		font: inherit;
-		font-size: 0.85rem;
-		font-weight: 500;
-		color: var(--fg);
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		cursor: pointer;
-	}
-
-	button:hover {
-		border-color: var(--accent);
-	}
-
 	.hint {
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--muted);
 	}
 
@@ -246,7 +231,7 @@
 
 	.error {
 		margin: 0.5rem 0 0;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--danger);
 	}
 </style>

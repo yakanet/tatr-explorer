@@ -5,9 +5,13 @@
  * cross a component, and four copies had drifted into three paddings — which
  * a reader could see. What stays local is the padding itself: a status note, a
  * dashboard card and a task's article are the same surface at three densities.
+ *
+ * Rounded and, in the light theme, lifted by a soft shadow; in the dark theme
+ * the token is `none` and the border alone sets the card apart.
  */
 .panel {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 0.375rem;
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow-card);
 }

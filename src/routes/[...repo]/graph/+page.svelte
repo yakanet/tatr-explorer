@@ -174,12 +174,12 @@
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
-		<section class="masthead">
+		<section class="masthead panel">
 			<h1>
 				{#if graph.clusters.length === 0}
-					<span class="figure">No task cites another</span>
+					<span class="highlight">No task cites another</span>
 				{:else}
-					<span class="figure">{plural(graph.linkCount, 'citation', 'citations')}</span>
+					<span class="highlight">{plural(graph.linkCount, 'citation', 'citations')}</span>
 					<span class="detail">
 						across {plural(graph.clusters.length, 'group', 'groups')} of tasks.
 					</span>
@@ -197,7 +197,7 @@
 			<div class="clusters">
 				{#each graph.clusters as cluster (cluster.nodes[0].task.id)}
 					{@const draw = drawing(cluster)}
-					<article class="cluster" class:wide={cluster.nodes.length >= 5}>
+					<article class="cluster panel" class:wide={cluster.nodes.length >= 5}>
 						<svg viewBox="0 0 {draw.width} {draw.height}" style:max-width="{draw.width * SCALE}px">
 							{#each draw.lines as line, i (i)}
 								<line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
@@ -216,7 +216,11 @@
 										r={draw.points[i].r}
 										class:closed={node.task.closed}
 									/>
-									<text x={draw.points[i].x} y={draw.points[i].y + 3.5}>{i + 1}</text>
+									<text
+										x={draw.points[i].x}
+										y={draw.points[i].y + 3.5}
+										class:closed={node.task.closed}>{i + 1}</text
+									>
 								</a>
 							{/each}
 						</svg>
@@ -245,24 +249,19 @@
 <style>
 	main {
 		max-width: 68rem;
-		padding: 2.5rem 1.5rem 4rem;
+		padding: 1.75rem 1.5rem 4rem;
 	}
 
 	.masthead {
-		margin-bottom: 2rem;
+		margin-bottom: var(--card-gap);
+		padding: 1.75rem 1.9rem;
 	}
 
 	h1 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.6rem, 3.4vw, 2.4rem);
-		font-weight: 700;
-		line-height: 1.15;
-		letter-spacing: -0.02em;
-	}
-
-	.figure {
-		color: var(--accent-text);
+		font-size: clamp(1.4rem, 3vw, 2rem);
+		font-weight: 800;
+		line-height: 1.3;
 	}
 
 	.detail {
@@ -270,15 +269,15 @@
 	}
 
 	.aside {
-		margin: 0.6rem 0 0;
-		font-size: 0.85rem;
+		margin: 0.75rem 0 0;
+		font-size: 0.875rem;
 		color: var(--muted);
 	}
 
 	.clusters {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
-		gap: 1rem;
+		gap: var(--card-gap);
 	}
 
 	/* A star is both taller and busier than a pair, so it takes two columns
@@ -294,10 +293,7 @@
 	}
 
 	.cluster {
-		padding: 0.75rem 1rem 1rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.6rem;
+		padding: 1rem 1.25rem 1.25rem;
 	}
 
 	svg {
@@ -340,9 +336,13 @@
 	text {
 		font-family: var(--font-mono);
 		font-size: 11px;
-		font-weight: 600;
+		font-weight: 700;
 		text-anchor: middle;
 		fill: var(--on-accent);
+	}
+
+	text.closed {
+		fill: var(--on-closed);
 	}
 
 	polygon {
@@ -359,27 +359,28 @@
 
 	li {
 		display: flex;
-		gap: 0.5rem;
+		gap: 0.6rem;
 		align-items: baseline;
-		font-size: 0.85rem;
-		line-height: 1.35;
+		font-size: 0.875rem;
+		line-height: 1.4;
 	}
 
 	.marker {
 		flex-shrink: 0;
-		width: 1.15rem;
-		height: 1.15rem;
+		width: 1.35rem;
+		height: 1.35rem;
 		display: grid;
 		place-items: center;
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
-		font-weight: 600;
+		font-size: 0.75rem;
+		font-weight: 700;
 		color: var(--on-accent);
 		background: var(--series-open);
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 	}
 
 	.marker.closed {
+		color: var(--on-closed);
 		background: var(--series-closed);
 	}
 

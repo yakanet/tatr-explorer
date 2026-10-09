@@ -7,6 +7,7 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
+	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import { toColumns } from '#lib/tatr/board.ts';
@@ -68,7 +69,7 @@
 	{#if repo.phase === 'ready'}
 		<div class="board">
 			{#each columns as column (column.key)}
-				<section class="column">
+				<section class="column {column.key}">
 					<header>
 						<h2>{column.name}</h2>
 						<span class="tally mono">
@@ -99,7 +100,8 @@
 													<span data-moved title={repo.describeMoves(moves)}>{moves[0]}</span>
 												{/if}
 												{#each task.tags as tag (tag)}
-													<span class="tag" title={describe(tag)}>{tag}</span>
+													<span class="tag" data-hue={tagHue(tag)} title={describe(tag)}>{tag}</span
+													>
 												{/each}
 											</span>
 										{/if}
@@ -123,7 +125,7 @@
 	.board {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1rem;
+		gap: var(--card-gap);
 		align-items: start;
 	}
 
@@ -145,34 +147,41 @@
 		}
 	}
 
+	/* Each column is a well the cards sit in. In progress is the one with
+	   colour, being the stage a reader looks for first. */
 	.column {
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
+		padding: 0.875rem;
+		border-radius: var(--radius-xl);
+		background: var(--tint);
 		/* Done holds 46 cards on tsoding/tatr, so letting the page grow to fit it
 		   scrolls the other two headers off the top — and a board whose columns
 		   cannot be compared is a list. Each scrolls on its own instead, which is
 		   also what `j`/`k` expect: scrollIntoView finds the nearest scroll box. */
-		max-height: calc(100vh - 11rem);
+		max-height: calc(100vh - 13rem);
+	}
+
+	.column.progress {
+		background: var(--accent-wash);
 	}
 
 	header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.5rem;
-		padding: 0 0.15rem 0.6rem;
-		border-bottom: 1px solid var(--border);
+		gap: 0.25rem 0.5rem;
+		padding: 0 0.4rem 0.6rem;
 	}
 
 	h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 0.95rem;
-		font-weight: 700;
+		font-size: 0.875rem;
 	}
 
 	.tally {
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
 	}
 
@@ -183,49 +192,53 @@
 
 	.hint {
 		margin-left: auto;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		color: var(--muted);
 		text-align: right;
 	}
 
 	ul {
 		margin: 0;
-		padding: 0.6rem 0.15rem 0.15rem;
+		padding: 0.25rem;
 		list-style: none;
 		display: grid;
 		gap: 0.5rem;
 		overflow-y: auto;
 		/* Room for the focus ring, which the overflow would otherwise clip. */
-		margin-inline: -0.15rem;
+		margin-inline: -0.25rem;
 	}
 
 	li a {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.15rem 0.6rem;
-		padding: 0.6rem 0.75rem;
+		align-items: start;
+		gap: 0.35rem 0.65rem;
+		padding: 0.75rem 0.875rem;
 		color: var(--fg);
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-card);
 	}
 
 	li a:hover {
 		border-color: var(--accent-line);
 	}
 
-	/* Done is context rather than subject, so its cards recede. */
+	/* Done is context rather than subject, so its cards recede: no fill, no lift. */
 	li a.done {
 		background: none;
+		box-shadow: none;
 	}
 
 	.prio.muted {
 		color: var(--muted);
+		background: var(--surface);
 	}
 
 	.title {
-		font-size: 0.85rem;
-		line-height: 1.4;
+		line-height: 1.45;
+		padding-top: 0.15rem;
 	}
 
 	/* A card's title wraps, and a badge sitting in that flow lands alone on a
@@ -235,16 +248,10 @@
 		grid-column: 2;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
-		margin-top: 0.15rem;
-	}
-
-	.tag {
-		font-size: 0.68rem;
-		padding: 0 0.25rem;
+		gap: 0.35rem;
 	}
 
 	.empty {
-		margin: 0.75rem 0.15rem 0;
+		margin: 0.25rem 0.4rem 0.4rem;
 	}
 </style>

@@ -7,6 +7,7 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
+	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import { byTag } from '#lib/tatr/stats.ts';
@@ -70,62 +71,72 @@
 		{#if visible.length === 0}
 			<p class="empty">No task matches this query.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th class="c-status"><span class="sr">Status</span></th>
-						<th class="c-prio">Prio</th>
-						<th>Title</th>
-						<th class="c-tags">Tags</th>
-						<th class="c-id">Id</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each visible as task (task.id)}
-						{@const moves = repo.changes?.moved.get(task.id)}
-						<tr title={moves && repo.describeMoves(moves)}>
-							<td class="c-status">
-								{#if task.closed}
-									<svg
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										class="icon closed"
-										role="img"
-										aria-label={task.status}><path d="M20 6 9 17l-5-5" /></svg
-									>
-								{:else}
-									<svg
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										class="icon open"
-										role="img"
-										aria-label={task.status}><circle cx="12" cy="12" r="8" /></svg
-									>
-								{/if}
-							</td>
-							<td class="c-prio"><span class="prio">{task.priority}</span></td>
-							<td class="title">
-								<a href={taskHref(task.id)} data-key-row>{@html inline(task)}</a>
-								{#if moves}<span data-moved>{moves[0]}</span>{/if}
-							</td>
-							<td class="c-tags">
-								{#each task.tags as tag (tag)}
-									<button class="tag" onclick={() => toggleTag(tag)} title={describe(tag)}>
-										{tag}
-									</button>
-								{/each}
-							</td>
-							<td class="c-id"><code>{task.id}</code></td>
+			<!-- The card scrolls rather than the page: on a phone the columns are
+			     wider than the screen, and a page that slides sideways loses the
+			     header with it. -->
+			<div class="sheet panel">
+				<table>
+					<thead>
+						<tr>
+							<th class="c-status"><span class="sr">Status</span></th>
+							<th class="c-prio">prio</th>
+							<th>title</th>
+							<th class="c-tags">tags</th>
+							<th class="c-id">id</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each visible as task (task.id)}
+							{@const moves = repo.changes?.moved.get(task.id)}
+							<tr title={moves && repo.describeMoves(moves)} class:closed={task.closed}>
+								<td class="c-status">
+									{#if task.closed}
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="icon closed"
+											role="img"
+											aria-label={task.status}><path d="M20 6 9 17l-5-5" /></svg
+										>
+									{:else}
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											class="icon open"
+											role="img"
+											aria-label={task.status}><circle cx="12" cy="12" r="8" /></svg
+										>
+									{/if}
+								</td>
+								<td class="c-prio"><span class="prio">{task.priority}</span></td>
+								<td class="title">
+									<a href={taskHref(task.id)} data-key-row>{@html inline(task)}</a>
+									{#if moves}<span data-moved>{moves[0]}</span>{/if}
+								</td>
+								<td class="c-tags">
+									{#each task.tags as tag (tag)}
+										<button
+											class="tag"
+											data-hue={tagHue(tag)}
+											onclick={() => toggleTag(tag)}
+											title={describe(tag)}
+										>
+											{tag}
+										</button>
+									{/each}
+								</td>
+								<td class="c-id"><code class="id">{task.id}</code></td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	{/if}
 </main>
@@ -133,31 +144,32 @@
 <style>
 	main {
 		max-width: 70rem;
-		padding: 1.25rem 1.5rem;
+		padding: 1.25rem 1.5rem 3rem;
+	}
+
+	/* A card like every other surface, holding the table so the table can be
+	   wider than a phone without the page scrolling sideways. */
+	.sheet {
+		overflow-x: auto;
 	}
 
 	table {
 		width: 100%;
+		min-width: 40rem;
 		border-collapse: collapse;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.375rem;
 	}
 
 	th {
 		text-align: left;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		font-weight: 400;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
 		color: var(--muted);
-		padding: 0.5rem 0.75rem;
+		padding: 0.75rem 0.9rem 0.5rem;
 		border-bottom: 1px solid var(--border);
 	}
 
 	td {
-		padding: 0.45rem 0.75rem;
-		font-size: 0.85rem;
+		padding: 0.55rem 0.9rem;
 		border-top: 1px solid var(--border);
 		vertical-align: middle;
 	}
@@ -166,12 +178,16 @@
 		border-top: none;
 	}
 
+	tbody tr:hover {
+		background: var(--tint);
+	}
+
 	.c-status {
 		width: 1.75rem;
 	}
 
 	.c-prio {
-		width: 3rem;
+		width: 3.5rem;
 	}
 
 	/* Inline after the title here, so the word space it inherits from the flow is
@@ -181,17 +197,18 @@
 	}
 
 	.c-tags {
-		width: 12rem;
+		width: 14rem;
+		line-height: 1.9;
 	}
 
 	.c-id {
-		width: 9.5rem;
+		width: 10.5rem;
 	}
 
 	.icon {
 		display: block;
-		width: 13px;
-		height: 13px;
+		width: 14px;
+		height: 14px;
 	}
 
 	.icon.open {
@@ -203,7 +220,7 @@
 	}
 
 	.title {
-		line-height: 1.4;
+		line-height: 1.45;
 	}
 
 	.title a {
@@ -214,20 +231,18 @@
 		color: var(--accent-text);
 	}
 
+	/* A closed task is still worth reading, one step quieter. */
+	tr.closed .title {
+		color: var(--ink-2);
+	}
+
 	.tag {
 		margin-right: 0.25rem;
 		cursor: pointer;
 	}
 
 	.tag:hover {
-		border-color: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.c-id code {
-		font-size: 0.7rem;
-		color: var(--muted);
-		font-variant-numeric: tabular-nums;
+		color: var(--fg);
 	}
 
 	.sr {

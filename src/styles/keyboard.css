@@ -4,15 +4,16 @@
  * reader who cannot see where it is cannot navigate at all.
  *
  * `:focus-visible` rather than `:focus`, so a click does not leave a ring
- * behind — the browser already knows which of the two the reader used. The
- * offset keeps the ring off the text it surrounds, and the outline is drawn in
- * the accent rather than the browser default, which is a blue this palette
- * does not contain.
+ * behind — the browser already knows which of the two the reader used. An
+ * outline rather than a shadow: it follows a pill's or a card's radius all the
+ * same, the offset leaves a gap in whatever is behind, forced-colours mode
+ * repaints it instead of dropping it, and a card's own `box-shadow` cannot
+ * override it.
  */
-:focus-visible {
+:focus-visible,
+.input-pill:focus-within {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
-	border-radius: 2px;
 }
 
 /* A navigable row is styled by the view that draws it: the mark goes on a link
@@ -23,14 +24,14 @@
 [data-key-focus] {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
-	border-radius: 2px;
 }
 
 /*
  * A row inside a table is a line, not a word: an inline anchor's own ring marks
  * the few words it wraps, while the reader needs to see which line they are on.
- * So the table row carries the mark instead, as a filled band with a rule down
- * its leading edge.
+ * So the table row carries the mark instead, as a band in the accent's wash —
+ * the same lilac a selected completion takes, so "the cursor is here" looks the
+ * same everywhere.
  *
  * These live here rather than in each view because `data-key-focus` is set at
  * runtime, and Svelte's scoped CSS prunes selectors it cannot find in the
@@ -40,7 +41,6 @@
 tr:has([data-key-row]:focus-visible),
 tr:has([data-key-row][data-key-focus]) {
 	background: var(--accent-wash);
-	box-shadow: inset 3px 0 0 var(--accent);
 }
 
 tr [data-key-row]:focus-visible,

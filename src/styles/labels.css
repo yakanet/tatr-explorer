@@ -6,47 +6,109 @@
  * class of mistake scoped CSS makes silently — the markup asked for a rule the
  * component did not have, so a board's priorities and tags, a file's size and a
  * repository's path all rendered in the body face while the list's rendered
- * right. One rule, once.
+ * right. One rule, once. Everything is monospace now, but the class still says
+ * which text came from the repository.
  */
 .mono {
 	font-family: var(--font-mono);
 }
 
-/* A tag, as the format writes it. Clickable in the list and on the dashboard,
-   inert on a board card — which is why the cursor is not here. */
+/*
+ * A tag, as the format writes it: a pill on one of four tints, with a dot in
+ * the matching ink. The hue comes from `tagHue`, by name, so a tag keeps its
+ * colour from page to page; the name is always printed, so the colour never
+ * carries the meaning alone. Clickable in the list and on the dashboard, inert
+ * on a board card — which is why the cursor is not here.
+ */
 .tag {
-	font-family: var(--font-mono);
-	font-size: 0.7rem;
-	color: var(--ink-2);
-	background: var(--bg);
-	border: 1px solid var(--border);
-	border-radius: 0.2rem;
-	padding: 0 0.35rem;
-}
-
-/* A priority: a number to compare down a column, so it is tabular as well as
-   monospace. */
-.prio {
+	--tag-tint: var(--tint);
+	--tag-dot: var(--muted);
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0 0.6rem 0 0.45rem;
 	font-family: var(--font-mono);
 	font-size: 0.75rem;
-	font-weight: 600;
-	color: var(--accent-text);
-	font-variant-numeric: tabular-nums;
+	line-height: 1.25rem;
+	color: var(--ink-2);
+	background: var(--tag-tint);
+	border: 0;
+	border-radius: var(--radius-full);
+	white-space: nowrap;
 }
 
-/* Inline code inside a rendered title — task titles carry it constantly
-   (`` `tatr ls` relative paths are broken ``), and it has to stay quieter than
-   the title around it. */
-.title code {
+.tag::before {
+	content: '';
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: var(--radius-full);
+	background: var(--tag-dot);
+}
+
+.tag[data-hue='1'] {
+	--tag-tint: var(--tint-lilac);
+	--tag-dot: var(--dot-lilac);
+}
+.tag[data-hue='2'] {
+	--tag-tint: var(--tint-mint);
+	--tag-dot: var(--dot-mint);
+}
+.tag[data-hue='3'] {
+	--tag-tint: var(--tint-sky);
+	--tag-dot: var(--dot-sky);
+}
+.tag[data-hue='4'] {
+	--tag-tint: var(--tint-rose);
+	--tag-dot: var(--dot-rose);
+}
+
+/* A priority: a number to compare down a column, on a pill wide enough for
+   five digits, on the lilac tint so a column of them reads as one thing. The
+   face is monospace, so the digits already line up. */
+.prio {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.75rem;
+	height: 1.625rem;
+	padding: 0 0.5rem;
+	box-sizing: border-box;
 	font-family: var(--font-mono);
-	font-size: 0.85em;
-	color: var(--ink-2);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	color: var(--accent-text);
+	background: var(--tint-lilac);
+	border-radius: var(--radius-full);
+}
+
+/* The clause of a headline that matters, highlighted the way a terminal
+   selects text. It hangs into the margin so the words still start flush with
+   the lines under them, and every line of a wrapped clause gets its own ends. */
+.highlight {
+	padding: 0 0.5rem;
+	margin-left: -0.5rem;
+	color: var(--accent-text);
+	background: var(--tint-lilac);
+	border-radius: 10px;
+	box-decoration-break: clone;
+	-webkit-box-decoration-break: clone;
+}
+
+/* A task id beside its title: small and quiet, the title being what is read.
+   Code, but not in a well — a column of wells would be louder than the
+   titles. */
+.id {
+	padding: 0;
+	font-size: 0.75rem;
+	color: var(--muted);
+	background: none;
 }
 
 /* What a view says when a query matches nothing. */
 .empty {
 	margin: 0;
-	font-size: 0.8rem;
+	font-size: 0.8125rem;
 	color: var(--ink-2);
 }
 
@@ -57,13 +119,13 @@
    meanings on one channel is one too many. Here rather than in each view for the
    same reason as the rules above, one convention being one rule. */
 [data-moved] {
-	padding: 0.05rem 0.3rem;
+	padding: 0.05rem 0.45rem;
 	font-size: 0.7rem;
-	font-weight: 500;
+	font-weight: 600;
 	color: var(--accent-text);
 	background: var(--accent-wash);
 	border: 1px solid var(--accent-line);
-	border-radius: 0.2rem;
+	border-radius: var(--radius-full);
 	white-space: nowrap;
 }
 

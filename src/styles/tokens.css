@@ -1,85 +1,159 @@
 /*
- * Design tokens.
+ * Design tokens — the Calm system.
  *
- * Surfaces and ink are a selected pair rather than an inversion, and the data
- * colours were validated rather than eyeballed: open-vs-closed clears CVD
- * separation and 3:1 contrast against both surfaces.
+ * Neutral grounds with a faint violet bias, one orchid accent, and four pastel
+ * tints that carry meaning (the stats and the tags) rather than decoration.
+ * Every text colour holds 4.5:1 on every ground it is used on, in both themes,
+ * and open-vs-closed clears colour-vision separation and 3:1 against the
+ * surface and each tint: measured, not eyeballed. The two exceptions are
+ * decorative and say so where they are declared.
+ *
+ * The dark theme is selected rather than inverted: its accent is lighter, so
+ * the text on it turns dark (`--on-accent`), and its cards are told apart by
+ * border and surface instead of a shadow.
  */
 :root {
-	--font-display: 'Bricolage Grotesque', 'IBM Plex Sans', system-ui, sans-serif;
-	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-	--font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	/* One family. A task is a TASK.md file, and the screen reads like the
+	   terminal the format comes from. The display and sans names stay so a rule
+	   still says which role it sets. */
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	--font-display: var(--font-mono);
+	--font-sans: var(--font-mono);
 
-	/* Surfaces and ink — a warm cream ground, not a neutral one */
-	--bg: #fbf8f4;
+	--bg: #f7f6f9;
 	--surface: #ffffff;
-	--border: #e6ded4;
-	--baseline: #cfc3b6;
-	--muted: #93877c;
-	--ink-2: #6d635a;
-	--fg: #171310;
+	/* Wells inside a card: a track, a legend chip, inline code. */
+	--tint: #f1eff4;
+	/* The empty part of a bar. Decorative: the count beside it is the value. */
+	--track: #eeebf2;
+	--border: #e7e4ec;
+	/* Axes and zero lines, recessive on purpose (1.9:1): never a control's only edge. */
+	--baseline: #bfb9c8;
+	--muted: #5d5866;
+	--ink-2: #47434f;
+	--fg: #1d1b24;
 
-	--accent: #ff3e00;
-	--on-accent: #1c1512;
-	--accent-text: #c8330b;
-	--accent-strong: #a72907;
-	--accent-wash: #fff0ea;
-	--accent-line: #fec9bc;
+	--accent: #9b2fae;
+	--on-accent: #ffffff;
+	--accent-text: #8a2a9b;
+	--accent-strong: #7a2289;
+	--accent-wash: var(--tint-lilac);
+	/* Edge of a washed chip. Decorative (1.9:1): its fill and label identify it. */
+	--accent-line: #cdb3e8;
 
-	--series-open: #ff3e00;
-	--series-closed: #898781;
+	/* Meaning, not decoration: the stats, and the four tag hues. */
+	--tint-lilac: #efe7fb;
+	--tint-mint: #e3f4ec;
+	--tint-sky: #e4eefb;
+	--tint-rose: #fbe7ef;
+	--dot-lilac: var(--accent);
+	--dot-mint: #257a52;
+	--dot-sky: #2f62c8;
+	--dot-rose: #c23a6e;
 
-	/* Status. Always shipped with an icon and a label — with an orange brand,
-	   the error red sits close enough that colour alone cannot carry it. */
-	--good: #0ca30c;
-	--warning: #fab219;
-	--danger: #a4151a;
+	--series-open: var(--accent);
+	--series-closed: #85858d;
+	/* Text on a closed mark (a graph node's number): 4.6:1 here, 5.1:1 dark. */
+	--on-closed: #1d1b24;
+
+	/* Status. Always shipped with a word. `--good` is teal-blue so it never
+	   rests on hue alone against `--danger`. */
+	--good: #0e6f86;
+	--warning: #b54708;
+	--danger: #b42318;
+
+	--radius-sm: 6px;
+	--radius-md: 14px;
+	--radius-lg: 18px;
+	--radius-xl: 22px;
+	--radius-full: 9999px;
+
+	/* 44px: the smallest target a thumb can hit, for anything pressed. */
+	--target: 2.75rem;
+	/* Between two cards: wider than a card's own padding, so each reads as a
+	   thing on the page rather than a cell in a grid. */
+	--card-gap: 1.5rem;
+
+	--shadow-card: 0 1px 2px #1d1b240d, 0 8px 24px #1d1b240f;
+	--shadow-menu: 0 4px 12px #1d1b241a, 0 16px 32px #1d1b241f;
 
 	color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
-		--bg: #17120f;
-		--surface: #211a16;
-		--border: #322721;
-		--baseline: #453830;
-		--muted: #93877c;
-		--ink-2: #b8aba0;
-		--fg: #f5efe9;
+		--bg: #121116;
+		--surface: #1b1a21;
+		--tint: #26242d;
+		--track: #26242d;
+		--border: #2c2a33;
+		--baseline: #4a4655;
+		--muted: #9893a3;
+		--ink-2: #c6c2ce;
+		--fg: #f4f2f7;
 
-		--accent: #ff3e00;
-		--on-accent: #1c1512;
-		--accent-text: #fd8266;
-		--accent-strong: #fd8266;
-		--accent-wash: #3d1b14;
-		--accent-line: #892c17;
+		--accent: #c46ad8;
+		--on-accent: #1a0e1d;
+		--accent-text: #dc94ec;
+		--accent-strong: #e5aef2;
+		--accent-line: #5a3f72;
 
-		--series-open: #ff3e00;
-		--danger: #e5484d;
+		--tint-lilac: #231c31;
+		--tint-mint: #15261f;
+		--tint-sky: #15202f;
+		--tint-rose: #2b1823;
+		--dot-mint: #4fb98a;
+		--dot-sky: #5b8ee6;
+		--dot-rose: #e0779f;
+
+		--series-closed: #85858f;
+		--on-closed: #121116;
+
+		--good: #3fbfd6;
+		--warning: #f5a524;
+		--danger: #f97066;
+
+		--shadow-card: none;
+		--shadow-menu: 0 12px 32px #000000b3;
 
 		color-scheme: dark;
 	}
 }
 
 :root[data-theme='dark'] {
-	--bg: #17120f;
-	--surface: #211a16;
-	--border: #322721;
-	--baseline: #453830;
-	--muted: #93877c;
-	--ink-2: #b8aba0;
-	--fg: #f5efe9;
+	--bg: #121116;
+	--surface: #1b1a21;
+	--tint: #26242d;
+	--track: #26242d;
+	--border: #2c2a33;
+	--baseline: #4a4655;
+	--muted: #9893a3;
+	--ink-2: #c6c2ce;
+	--fg: #f4f2f7;
 
-	--accent: #ff3e00;
-	--on-accent: #1c1512;
-	--accent-text: #fd8266;
-	--accent-strong: #fd8266;
-	--accent-wash: #3d1b14;
-	--accent-line: #892c17;
+	--accent: #c46ad8;
+	--on-accent: #1a0e1d;
+	--accent-text: #dc94ec;
+	--accent-strong: #e5aef2;
+	--accent-line: #5a3f72;
 
-	--series-open: #ff3e00;
-	--danger: #e5484d;
+	--tint-lilac: #231c31;
+	--tint-mint: #15261f;
+	--tint-sky: #15202f;
+	--tint-rose: #2b1823;
+	--dot-mint: #4fb98a;
+	--dot-sky: #5b8ee6;
+	--dot-rose: #e0779f;
+
+	--series-closed: #85858f;
+	--on-closed: #121116;
+
+	--good: #3fbfd6;
+	--warning: #f5a524;
+	--danger: #f97066;
+
+	--shadow-card: none;
+	--shadow-menu: 0 12px 32px #000000b3;
 
 	color-scheme: dark;
 }

@@ -2,7 +2,7 @@
 	<title>tatr dashboard</title>
 	<!-- Three task lines and an open bullet: the format is a list of folders,
 	     and an unfilled circle is how this viewer draws a task still open. -->
-	<g fill="none" stroke="#ff3e00" stroke-width="3.2" stroke-linecap="round">
+	<g fill="none" stroke="#9b2fae" stroke-width="3.2" stroke-linecap="round">
 		<path d="M6 8h20" />
 		<path d="M6 16h14" />
 		<path d="M6 24h6" />

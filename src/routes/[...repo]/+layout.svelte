@@ -98,9 +98,12 @@
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
 		<span class="repo">{label}</span>
 
-		<nav>
+		<nav class="segmented">
 			{#each views as view (view.base)}
-				<a href={view.base + search} class:current={page.url.pathname === view.base}>{view.name}</a>
+				<a
+					href={view.base + search}
+					aria-current={page.url.pathname === view.base ? 'page' : undefined}>{view.name}</a
+				>
 			{/each}
 		</nav>
 	</div>
@@ -145,53 +148,42 @@
 {@render children()}
 
 <style>
+	/* A floating pill rather than a ruled band: the bar is a thing on the page,
+	   like the cards under it, and a band edge-to-edge would be the only hard
+	   line left on a site made of rounded surfaces. */
 	header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 1rem;
-		height: 52px;
-		padding: 0 1.5rem;
-		border-bottom: 1px solid var(--border);
+		gap: 0.5rem 1rem;
+		margin: 1rem 1.5rem 0;
+		padding: 0.375rem 0.375rem 0.375rem 1.25rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full);
 		background: var(--surface);
+		box-shadow: var(--shadow-card);
 	}
 
 	.identity {
 		display: flex;
-		align-items: baseline;
-		gap: 1rem;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 1rem;
 	}
 
 	.brand {
 		display: flex;
-		/* The word, not the mark, is what the row aligns on: see Mark's own note. */
-		align-items: baseline;
-		gap: 0.4rem;
-		font-weight: 600;
+		align-items: center;
+		gap: 0.45rem;
+		min-height: var(--target);
+		font-size: 1.0625rem;
+		font-weight: 800;
 		color: var(--fg);
 	}
 
 	.repo {
 		font-family: var(--font-mono);
-		font-size: 0.8rem;
 		color: var(--ink-2);
-	}
-
-	nav {
-		display: flex;
-		gap: 1.1rem;
-	}
-
-	nav a {
-		font-size: 0.85rem;
-		color: var(--ink-2);
-		padding-bottom: 3px;
-		border-bottom: 2px solid transparent;
-	}
-
-	nav a.current {
-		color: var(--fg);
-		font-weight: 500;
-		border-bottom-color: var(--accent);
 	}
 
 	.spacer {
@@ -199,7 +191,7 @@
 	}
 
 	.age {
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		color: var(--muted);
 	}
 

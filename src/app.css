@@ -9,7 +9,7 @@
  *
  * What stays in a component is what only that view knows: a density, a column
  * width, a layout. The rule of thumb is the one this file already followed for
- * `.tabular` and the focus ring — if two views would have to keep it in step,
+ * `.panel` and the focus ring — if two views would have to keep it in step,
  * it is here.
  */
 @import './styles/tokens.css';

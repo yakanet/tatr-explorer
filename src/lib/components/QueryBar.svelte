@@ -106,7 +106,7 @@
 	}
 </script>
 
-<div class="bar" class:invalid={query.error !== null}>
+<div class="bar input-pill" class:invalid={query.error !== null}>
 	<span class="prompt">&gt;</span>
 	<div class="field">
 		<input
@@ -178,61 +178,63 @@
 </div>
 
 {#if query.error}
-	<pre class="diagnostic">{formatDiagnostic(query.source, query.error)}</pre>
+	<!-- The help and the source line read in grey, the message alone in the
+	     danger colour: it is the one line that says what to change. -->
+	{@const report = formatDiagnostic(query.source, query.error)}
+	{@const cut = report.lastIndexOf('\n') + 1}
+	<pre class="diagnostic">{report.slice(0, cut)}<span class="message">{report.slice(cut)}</span
+		></pre>
 {:else if query.warnings.length > 0}
 	<p class="warning">{query.warnings[0].message}</p>
 {/if}
 
 <style>
+	/* A pill like the header above it, so the query reads as a thing to hold
+	   rather than a band across the page. */
 	.bar {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.6rem;
-		height: 46px;
-		padding: 0 1.5rem;
-		border-bottom: 1px solid var(--border);
-		background: var(--surface);
+		gap: 0.5rem 0.75rem;
+		min-height: 3rem;
+		margin: 0.75rem 1.5rem 0;
+		padding: 0.25rem 0.5rem 0.25rem 1.1rem;
 	}
 
 	.bar.invalid {
-		box-shadow: inset 0 -2px 0 var(--danger);
+		border-color: var(--danger);
 	}
 
 	.prompt {
 		font-family: var(--font-mono);
-		font-weight: 600;
-		color: var(--accent);
+		font-weight: 700;
+		color: var(--accent-text);
 	}
 
 	/* Anchors the menu to the text rather than to the whole bar. */
 	.field {
 		position: relative;
-		flex-grow: 1;
+		flex: 1 1 12rem;
 		display: flex;
 	}
 
 	.field input:not([type]) {
 		flex-grow: 1;
-		font-family: var(--font-mono);
-		font-size: 0.85rem;
-		color: inherit;
-		background: none;
-		border: none;
-		outline: none;
+		min-height: 2.25rem;
 	}
 
 	.menu {
 		position: absolute;
-		top: calc(100% + 0.4rem);
-		left: -0.4rem;
+		top: calc(100% + 0.6rem);
+		left: -0.6rem;
 		z-index: 10;
 		min-width: 24rem;
 		max-width: min(34rem, 90vw);
-		padding: 0.3rem 0;
+		padding: 0.4rem;
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-menu);
 	}
 
 	ul {
@@ -246,13 +248,14 @@
 		align-items: baseline;
 		gap: 0.7rem;
 		width: 100%;
-		padding: 0.3rem 0.8rem;
+		padding: 0.45rem 0.75rem;
 		font: inherit;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		text-align: left;
 		color: inherit;
 		background: none;
 		border: none;
+		border-radius: var(--radius-md);
 		cursor: pointer;
 	}
 
@@ -263,8 +266,7 @@
 	.value {
 		flex-shrink: 0;
 		min-width: 6.5rem;
-		font-size: 0.8rem;
-		font-weight: 500;
+		font-weight: 700;
 		color: var(--accent-text);
 	}
 
@@ -288,15 +290,15 @@
 	.keys,
 	.source {
 		margin: 0;
-		padding: 0.3rem 0.8rem 0;
+		padding: 0.35rem 0.75rem 0;
 		font-size: 0.75rem;
 		color: var(--muted);
 	}
 
 	.grammar {
-		margin-top: 0.3rem;
+		margin-top: 0.35rem;
 		border-top: 1px solid var(--border);
-		padding-top: 0.45rem;
+		padding-top: 0.5rem;
 		color: var(--ink-2);
 	}
 
@@ -307,26 +309,16 @@
 	}
 
 	.source {
-		padding-bottom: 0.3rem;
+		padding-bottom: 0.35rem;
 	}
 
 	.source code {
 		font-size: 0.75rem;
 	}
 
-	kbd {
-		font-family: var(--font-mono);
-		font-size: 0.7rem;
-		color: var(--ink-2);
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 0.2rem;
-		padding: 0 0.25rem;
-	}
-
 	.count {
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
 	}
 
@@ -334,36 +326,47 @@
 		color: var(--muted);
 	}
 
+	/* The CLI's `-c`, as a chip the size of a thumb. */
 	.closed {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
-		font-size: 0.75rem;
+		gap: 0.4rem;
+		min-height: 2.25rem;
+		padding: 0 0.85rem;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		border-left: 1px solid var(--border);
-		padding-left: 0.75rem;
+		background: var(--tint);
+		border-radius: var(--radius-full);
+		cursor: pointer;
+	}
+
+	.closed input {
+		accent-color: var(--accent);
+	}
+
+	.diagnostic,
+	.warning {
+		margin: 0.5rem 1.5rem 0;
+		padding: 0.85rem 1.1rem;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
 	}
 
 	.diagnostic {
-		margin: 0;
-		padding: 0.6rem 1.5rem;
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--danger);
-		background: var(--surface);
-		border-bottom: 1px solid var(--border);
+		color: var(--ink-2);
 		white-space: pre;
 		overflow-x: auto;
 	}
 
+	.message {
+		color: var(--danger);
+		font-weight: 700;
+	}
+
 	.warning {
-		margin: 0;
-		padding: 0.5rem 1.5rem;
-		font-size: 0.75rem;
 		color: var(--warning);
-		background: var(--surface);
-		border-bottom: 1px solid var(--border);
 	}
 </style>

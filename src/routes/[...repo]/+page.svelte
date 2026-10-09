@@ -5,6 +5,7 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
+	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import {
@@ -74,29 +75,44 @@
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
-		<section class="masthead">
+		<section class="masthead panel">
 			<div class="lead">
-				<span class="since mono">
-					{months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}
-				</span>
+				<!-- The command this view stands for, as the list's stands for
+				     `tatr ls`: the overview is what `tatr summary` would say. -->
+				<p class="prompt">
+					$ tatr summary <span class="since"
+						>— {months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}</span
+					>
+				</p>
 				<h1>
-					<span class="figure">{summary.lead}</span>{#if summary.detail}<span class="detail"
+					<span class="highlight">{summary.lead}</span>{#if summary.detail}<span class="detail"
 							>, and {summary.detail}.</span
 						>{:else}<span class="detail">.</span>{/if}
 				</h1>
 			</div>
-			<div class="figures">
-				<div><strong>{stats.closed}</strong><span>closed</span></div>
-				<div><strong>{stats.untagged}</strong><span>untagged</span></div>
-				<div><strong>{stats.total}</strong><span>in total</span></div>
-			</div>
+			<!-- Each figure keeps one tint wherever it appears, so the colour
+			     says which count it is before the label does. -->
+			<dl class="figures">
+				<div class="closed">
+					<dt>closed</dt>
+					<dd>{stats.closed}</dd>
+				</div>
+				<div class="untagged">
+					<dt>untagged</dt>
+					<dd>{stats.untagged}</dd>
+				</div>
+				<div class="total">
+					<dt>in total</dt>
+					<dd>{stats.total}</dd>
+				</div>
+			</dl>
 		</section>
 
 		<div class="charts">
 			<section class="panel">
 				<header>
-					<h2>Open by priority</h2>
-					<span class="hint">higher is more urgent</span>
+					<h2>open by priority</h2>
+					<span class="hint">— higher is more urgent</span>
 				</header>
 				{#if priorities.length === 0}
 					<p class="empty">Nothing open.</p>
@@ -120,8 +136,8 @@
 
 			<section class="panel">
 				<header>
-					<h2>Open by tag</h2>
-					<span class="hint">click to see them</span>
+					<h2>open by tag</h2>
+					<span class="hint">— click to see them</span>
 				</header>
 				{#if tags.length === 0}
 					<p class="empty">No open task carries a tag.</p>
@@ -136,7 +152,9 @@
 									onclick={() => pick(term)}
 									title={repo.tags.descriptions.get(bucket.tag) ?? ''}
 								>
-									<span class="label mono wide">{bucket.tag}</span>
+									<span class="label wide"
+										><span class="tag" data-hue={tagHue(bucket.tag)}>{bucket.tag}</span></span
+									>
 									<span class="track">
 										<span class="fill" style:width="{(bucket.count / maxTag) * 100}%"></span>
 									</span>
@@ -151,13 +169,12 @@
 
 		<section class="panel">
 			<header>
-				<h2>Created per month</h2>
-				<span class="hint">every task ever</span>
+				<h2>created per month</h2>
+				<span class="hint">— every task ever</span>
 				<span class="legend">
-					<span class="key open"></span> still open
-					<span class="key closed"></span> since closed
+					<span class="chip"><span class="key open"></span>still open</span>
+					<span class="chip"><span class="key closed"></span>since closed</span>
 				</span>
-				<span class="hint right">dates come from the folder names</span>
 			</header>
 			{#if months.length === 0}
 				<p class="empty">No tasks yet.</p>
@@ -168,19 +185,17 @@
 						<div class="month" title="{bucket.month}: {bucket.open} open, {bucket.closed} closed">
 							<div class="stack">
 								<!-- The column is bottom-anchored, so the first segment drawn sits on
-								     top and is the one carrying the rounded data end. -->
+								     top and is the one carrying the rounded data end. A month with
+								     nothing keeps its slot as a short pill, so quiet reads as quiet
+								     rather than as missing. -->
 								{#if bucket.closed > 0}
-									<div
-										class="seg closed top"
-										style:height="{(bucket.closed / maxMonth) * 100}%"
-									></div>
+									<div class="seg closed" style:height="{(bucket.closed / maxMonth) * 100}%"></div>
 								{/if}
 								{#if bucket.open > 0}
-									<div
-										class="seg open"
-										class:top={bucket.closed === 0}
-										style:height="{(bucket.open / maxMonth) * 100}%"
-									></div>
+									<div class="seg open" style:height="{(bucket.open / maxMonth) * 100}%"></div>
+								{/if}
+								{#if total === 0}
+									<div class="seg none"></div>
 								{/if}
 							</div>
 							<span class="tick mono">{monthLabel(bucket.month)}</span>
@@ -188,12 +203,15 @@
 						</div>
 					{/each}
 				</div>
+				<p class="hint source">dates come from the folder names</p>
 			{/if}
 		</section>
 
 		{#if top.length > 0}
-			<section class="panel">
-				<header><h2>Highest priority, still open</h2></header>
+			<section class="panel leaders">
+				<header>
+					<h2><span class="cmd">$ tatr ls</span> highest priority, still open</h2>
+				</header>
 				<ul class="tasks">
 					{#each top as task (task.id)}
 						<li>
@@ -202,7 +220,9 @@
 								>{@html inline(task.title, task.id)}</a
 							>
 							{#each task.tags as tag (tag)}
-								<button class="tag" onclick={() => pick(`:${tag}`)}>{tag}</button>
+								<button class="tag" data-hue={tagHue(tag)} onclick={() => pick(`:${tag}`)}
+									>{tag}</button
+								>
 							{/each}
 							<code class="id">{task.id}</code>
 						</li>
@@ -216,45 +236,48 @@
 <style>
 	main {
 		max-width: 64rem;
-		padding: 1.25rem 1.5rem;
+		padding: 1.75rem 1.5rem 3rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--card-gap);
 	}
 
+	/* What a card holds sits this far in; the hero and the leaderboard set their
+	   own below, which is why this rule comes first. */
+	.panel {
+		padding: 1.5rem 1.625rem;
+	}
+
+	/* The hero: the one sentence the page exists to say, and three counts. */
 	.masthead {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: 2.5rem;
-		padding: 0.5rem 0 1.5rem;
-		border-bottom: 1px solid var(--border);
+		gap: 1.5rem 2rem;
+		padding: 1.75rem 1.9rem;
 	}
 
 	.lead {
-		flex-grow: 1;
+		flex: 1 1 26rem;
 		min-width: 0;
 	}
 
-	.since {
-		font-size: 0.7rem;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
+	.prompt {
+		margin: 0 0 0.75rem;
 		color: var(--muted);
 	}
 
-	h1 {
-		margin: 0.5rem 0 0;
-		font-family: var(--font-display);
-		font-size: 2.4rem;
-		line-height: 1.06;
-		font-weight: 800;
-		letter-spacing: -0.03em;
-		text-wrap: pretty;
-		max-width: 40ch;
+	.since {
+		color: var(--ink-2);
 	}
 
-	.figure {
-		color: var(--accent-text);
+	h1 {
+		margin: 0;
+		font-size: 2rem;
+		line-height: 1.3;
+		font-weight: 800;
+		text-wrap: pretty;
+		max-width: 36ch;
 	}
 
 	.detail {
@@ -263,73 +286,94 @@
 
 	.figures {
 		display: flex;
-		gap: 2rem;
-		padding-bottom: 0.35rem;
+		flex-wrap: wrap;
+		gap: 0.625rem;
+		margin: 0;
 	}
 
 	.figures div {
 		display: flex;
-		flex-direction: column;
+		flex-direction: column-reverse;
+		align-items: center;
+		min-width: 5.75rem;
+		padding: 0.75rem;
+		border-radius: var(--radius-lg);
 	}
 
-	.figures strong {
-		font-family: var(--font-display);
-		font-size: 2rem;
-		font-weight: 700;
-		line-height: 1;
-		letter-spacing: -0.03em;
+	.figures .closed {
+		background: var(--tint-mint);
 	}
 
-	.figures span {
+	.figures .untagged {
+		background: var(--tint-sky);
+	}
+
+	.figures .total {
+		background: var(--tint-lilac);
+	}
+
+	.figures dd {
+		margin: 0;
+		font-size: 1.75rem;
+		font-weight: 800;
+		line-height: 1.2;
+	}
+
+	.figures dt {
 		font-size: 0.75rem;
 		color: var(--ink-2);
 	}
 
 	.charts {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1rem;
-	}
-
-	.panel {
-		padding: 1rem 1.15rem;
+		grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+		gap: var(--card-gap);
 	}
 
 	.panel header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.75rem;
-		margin-bottom: 0.85rem;
+		gap: 0.25rem 0.6rem;
+		margin-bottom: 1rem;
 	}
 
 	h2 {
 		margin: 0;
-		font-size: 0.95rem;
-		font-weight: 600;
-		font-family: var(--font-display);
+		font-size: 0.875rem;
 	}
 
 	.hint {
-		font-size: 0.7rem;
+		font-size: 0.8125rem;
 		color: var(--muted);
 	}
 
-	.hint.right {
-		margin-left: auto;
+	.source {
+		margin: 0.75rem 0 0;
 	}
 
 	.legend {
 		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		font-size: 0.7rem;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-left: auto;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
 	}
 
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.1rem 0.65rem 0.1rem 0.4rem;
+		border-radius: var(--radius-full);
+		background: var(--tint);
+	}
+
 	.key {
-		width: 9px;
-		height: 9px;
-		border-radius: 2px;
+		width: 10px;
+		height: 10px;
+		border-radius: var(--radius-full);
 		display: inline-block;
 	}
 
@@ -343,10 +387,6 @@
 		background: var(--series-closed);
 	}
 
-	.key.closed {
-		margin-left: 0.5rem;
-	}
-
 	ul {
 		list-style: none;
 		margin: 0;
@@ -356,62 +396,66 @@
 	.bars {
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
+		gap: 0.75rem;
 		width: 100%;
-		padding: 0.1rem 0.2rem;
+		min-height: 2rem;
+		padding: 0 0.35rem;
 		font: inherit;
 		color: inherit;
 		background: none;
 		border: none;
-		border-radius: 0.2rem;
+		border-radius: var(--radius-md);
 		cursor: pointer;
 		text-align: left;
 	}
 
 	.row:hover {
-		background: var(--bg);
+		background: var(--tint);
 	}
 
 	.label {
-		width: 2.4rem;
+		width: 3ch;
 		text-align: right;
-		font-size: 0.75rem;
 		color: var(--ink-2);
 		flex-shrink: 0;
 	}
 
 	.label.wide {
-		width: 4.5rem;
+		width: 9ch;
 	}
 
+	/* A pill on a pill: the empty part of the bar is drawn, so a short bar
+	   still reads as a share of something. */
 	.track {
 		flex-grow: 1;
 		display: block;
+		height: 12px;
+		border-radius: var(--radius-full);
+		background: var(--track);
 	}
 
 	.fill {
 		display: block;
-		height: 13px;
-		background: var(--accent);
-		border-radius: 0 4px 4px 0;
+		height: 100%;
+		min-width: 12px;
+		background: var(--series-open);
+		border-radius: var(--radius-full);
 	}
 
 	.value {
-		width: 2rem;
-		font-size: 0.75rem;
-		color: var(--ink-2);
+		width: 3ch;
+		font-weight: 700;
 	}
 
 	.months {
 		display: flex;
 		align-items: flex-end;
-		gap: 0.35rem;
+		gap: 0.5rem;
 		height: 132px;
 	}
 
@@ -427,64 +471,88 @@
 	.stack {
 		flex-grow: 1;
 		width: 100%;
-		max-width: 24px;
+		max-width: 22px;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		gap: 2px;
+		/* The gap shows the card behind, so the two series never touch. */
+		gap: 3px;
 		margin: 0 auto;
 	}
 
+	/* A column is a pill standing up: round where the data ends and at the
+	   foot, and cut square where two segments meet. */
 	.seg {
-		/* Square where it meets the baseline or the segment below it. */
-		border-radius: 0;
-		min-height: 2px;
+		min-height: 3px;
 	}
 
-	.seg.top {
-		border-radius: 3px 3px 0 0;
+	.seg:first-child {
+		border-top-left-radius: 11px;
+		border-top-right-radius: 11px;
+	}
+
+	.seg:last-child {
+		border-bottom-left-radius: 8px;
+		border-bottom-right-radius: 8px;
+	}
+
+	.seg.none {
+		height: 6px;
+		border-radius: var(--radius-full);
+		background: var(--track);
 	}
 
 	.tick {
-		font-size: 0.65rem;
-		color: var(--muted);
+		font-size: 0.8125rem;
+		color: var(--ink-2);
 	}
 
 	.n {
-		font-size: 0.65rem;
-		color: var(--ink-2);
-		min-height: 0.8rem;
+		font-size: 0.8125rem;
+		color: var(--muted);
+		min-height: 1.2rem;
 	}
 
 	.n.zero {
 		color: transparent;
 	}
 
+	.leaders {
+		padding: 1.5rem 1.125rem 0.75rem;
+	}
+
+	.leaders header {
+		padding: 0 0.5rem;
+	}
+
+	.cmd {
+		font-weight: 400;
+		color: var(--muted);
+		margin-right: 0.35rem;
+	}
+
 	.tasks {
 		display: flex;
 		flex-direction: column;
+		gap: 2px;
 	}
 
 	.tasks li {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
-		padding: 0.35rem 0;
-		border-top: 1px solid var(--border);
-		font-size: 0.85rem;
+		gap: 0.75rem;
+		min-height: var(--target);
+		padding: 0 0.5rem;
+		border-radius: var(--radius-md);
 	}
 
-	.tasks li:first-child {
-		border-top: none;
-	}
-
-	.prio {
-		width: 2.4rem;
-		text-align: right;
+	.tasks li:hover {
+		background: var(--tint);
 	}
 
 	.title {
 		flex-grow: 1;
+		min-width: 0;
 		color: inherit;
 	}
 
@@ -497,13 +565,6 @@
 	}
 
 	.tag:hover {
-		border-color: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.id {
-		font-size: 0.7rem;
-		color: var(--muted);
-		font-variant-numeric: tabular-nums;
+		color: var(--fg);
 	}
 </style>

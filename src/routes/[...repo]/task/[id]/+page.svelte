@@ -171,7 +171,7 @@
 						{#each outgoing as other (other.id)}
 							<li>
 								<a href={taskHref(other.id)}>
-									<code>{other.id}</code>
+									<code class="id">{other.id}</code>
 									<span>{@html inline(other.title)}</span>
 								</a>
 								<span class="direction">{mutual.has(other.id) ? 'mutual' : 'refers to'}</span>
@@ -180,7 +180,7 @@
 						{#each incoming.filter((other) => !task.references.includes(other.id)) as other (other.id)}
 							<li>
 								<a href={taskHref(other.id)}>
-									<code>{other.id}</code>
+									<code class="id">{other.id}</code>
 									<span>{@html inline(other.title)}</span>
 								</a>
 								<span class="direction">refers here</span>
@@ -233,10 +233,10 @@
 <style>
 	main {
 		max-width: 70rem;
-		padding: 1.5rem;
+		padding: 1.75rem 1.5rem 3rem;
 		display: grid;
 		grid-template-columns: 1fr 18rem;
-		gap: 1.25rem;
+		gap: var(--card-gap);
 		align-items: start;
 	}
 
@@ -245,71 +245,71 @@
 		grid-column: 1 / -1;
 	}
 
+	/* The sidebar goes under the article on a narrow screen, rather than
+	   squeezing it or pushing the page sideways. */
+	@media (max-width: 50rem) {
+		main {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
 	.panel {
-		padding: 1.25rem 1.5rem;
+		padding: 1.5rem 1.75rem;
+	}
+
+	aside .panel {
+		padding: 1.125rem 1.25rem;
 	}
 
 	aside {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--card-gap);
 	}
 
 	.meta {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.6rem;
-		font-size: 0.75rem;
-		margin-bottom: 0.5rem;
+		gap: 0.5rem 0.6rem;
+		font-size: 0.8125rem;
+		margin-bottom: 0.875rem;
 	}
 
+	/* The status as the file writes it, in a pill: lilac while open, grey once
+	   closed, so the word and the tint agree. */
 	.status {
 		display: inline-flex;
 		align-items: center;
-		font-weight: 500;
-		letter-spacing: 0.04em;
+		height: 1.625rem;
+		padding: 0 0.75rem;
+		font-weight: 700;
 		color: var(--accent-text);
 		background: var(--accent-wash);
-		border: 1px solid var(--accent-line);
-		border-radius: 0.2rem;
-		padding: 0.1rem 0.45rem;
+		border-radius: var(--radius-full);
 	}
 
 	.status.closed {
 		color: var(--ink-2);
-		background: var(--bg);
-		border-color: var(--border);
-	}
-
-	.prio {
-		font-family: var(--font-mono);
-		color: var(--ink-2);
+		background: var(--tint);
 	}
 
 	.muted {
 		color: var(--muted);
 	}
 
-	h1 :global(code) {
-		font-family: var(--font-mono);
-		font-size: 0.86em;
-	}
-
 	h1 {
-		margin: 0 0 1.25rem;
-		font-size: 1.55rem;
-		line-height: 1.28;
+		margin: 0 0 1.5rem;
+		font-size: 1.375rem;
+		line-height: 1.35;
 		font-weight: 700;
+		letter-spacing: -0.01em;
 		text-wrap: pretty;
 	}
 
 	h2 {
-		margin: 0 0 0.6rem;
-		font-size: 0.7rem;
-		font-weight: 400;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted);
+		margin: 0 0 0.75rem;
+		font-size: 0.875rem;
 	}
 
 	.journal {
@@ -378,11 +378,22 @@
 		box-shadow: 0 0 0 3px var(--surface);
 	}
 
+	/* A description is read, so it wraps at the width a line of a TASK.md has
+	   in an editor rather than at the card's. */
 	.prose {
 		flex-grow: 1;
-		font-size: 0.9rem;
-		line-height: 1.62;
+		max-width: 72ch;
+		font-size: 0.875rem;
+		line-height: 1.7;
 		min-width: 0;
+	}
+
+	/* Underlined as well as coloured, so a link in running text is not told
+	   apart by hue alone. */
+	.prose :global(a) {
+		color: var(--accent-strong);
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
 
 	.prose :global(p) {
@@ -391,31 +402,25 @@
 	}
 
 	.prose :global(pre) {
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 0.25rem;
-		padding: 0.6rem 0.8rem;
+		background: var(--tint);
+		border-radius: var(--radius-md);
+		padding: 0.85rem 1rem;
 		overflow-x: auto;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 	}
 
 	.prose :global(img) {
 		max-width: 100%;
 		border: 1px solid var(--border);
-		border-radius: 0.25rem;
-	}
-
-	.prose :global(code) {
-		font-family: var(--font-mono);
-		font-size: 0.85em;
+		border-radius: var(--radius-md);
 	}
 
 	dl {
 		display: grid;
 		grid-template-columns: auto 1fr;
-		gap: 0.4rem 1rem;
+		gap: 0.45rem 1rem;
 		margin: 0 0 0.75rem;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 	}
 
 	dt {
@@ -443,14 +448,10 @@
 		gap: 0.1rem;
 	}
 
-	li code {
-		font-size: 0.7rem;
-	}
-
 	li span {
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
-		line-height: 1.35;
+		line-height: 1.4;
 	}
 
 	.files li {
@@ -475,7 +476,7 @@
 	}
 
 	.direction {
-		font-size: 0.7rem !important;
+		font-size: 0.75rem !important;
 		color: var(--muted) !important;
 	}
 
@@ -490,13 +491,13 @@
 
 	.note {
 		margin: 0;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		color: var(--muted);
-		line-height: 1.45;
+		line-height: 1.5;
 	}
 
 	.warning {
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--warning);
 	}
 </style>

@@ -1,18 +1,102 @@
 /*
- * The one button that carries the accent: Refresh, Try again, Close.
+ * A button: a pill, quiet by default.
  *
  * A class rather than a bare `button` rule, because half the buttons on this
  * site are not this — a tag is a button, a dashboard row is a button — and a
  * global element selector would repaint them all.
+ *
+ * `.action` is the quiet one: Refresh, Try again, Close. Reading is what a
+ * reader came for, and refetching spends their request budget, so none of
+ * those deserves the accent. `.action.primary` carries it, for the one thing a
+ * view exists to do — opening a repository.
  */
 .action {
-	padding: 0.3rem 0.8rem;
+	min-height: var(--target);
+	padding: 0 1rem;
 	font: inherit;
-	font-size: 0.8rem;
-	font-weight: 500;
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--fg);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full);
+	cursor: pointer;
+}
+
+.action:hover {
+	background: var(--tint);
+}
+
+.action.primary {
 	color: var(--on-accent);
 	background: var(--accent);
-	border: 1px solid var(--accent);
-	border-radius: 0.3rem;
+	border-color: var(--accent);
+	font-weight: 700;
+}
+
+/*
+ * One choice out of a few, shown as a segmented control: the current one filled
+ * with the accent, the others on a grey track. The header's views and the home
+ * page's two ways in are the same idiom, so they are one rule. The current item
+ * is whichever the markup already marks for assistive technology — a link's
+ * `aria-current`, a tab's `aria-selected` — so the look cannot drift from what
+ * a screen reader announces.
+ */
+.segmented {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	padding: 0.25rem;
+	border-radius: var(--radius-full);
+	background: var(--tint);
+}
+
+.segmented > * {
+	display: flex;
+	align-items: center;
+	min-height: var(--target);
+	padding: 0 1rem;
+	font: inherit;
+	color: var(--ink-2);
+	background: none;
+	border: none;
+	border-radius: var(--radius-full);
 	cursor: pointer;
+}
+
+.segmented > :hover {
+	color: var(--fg);
+}
+
+.segmented > [aria-current='page'],
+.segmented > [aria-selected='true'] {
+	color: var(--on-accent);
+	background: var(--accent);
+	font-weight: 700;
+}
+
+/*
+ * A text field drawn as a pill. The box rather than the input owns the border
+ * and the focus ring (see `keyboard.css`), because it also holds what sits
+ * beside the input: a glyph on the home page, a prompt and a toggle in the
+ * query bar. `:not([type])` leaves that toggle's checkbox alone.
+ */
+.input-pill {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full);
+	box-shadow: var(--shadow-card);
+}
+
+.input-pill input:not([type]) {
+	font-family: var(--font-mono);
+	font-size: 0.875rem;
+	color: inherit;
+	background: none;
+	border: none;
+	outline: none;
+}
+
+.input-pill input::placeholder {
+	color: var(--muted);
 }

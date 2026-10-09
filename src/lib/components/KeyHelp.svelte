@@ -76,22 +76,20 @@
 		display: grid;
 		place-items: center;
 		padding: 1.5rem;
-		background: rgb(0 0 0 / 0.45);
+		background: rgb(18 17 22 / 0.5);
 	}
 
 	.panel {
-		width: min(26rem, 100%);
-		padding: 1.25rem 1.5rem 1rem;
-		border-radius: 0.6rem;
-		box-shadow: 0 16px 48px rgb(0 0 0 / 0.3);
+		width: min(28rem, 100%);
+		padding: 1.5rem 1.75rem 1.25rem;
+		box-shadow: var(--shadow-menu);
 		outline: none;
 	}
 
 	h2 {
-		margin: 0 0 0.85rem;
+		margin: 0 0 1rem;
 		font-family: var(--font-display);
-		font-size: 1.05rem;
-		font-weight: 700;
+		font-size: 1rem;
 	}
 
 	dl {
@@ -104,7 +102,6 @@
 		display: flex;
 		align-items: baseline;
 		gap: 0.75rem;
-		font-size: 0.85rem;
 	}
 
 	dt {
@@ -121,21 +118,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
-		margin: 0.9rem 0 0;
-		padding-top: 0.75rem;
+		margin: 1rem 0 0;
+		padding-top: 0.85rem;
 		border-top: 1px solid var(--border);
-		font-size: 0.85rem;
 		color: var(--ink-2);
-	}
-
-	kbd {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--fg);
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 0.2rem;
-		padding: 0.05rem 0.3rem;
 	}
 
 	.action {

@@ -102,7 +102,7 @@
 <main>
 	<p class="brand"><Mark size={26} /> <span>tatr dashboard</span></p>
 
-	<h1>Read any <code>tasks/</code> folder as a dashboard.</h1>
+	<h1>Read any <code class="highlight">tasks/</code> folder as a dashboard.</h1>
 	<p class="lead">
 		Point it at any repository that follows the
 		<a href="https://github.com/tsoding/tatr">tatr</a> layout, or at a folder on this machine. Nothing
@@ -111,7 +111,7 @@
 
 	<!-- Two ways in, one at a time: each needs a line of explanation, and stacked
 	     they read as one crowded instruction rather than a choice. -->
-	<div class="tabs" role="tablist" aria-label="Where the tasks are">
+	<div class="segmented tabs" role="tablist" aria-label="Where the tasks are">
 		{#each WHERE as option (option.id)}
 			<button
 				type="button"
@@ -120,7 +120,6 @@
 				aria-selected={where === option.id}
 				aria-controls="panel-{option.id}"
 				tabindex={where === option.id ? 0 : -1}
-				class:current={where === option.id}
 				onclick={() => (where = option.id)}
 				onkeydown={move}
 			>
@@ -132,7 +131,7 @@
 	{#if where === 'remote'}
 		<div role="tabpanel" id="panel-remote" aria-labelledby="tab-remote">
 			<form onsubmit={open}>
-				<span class="field">
+				<span class="field input-pill">
 					<svg
 						class="glyph"
 						viewBox="0 0 24 24"
@@ -153,7 +152,7 @@
 						spellcheck="false"
 					/>
 				</span>
-				<button type="submit">Open</button>
+				<button type="submit" class="action primary">Open</button>
 			</form>
 
 			<!-- The parser takes all four, and nothing on screen admitted it. -->
@@ -227,7 +226,7 @@
 
 <style>
 	main {
-		max-width: 38rem;
+		max-width: 40rem;
 		padding: clamp(3rem, 12vh, 7rem) 1.5rem 4rem;
 	}
 
@@ -237,115 +236,72 @@
 		gap: 0.55rem;
 		margin: 0 0 1.75rem;
 		font-family: var(--font-display);
-		font-size: 1.05rem;
-		font-weight: 700;
+		font-size: 1.0625rem;
+		font-weight: 800;
 	}
 
 	h1 {
-		margin: 0 0 0.9rem;
-		font-size: clamp(1.75rem, 5vw, 2.4rem);
+		margin: 0 0 1rem;
+		font-size: clamp(1.6rem, 5vw, 2.125rem);
 		font-weight: 800;
-		line-height: 1.1;
+		line-height: 1.25;
+		text-wrap: balance;
 	}
 
+	/* Mid-sentence, so it does not hang into the space before it. */
 	h1 code {
-		font-family: var(--font-mono);
-		font-size: 0.85em;
-		color: var(--accent-text);
+		margin-left: 0;
+		font-size: 1em;
 	}
 
 	.lead {
-		margin: 0 0 1.75rem;
-		font-size: 0.95rem;
-		line-height: 1.6;
+		margin: 0 0 2rem;
+		line-height: 1.7;
 		color: var(--ink-2);
 	}
 
 	.lead a {
-		color: var(--accent-text);
+		color: var(--accent-strong);
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
 
-	/* The same underline the header's nav uses, one idiom for one meaning. */
 	.tabs {
-		display: flex;
-		gap: 1.1rem;
 		margin-bottom: 1rem;
-	}
-
-	.tabs button {
-		padding: 0 0 3px;
-		font: inherit;
-		font-size: 0.9rem;
-		color: var(--ink-2);
-		background: none;
-		border: none;
-		border-bottom: 2px solid transparent;
-		border-radius: 0;
-		cursor: pointer;
-	}
-
-	.tabs button.current {
-		color: var(--fg);
-		font-weight: 500;
-		border-bottom-color: var(--accent);
 	}
 
 	form {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.6rem;
 	}
 
-	/* The glyph sits inside the box, so the box has to own the border rather than
-	   the input. */
 	.field {
 		position: relative;
-		flex-grow: 1;
+		flex: 1 1 16rem;
 		display: flex;
 		align-items: center;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-	}
-
-	.field:focus-within {
-		border-color: var(--accent);
 	}
 
 	.glyph {
 		width: 1rem;
 		height: 1rem;
-		margin: 0 0.5rem 0 0.75rem;
+		margin: 0 0.5rem 0 1rem;
 		color: var(--muted);
 	}
 
 	.field input {
 		flex-grow: 1;
 		min-width: 0;
-		padding: 0.65rem 0.75rem 0.65rem 0;
-		font-family: var(--font-mono);
-		font-size: 0.9rem;
-		color: inherit;
-		background: none;
-		border: none;
-		outline: none;
-	}
-
-	button {
-		padding: 0 1.1rem;
-		font: inherit;
-		font-size: 0.9rem;
-		font-weight: 600;
-		color: var(--on-accent);
-		background: var(--accent);
-		border: 1px solid var(--accent);
-		border-radius: 0.4rem;
-		cursor: pointer;
+		min-height: var(--target);
+		padding: 0 1rem 0 0;
 	}
 
 	.accepts,
 	.scheme {
-		margin: 0.6rem 0 0;
-		font-size: 0.8rem;
+		margin: 0.75rem 0 0;
+		font-size: 0.8125rem;
+		line-height: 1.6;
 		color: var(--muted);
 	}
 
@@ -357,30 +313,23 @@
 	}
 
 	.local .hint {
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--muted);
 	}
 
 	.error {
-		margin: 0.6rem 0 0;
-		font-size: 0.85rem;
+		margin: 0.75rem 0 0;
+		font-size: 0.8125rem;
 		color: var(--danger);
 	}
 
 	.recent {
-		margin-top: 2rem;
-		padding-top: 1.5rem;
-		border-top: 1px solid var(--border);
+		margin-top: 2.5rem;
 	}
 
 	h2 {
-		margin: 0 0 0.7rem;
-		font-family: var(--font-sans);
-		font-size: 0.7rem;
-		font-weight: 500;
-		letter-spacing: 0.09em;
-		text-transform: uppercase;
-		color: var(--muted);
+		margin: 0 0 0.75rem;
+		font-size: 0.875rem;
 	}
 
 	ul {
@@ -395,12 +344,13 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: center;
-		gap: 0.15rem 1rem;
-		padding: 0.7rem 0.9rem;
+		gap: 0.2rem 1rem;
+		padding: 0.85rem 1.1rem;
 		color: var(--fg);
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-card);
 	}
 
 	li a:hover {
@@ -408,14 +358,14 @@
 	}
 
 	.path {
-		font-size: 0.9rem;
+		font-weight: 700;
 		color: var(--accent-text);
 		overflow-wrap: anywhere;
 	}
 
 	.about {
 		grid-column: 1;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--ink-2);
 	}
 
@@ -430,13 +380,6 @@
 	}
 
 	.scheme {
-		margin-top: 1.5rem;
-	}
-
-	.scheme code,
-	.accepts code {
-		font-family: var(--font-mono);
-		font-size: 0.95em;
-		color: var(--ink-2);
+		margin-top: 2rem;
 	}
 </style>

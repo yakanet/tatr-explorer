@@ -75,7 +75,7 @@
 
 <style>
 	.panel {
-		padding: 1.1rem 1.25rem;
+		padding: 1.25rem 1.5rem;
 	}
 
 	.panel.warn {
@@ -83,19 +83,18 @@
 	}
 
 	h2 {
-		margin: 0 0 0.5rem;
+		margin: 0 0 0.6rem;
 		font-size: 1rem;
 	}
 
 	p {
-		margin: 0 0 0.5rem;
-		font-size: 0.875rem;
-		line-height: 1.55;
+		margin: 0 0 0.6rem;
+		line-height: 1.6;
 	}
 
 	.note {
 		color: var(--ink-2);
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 	}
 
 	.step {
@@ -122,22 +121,23 @@
 
 	.hint {
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		color: var(--muted);
 	}
 
+	/* The same pill on a track the dashboard's bars are. */
 	.bar {
-		height: 5px;
-		border-radius: 3px;
-		background: var(--border);
+		height: 8px;
+		border-radius: var(--radius-full);
+		background: var(--track);
 		overflow: hidden;
-		margin: 0.5rem 0 0.75rem;
+		margin: 0.6rem 0 0.85rem;
 	}
 
 	.fill {
 		height: 100%;
 		background: var(--accent);
-		border-radius: 3px;
+		border-radius: var(--radius-full);
 	}
 
 	.actions {
