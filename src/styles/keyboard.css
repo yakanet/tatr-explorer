@@ -9,10 +9,19 @@
  * same, the offset leaves a gap in whatever is behind, forced-colours mode
  * repaints it instead of dropping it, and a card's own `box-shadow` cannot
  * override it.
+ *
+ * Inside `:where()`, so it weighs nothing and the rules that remove it win: a
+ * pill's text field, a table row's link, the keyboard panel. As a plain list it
+ * broke in the build only. Vite targets browsers that predate `:has()`, so the
+ * minifier wraps a list holding one in `:is(…)`, which takes the weight of its
+ * heaviest member, `.input-pill:has(…)`. `:where()` is as forgiving as `:is()`
+ * — a browser without `:has()` keeps the rest of the ring — and adds no weight.
  */
-:focus-visible,
-.input-pill:has(input:not([type]):focus),
-.segmented > :has(:focus-visible) {
+:where(
+	:focus-visible,
+	.input-pill:has(input:not([type]):focus),
+	.segmented > :has(:focus-visible)
+) {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
