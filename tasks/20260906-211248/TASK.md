@@ -1,62 +1,60 @@
-# Self-host the webfonts
+# Self-host JetBrains Mono
 
 - STATUS: OPEN
 - PRIORITY: 70
 - TAGS: infra
 
-IBM Plex Sans/Mono and Bricolage Grotesque currently load from Google Fonts,
-which adds a third-party request and a render dependency on someone else's CDN.
+JetBrains Mono is the site's only face — `--font-sans` and `--font-display` both
+point at `--font-mono` — and it loads from Google Fonts at 400, 600, 700 and 800,
+every weight the CSS asks for and none spare. That is a request to a third party
+on every visit, from a site whose README promises no analytics and no server,
+and a render dependency on a CDN we do not control.
 
-Self-host via fontsource, subset to latin, and preload the display face.
+Self-host it from Fontsource: the latin file only, one `@font-face` written by
+hand, `font-display: swap`, a `preload`, and `app.html` left with neither the
+stylesheet nor its two preconnects. Done when a visit sends nothing to
+`fonts.googleapis.com` or `fonts.gstatic.com`.
 
----
+The task was first written for IBM Plex and Bricolage Grotesque, which the Calm
+restyle (20261009-181700) replaced with this one family.
 
-The packages exist, all three, at fontsource 5.3.0 — with four findings that
-change the plan above.
+Measured, from the 5.3.0 tarballs and from the file Google serves to Chrome:
 
-    @fontsource-variable/ibm-plex-sans          45.7 kB  wght 100-700, one file
-    @fontsource-variable/bricolage-grotesque    41.3 kB  wght 200-800
-    @fontsource/ibm-plex-mono                   14.7 + 14.9 + 15.6 kB
+    @fontsource-variable/jetbrains-mono   40.4 kB  latin, wght 100-800, one file
+    @fontsource/jetbrains-mono            86.2 kB  latin, four static files
+    Google Fonts, today                   31.3 kB  latin, wght 400-800, one file
 
-Sizes are the latin woff2 only, read out of the tarballs rather than guessed.
+**The variable file, and it is 9 kB heavier than today.** Google already sends a
+variable font — the 24 `@font-face` rules of its stylesheet point at six files,
+one per subset, shared by the four weights — and it cuts the axis to the range
+requested: the same 394 glyphs and 229 code points, but `wght` 400-800 instead
+of 100-800, and no `HVAR` or `prep` table. Two ways to go, to be decided before
+the code is written: take the package's file and pay the 9 kB, or instance the
+axis to 400-800 once with `fontTools.varLib.instancer` and ship that file
+instead, which turns a dependency into a generated file and its regeneration
+into a manual step.
 
-**There is no variable Plex Mono.** `@fontsource-variable/ibm-plex-mono` does
-not exist; IBM ships no weight axis for it. So three static files, and 600 is
-worth checking before it is shipped — 15 kB for a weight that may appear
-nowhere.
+**The family is renamed.** The variable package declares
+`'JetBrains Mono Variable'`, so `--font-mono` has to name it. A mistake is
+silent: the stack falls through to `ui-monospace` and nothing errors.
 
-**The variable packages rename the family.** Their faces declare
-`'IBM Plex Sans Variable'` and `'Bricolage Grotesque Variable'`, so
-`--font-sans` and `--font-display` have to name those. Get it wrong and nothing
-errors: the stack simply falls through to `system-ui`.
+**There is no per-subset CSS.** `wght.css` declares all six subsets — cyrillic,
+cyrillic-ext, greek, latin, latin-ext, vietnamese — and importing it would ship
+every one of them in the build, `unicode-range` only sparing the reader the
+download. Hence the `@font-face` by hand, pointing at the latin file of the
+installed package, where `font-display` and the preload can be read.
 
-**The variable packages have no per-subset CSS.** The static one offers
-`latin-400.css`; the variable ones expose only `wght.css`, `opsz.css` and
-`index.css`, each declaring all seven subsets. `unicode-range` keeps the reader
-from downloading cyrillic, but the build ships it. Three `@font-face` rules
-written by hand in `app.css`, pointing at the latin files of the installed
-packages, gives the same result with the files we asked for and nothing else —
-and puts `font-display` and the display face's `preload` where they can be read.
+**Some glyphs the interface draws are in neither subset.** `←`, `→` and `⇄` on
+the reference cards and `⏎` in the query bar's completion hint sit outside the
+latin range of both Google and Fontsource, so they come from the fallback face
+today and will keep doing so. Drawing them in JetBrains Mono means subsetting
+the upstream font ourselves, after checking that it has all four — a separate
+decision, not part of this task.
 
-**Bricolage has an `opsz` axis that is in use without being asked for.** The
-Google URL requests `opsz,wght@12..96`, and `font-optical-sizing` defaults to
-`auto`, so the browser is already driving the optical axis from the rendered
-size — the homepage's headings, at 28-38px, are not drawn as they would be at
-14px. The `wght`-only file is 41.3 kB, the one carrying `opsz` is 76.9 kB, and
-the full standard file 131.5 kB. Dropping the axis changes the headings; the two
-go side by side on screen before that is decided, not by argument.
+**No italic, as today.** A task body's `*emphasis*` is slanted by the browser;
+a real italic would be a second file of 43 kB.
 
-Bytes on the wire are roughly unchanged either way: Google already serves latin
-subsets of comparable size. What self-hosting buys is two fewer third-party
-connections and no render dependency on a CDN we do not control; what it costs
-is about 130 kB in the repository and in the build.
-
----
-
-Licensing, since it lands with the files rather than after them: IBM Plex and
-Bricolage Grotesque are under the SIL Open Font License, which asks that its
-notice travel with the fonts. Self-hosting means shipping the faces in this
-repository, so their notices belong in `NOTICE` beside the fixtures' — the file
-that already exists for exactly this, now that the repository is MIT with
-stated exceptions.
-
+**The licence travels with the file.** JetBrains Mono is under the SIL Open Font
+License, which asks that its notice go with the font. Shipping it from this
+repository puts that notice in `NOTICE`, beside the fixtures' — the file that
+exists for exactly this, the repository being MIT with stated exceptions.
