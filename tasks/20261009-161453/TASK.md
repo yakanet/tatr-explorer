@@ -1,6 +1,6 @@
 # Accept a task id as a query, as `tatr ls` now does
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 100
 - TAGS: tql
 
@@ -57,3 +57,29 @@ Cases worth adding, each hitting something distinct:
 Builds on 20260906-200200 (the port) and 20260907-002307 (the errors fixture).
 Once it lands, 20260907-040702 can echo such a query as a command like any
 other.
+
+---
+
+Done. `<huid>` is a primary in `query.ts`, tested between `priority` and the
+integer as in the C, and `<huid>         - valid id of a task` closes the help
+list as it does there. The README's query table has a row for it.
+
+One claim above was wrong. `isValidHuid` did not accept the same set as
+`is_valid_huid`: it read the digits as a date and refused `20260231-000000`,
+which the C takes as an id — `tatr ls 99999999-999999` answers "No tasks were
+found", not an error. It checks the shape alone now, as its name promised, and
+the query uses it. The one caller that wanted the date, the loader, calls
+`parseHuid` itself, and that is a divergence of its own: 20261009-162447.
+
+The fixtures were regenerated together from 9b0d752, by a script checked first
+against d927bf4, where it rebuilt all six existing files byte for byte. 79
+tasks, 36 arrows, 50 CLI cases, 15 error cases. The counts the specs measure on
+the real repository moved with them, each re-derived from the CLI's output
+rather than from ours.
+
+The new corpus caught a divergence the old one could not show. Upstream's
+20260912-102943 names 20260828-211200 in its title and nowhere else, and
+`tatr graph` draws that arrow: the C scans the whole `TASK.md`, while
+`extractReferences` was handed the description only — under a comment saying
+the reference implementation "scans the whole file". It reads the whole file
+now, title and properties included.

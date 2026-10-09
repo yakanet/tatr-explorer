@@ -194,4 +194,22 @@ describe('references', () => {
 		const { extractReferences } = await import('./task.ts');
 		expect(extractReferences('no ids here, just 2026 and 08-26')).toEqual([]);
 	});
+
+	it('reads the whole file, as `tatr graph` does, title and properties included', async () => {
+		// Upstream's 20260912-102943 cites its parent in the title and nowhere
+		// else, and the CLI draws that arrow.
+		const { readTask } = await import('./task.ts');
+		const source = [
+			'# Test task with custom properties for 20260828-211200',
+			'',
+			'- STATUS: CLOSED',
+			'- FOO: 20260101-000001',
+			'',
+			'No description.'
+		].join('\n');
+		expect(readTask('20260912-102943', source)!.references).toEqual([
+			'20260101-000001',
+			'20260828-211200'
+		]);
+	});
 });

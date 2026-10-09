@@ -7,27 +7,27 @@
  {
   "query": "priority and",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n\npriority and\n            ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority and\n            ^\nERROR: Primary expression is expected here."
  },
  {
   "query": "priority lt",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n\npriority lt\n           ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority lt\n           ^\nERROR: Primary expression is expected here."
  },
  {
   "query": "nope",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n\nnope\n^\nERROR: Unexpected start of a primary expression `nope`."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\nnope\n^\nERROR: Unexpected start of a primary expression `nope`."
  },
  {
   "query": "]",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n\n]\n^\nERROR: Unexpected start of a primary expression `]`."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n]\n^\nERROR: Unexpected start of a primary expression `]`."
  },
  {
   "query": "[",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n\n[\n ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n[\n ^\nERROR: Primary expression is expected here."
  },
  {
   "query": "[:bug",
@@ -58,5 +58,20 @@
   "query": ".bug",
   "exit": 0,
   "stderr": ".bug\n^\nWARNING: Using `.` to refer to tags is deprecated and will be removed in the future. Use `:` instead."
+ },
+ {
+  "query": "20260828-21120",
+  "exit": 1,
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n20260828-21120\n^\nERROR: Unexpected start of a primary expression `20260828-21120`."
+ },
+ {
+  "query": "20260828-211200_x",
+  "exit": 1,
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n20260828-211200_x\n^\nERROR: Unexpected start of a primary expression `20260828-211200_x`."
+ },
+ {
+  "query": "priority lt 20260828-211200",
+  "exit": 1,
+  "stderr": "priority lt 20260828-211200\n            ^\nERROR: Expected integer but got boolean"
  }
 ]

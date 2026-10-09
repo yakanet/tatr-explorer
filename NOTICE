@@ -9,13 +9,13 @@ tests/fixtures/
 ---------------
 
 These files are recordings of the reference implementation's behaviour, made by
-running the real `tatr` binary over the 64 tasks of its own repository:
+running the real `tatr` binary over the 79 tasks of its own repository:
 
-  tsoding-tatr-raw.json   the complete text of those 64 TASK.md files
+  tsoding-tatr-raw.json   the complete text of those 79 TASK.md files
   tatr-ls-output.json     their ids, titles, statuses, priorities and tags
   tsoding-tatr.json       the same fields, from a second invocation
   tatr-graph-edges.json   the task ids they cite, as pairs
-  tql-cli-cases.json      34 queries, and the ids the CLI printed for each
+  tql-cli-cases.json      50 queries, and the ids the CLI printed for each
   tatr-query-errors.json  invalid queries, and the diagnostics the CLI printed
 
 The task text, the titles and the diagnostics in them are the work of the

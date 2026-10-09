@@ -12,6 +12,7 @@ import {
 } from './query.ts';
 
 const task = (tags: string[], priority = 100, title = 'A task'): TqlTask => ({
+	id: '20260101-000000',
 	tags,
 	priority,
 	title
@@ -81,6 +82,36 @@ describe('primaries', () => {
 	it('reads negative integers', () => {
 		expect(run('priority gt -1', task([], -5))).toBe(false);
 		expect(run('priority eq -5', task([], -5))).toBe(true);
+	});
+});
+
+describe('a task id', () => {
+	const withId = (id: string): TqlTask => ({ ...task([]), id });
+	const short = withId('20260830-000838');
+	const extended = withId('20260830-000838-rexim');
+
+	it('selects the task it names', () => {
+		expect(run('20260830-000838', short)).toBe(true);
+		expect(run('20260830-000838-rexim', extended)).toBe(true);
+		expect(run('20260830-000838', withId('20260830-000839'))).toBe(false);
+	});
+
+	it('matches the whole id, never a prefix of it', () => {
+		expect(run('20260830-000838', extended)).toBe(false);
+		expect(run('20260830-000838-', extended)).toBe(false);
+	});
+
+	it('composes like any other primary', () => {
+		expect(run('not 20260830-000838', short)).toBe(false);
+		expect(run('20260830-000838 or 20260830-000838-rexim', extended)).toBe(true);
+		expect(run('20260830-000838 and priority ge 100', short)).toBe(true);
+	});
+
+	it('reads the shape only, as the CLI does, so an impossible date is no error', () => {
+		// `is_valid_huid` checks digits, not dates: the CLI answers this with an
+		// empty list, and failing to parse it would be a divergence.
+		expect(run('20260231-000000', short)).toBe(false);
+		expect(run('99999999-999999', short)).toBe(false);
 	});
 });
 
@@ -233,6 +264,7 @@ describe('formatDiagnostic', () => {
 				'    tagged         - checks if a task is tagged',
 				'    priority       - priority of a task as an integer',
 				'    <number>       - signed integer',
+				'    <huid>         - valid id of a task',
 				'',
 				':a and nope',
 				'       ^',

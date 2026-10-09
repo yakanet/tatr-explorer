@@ -15,7 +15,7 @@ In the browser. No server, no backend, no clone.
 
 ![The dashboard reading tsoding/tatr](docs/overview.jpg)
 
-<div align="center"><sub>Reading <a href="https://github.com/tsoding/tatr"><code>tsoding/tatr</code></a> — 64 tasks, the repository the test fixtures are taken from.</sub></div>
+<div align="center"><sub>Reading <a href="https://github.com/tsoding/tatr"><code>tsoding/tatr</code></a>, the repository the test fixtures are taken from.</sub></div>
 
 ## Your tasks already live in git. Now you can see them.
 
@@ -44,9 +44,9 @@ someone else and land them exactly there.
 
 Nothing to sign in to, nothing to configure, no repository to register first.
 
-Inside a task, the ids its body cites are links too — the ones this repository
-has, which is the set the References panel lists; an id belonging to somebody
-else's tracker stays text.
+Inside a task, the ids it cites are links too, in its title as in its body —
+the ones this repository has, which the References panel lists; an id belonging
+to somebody else's tracker stays text.
 
 It answers the keyboard throughout: `j`/`k` walk whatever the view is showing —
 rows, bars, graph nodes — `g g` and `G` reach the ends, `/` puts the caret in
@@ -64,6 +64,7 @@ your shell history, paste it in, get the same answer.
 | `priority ge 90`                   | what deserves attention                   |
 | `[:ui or :tql] and priority ge 90` | brackets group, so no shell quoting       |
 | `tagged`                           | tasks carrying at least one tag           |
+| `20260828-211200`                  | the one task with that id                 |
 | `~"query language"`                | titles holding every one of those words   |
 | `any`                              | everything                                |
 
@@ -167,18 +168,26 @@ whether it holds task folders.
 
 ## Identical to the CLI — and that claim is tested
 
-The format parser and the query language are ported from the C source, not from
-the README, which simplifies. Both are covered by **differential tests that
-replay the real `tatr` binary's output**:
+The format parser, the query language and the reference graph are ported from
+the C source, not from the README, which simplifies. All three are covered by
+**differential tests that replay the real `tatr` binary's output**:
 
-- **64 rows** of `tatr ls` over the 64 tasks of `tsoding/tatr`, compared field
+- **79 rows** of `tatr ls` over the 79 tasks of `tsoding/tatr`, compared field
   by field;
-- **34 query invocations**, each compared against the exact set of tasks the CLI
-  printed.
+- **50 query invocations**, each compared against the exact set of tasks the CLI
+  printed;
+- **15 invalid queries**, each compared against everything the CLI printed —
+  the help, the caret and the message;
+- **36 arrows** of `tatr graph`, compared one by one.
 
-A divergence fails the suite. The same discipline governs what reaches the
-screen: repository content is shown **verbatim**, typos and straight quotes
-included, because polishing it would show a screen the product cannot produce.
+A divergence fails the suite. When upstream moves, the recordings are made
+again from a single commit, and they earn it: the last time, they caught an
+arrow `tatr graph` draws from an id cited only in a title, which this viewer had
+missed.
+
+The same discipline governs what reaches the screen: repository content is shown
+**verbatim**, typos and straight quotes included, because polishing it would
+show a screen the product cannot produce.
 
 Those recordings carry upstream's own task text, which makes them the one thing
 in this repository that is not MIT — see [`NOTICE`](NOTICE). No code from tatr is
@@ -231,8 +240,9 @@ ui , screens, interaction and styling
 infra , build, deploy and tooling
 ```
 
-Next up: a board whose columns come from tags, keyboard navigation across every
-view, self-hosted webfonts, and forges beyond GitHub.
+What comes next is not listed here, where it would go stale. It is
+[whatever is open](https://github.broutin.dev/tatr-dashboard/yakanet/tatr-dashboard/list),
+highest priority first.
 
 ## Credits
 

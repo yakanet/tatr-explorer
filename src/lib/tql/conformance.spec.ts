@@ -24,7 +24,7 @@ interface CliCase {
 
 describe('conformance with the tatr CLI', () => {
 	it('exercises a real repository', () => {
-		expect(tasks).toHaveLength(64);
+		expect(tasks).toHaveLength(79);
 		expect(cliCases.length).toBeGreaterThan(20);
 	});
 

@@ -21,9 +21,13 @@ export interface Huid {
 	suffix?: string;
 }
 
-/** Whether a folder name is a task id. Non-matching entries are skipped, not errors. */
+/**
+ * Whether a text is a task id, as `is_valid_huid` in `src/huid.c` decides it:
+ * by its shape alone, the digits never read as a date. `20260231-000000` is an
+ * id here as it is to the CLI; {@link parseHuid} is the one that refuses it.
+ */
 export function isValidHuid(id: string): boolean {
-	return parseHuid(id) !== null;
+	return HUID.test(id);
 }
 
 /**

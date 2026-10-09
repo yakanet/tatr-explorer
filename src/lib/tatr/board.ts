@@ -2,7 +2,7 @@
  * The board: three columns, from the one tag that means a stage.
  *
  * A column per tag is the obvious reading of "columns from tags" and it does not
- * work — 10 of the 64 tasks in tsoding/tatr carry more than one, so the same
+ * work — 11 of the 79 tasks in tsoding/tatr carry more than one, so the same
  * card would appear in several columns at once. Tags there are categories
  * (`bug`, `ui`, `tql`), not steps.
  *

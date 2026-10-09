@@ -50,6 +50,15 @@ describe('isValidHuid', () => {
 	it('rejects the tags file that sits beside the task folders', () => {
 		expect(isValidHuid('tags')).toBe(false);
 	});
+
+	it('reads the shape only, never the date, as `is_valid_huid` does', () => {
+		expect(isValidHuid('20260231-000000')).toBe(true);
+	});
+
+	it('accepts an empty suffix and refuses a short time', () => {
+		expect(isValidHuid('20260830-000838-')).toBe(true);
+		expect(isValidHuid('20260830-00083')).toBe(false);
+	});
 });
 
 describe('formatHuid', () => {

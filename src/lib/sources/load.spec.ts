@@ -103,8 +103,8 @@ describe('loadRepository', () => {
 			fetchImpl: fetchFixture,
 			store
 		});
-		expect(result.tasks).toHaveLength(64);
-		expect(result.tasks.filter((task) => !task.closed)).toHaveLength(23);
+		expect(result.tasks).toHaveLength(79);
+		expect(result.tasks.filter((task) => !task.closed)).toHaveLength(33);
 		expect(result.skipped).toEqual([]);
 	});
 
@@ -125,8 +125,8 @@ describe('loadRepository', () => {
 			store,
 			onProgress
 		});
-		expect(onProgress).toHaveBeenCalledTimes(64);
-		expect(onProgress).toHaveBeenLastCalledWith(64, 64);
+		expect(onProgress).toHaveBeenCalledTimes(79);
+		expect(onProgress).toHaveBeenLastCalledWith(79, 79);
 	});
 
 	it('honours the concurrency limit', async () => {
@@ -169,7 +169,7 @@ describe('loadRepository', () => {
 			fetchImpl: flaky,
 			store
 		});
-		expect(result.tasks).toHaveLength(63);
+		expect(result.tasks).toHaveLength(78);
 		expect(result.skipped).toEqual([{ id: '20260826-200847', reason: 'Could not be read' }]);
 	});
 
@@ -219,7 +219,7 @@ describe('caching', () => {
 			store
 		});
 		expect(second.fromCache).toBe(true);
-		expect(second.tasks).toHaveLength(64);
+		expect(second.tasks).toHaveLength(79);
 		// The listing is the only rate-limited call; it must not happen twice.
 		expect(lister).toHaveBeenCalledTimes(1);
 	});
@@ -281,7 +281,7 @@ describe('caching', () => {
 			fetchImpl: fetchFixture,
 			store: memoryStore()
 		});
-		expect(result.tasks).toHaveLength(64);
+		expect(result.tasks).toHaveLength(79);
 		expect(result.fromCache).toBe(false);
 	});
 });
@@ -335,7 +335,7 @@ describe('what the cache keeps', () => {
 
 /**
  * A repository of a few task files that can be rewritten between readings —
- * which the 64-task fixture cannot be, being a fixture.
+ * which the 79-task fixture cannot be, being a fixture.
  */
 function mutable(files: Record<string, string>) {
 	const lister = async (): Promise<Listing> => ({

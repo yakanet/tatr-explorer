@@ -149,7 +149,7 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		/* Done holds 41 cards on tsoding/tatr, so letting the page grow to fit it
+		/* Done holds 46 cards on tsoding/tatr, so letting the page grow to fit it
 		   scrolls the other two headers off the top — and a board whose columns
 		   cannot be compared is a list. Each scrolls on its own instead, which is
 		   also what `j`/`k` expect: scrollIntoView finds the nearest scroll box. */

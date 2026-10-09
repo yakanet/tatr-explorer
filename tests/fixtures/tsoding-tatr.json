@@ -344,10 +344,12 @@
  },
  {
   "id": "20260828-211200",
-  "title": "Mass updating tasks by a query",
-  "status": "OPEN",
-  "priority": 110,
-  "tags": []
+  "title": "Mass updating tasks by a query (`tatr-untag`)",
+  "status": "CLOSED",
+  "priority": 120,
+  "tags": [
+   "stream"
+  ]
  },
  {
   "id": "20260828-211350",
@@ -504,10 +506,9 @@
  {
   "id": "20260901-070317",
   "title": "Ascending order with `tatr ls -a` does not actually reverse the result",
-  "status": "OPEN",
+  "status": "CLOSED",
   "priority": 100,
   "tags": [
-   "scope",
    "bug"
   ]
  },
@@ -516,9 +517,7 @@
   "title": "List both closed and open tasks somehow",
   "status": "OPEN",
   "priority": 100,
-  "tags": [
-   "scope"
-  ]
+  "tags": []
  },
  {
   "id": "20260906-040857",
@@ -526,5 +525,134 @@
   "status": "OPEN",
   "priority": 100,
   "tags": []
+ },
+ {
+  "id": "20260910-063140",
+  "title": "Can we make the executable fully static and ship it in the GitHub releases?",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": []
+ },
+ {
+  "id": "20260910-065115",
+  "title": "Bake the compiler version into `tatr-version`",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": []
+ },
+ {
+  "id": "20260910-113917",
+  "title": "Not sure why we use nob_log for reporting useful info to the user",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": []
+ },
+ {
+  "id": "20260910-143535",
+  "title": "Some sort of lock-file mechanism",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": []
+ },
+ {
+  "id": "20260910-171120",
+  "title": "tatr-new -s flag does not validate the suffix",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [
+   "bug"
+  ]
+ },
+ {
+  "id": "20260910-181239",
+  "title": "`tatr ls -debug` should be a separate command",
+  "status": "OPEN",
+  "priority": 101,
+  "tags": [
+   "scope"
+  ]
+ },
+ {
+  "id": "20260912-085629",
+  "title": "`tatr-untag` must report each modification with a compiler style report pointing at the line where the `TAGS` property is located",
+  "status": "OPEN",
+  "priority": 105,
+  "tags": [
+   "scope"
+  ]
+ },
+ {
+  "id": "20260912-102943",
+  "title": "Test task with custom properties for 20260828-211200",
+  "status": "CLOSED",
+  "priority": 110,
+  "tags": [
+   "bar",
+   "foo"
+  ]
+ },
+ {
+  "id": "20260912-110420",
+  "title": "Invalid tasks are filter out when `tatr-ls` is called with non-default query",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [
+   "bug"
+  ]
+ },
+ {
+  "id": "20260912-124403",
+  "title": "TQL expression that matches a task with a specific ID",
+  "status": "CLOSED",
+  "priority": 110,
+  "tags": [
+   "tql"
+  ]
+ },
+ {
+  "id": "20260912-125818",
+  "title": "Implement `tatr-tag`",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [
+   "scope"
+  ]
+ },
+ {
+  "id": "20260912-125912",
+  "title": "Implement `tatr-close`",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [
+   "scope"
+  ]
+ },
+ {
+  "id": "20260913-063421",
+  "title": "`append_task_md_content()` doesn't take into account `Task.body`",
+  "status": "OPEN",
+  "priority": 90,
+  "tags": [
+   "scope",
+   "bug"
+  ]
+ },
+ {
+  "id": "20260913-140450",
+  "title": "Introduce `tatr-id` command",
+  "status": "OPEN",
+  "priority": 80,
+  "tags": [
+   "scope"
+  ]
+ },
+ {
+  "id": "20260914-105224",
+  "title": "JSON reports",
+  "status": "OPEN",
+  "priority": 80,
+  "tags": [
+   "scope"
+  ]
  }
 ]

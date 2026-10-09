@@ -64,7 +64,7 @@ function render(query: string): string {
 
 describe('conformance with the tatr diagnostics', () => {
 	it('covers every branch that reports something', () => {
-		expect(cases).toHaveLength(12);
+		expect(cases).toHaveLength(15);
 		expect(cases.filter((one) => one.exit === 0)).toHaveLength(1);
 	});
 

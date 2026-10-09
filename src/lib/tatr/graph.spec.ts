@@ -31,7 +31,7 @@ describe('conformance with `tatr graph`', () => {
 
 	it('counts the links the way the .dot file does', () => {
 		expect(buildGraph(all).linkCount).toBe(expected.length);
-		expect(buildGraph(all).linkCount).toBe(27);
+		expect(buildGraph(all).linkCount).toBe(36);
 	});
 
 	it('ignores ids naming no task, journal timestamps included', () => {
@@ -50,12 +50,12 @@ describe('buildGraph', () => {
 
 	it('finds the connected components of the real repository', () => {
 		expect(graph.clusters.map((cluster) => cluster.nodes.length)).toEqual([
-			4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2
+			10, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2
 		]);
 	});
 
 	it('leaves out the tasks nothing connects', () => {
-		expect(graph.isolated).toHaveLength(34);
+		expect(graph.isolated).toHaveLength(43);
 		expect(graph.isolated.map((task) => task.id)).toEqual(
 			[...graph.isolated].map((task) => task.id).sort()
 		);
@@ -63,7 +63,7 @@ describe('buildGraph', () => {
 
 	it('accounts for every task exactly once', () => {
 		const inClusters = graph.clusters.flatMap((cluster) => cluster.nodes.length);
-		expect(inClusters.reduce((n, size) => n + size, 0) + graph.isolated.length).toBe(64);
+		expect(inClusters.reduce((n, size) => n + size, 0) + graph.isolated.length).toBe(79);
 	});
 
 	it('draws a mutual citation once', () => {

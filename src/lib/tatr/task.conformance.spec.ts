@@ -6,7 +6,7 @@ import { compareByPriority, readTask } from './task.ts';
 /**
  * Differential test of the parser against the reference implementation.
  *
- * `tsoding-tatr-raw.json` holds the 64 `TASK.md` files of tsoding/tatr verbatim;
+ * `tsoding-tatr-raw.json` holds the 79 `TASK.md` files of tsoding/tatr verbatim;
  * `tatr-ls-output.json` holds what the compiled `tatr ls` binary printed for the
  * same folder. Every field the CLI shows — status, priority, tags, title — is
  * re-derived here and compared, so a divergence from the C parser fails the suite.
@@ -26,8 +26,8 @@ const sources = rawTasks as Record<string, string>;
 
 describe('conformance with the tatr parser', () => {
 	it('covers the whole repository', () => {
-		expect(rows).toHaveLength(64);
-		expect(Object.keys(sources)).toHaveLength(64);
+		expect(rows).toHaveLength(79);
+		expect(Object.keys(sources)).toHaveLength(79);
 	});
 
 	it.each(rows)('$id parses to what the CLI prints', (row) => {
@@ -64,7 +64,10 @@ describe('conformance with the tatr parser', () => {
 		for (const [id, source] of Object.entries(sources)) {
 			for (const key of readTask(id, source)!.properties.keys()) keys.add(key);
 		}
-		expect([...keys].sort()).toEqual(['PRIORITY', 'STATUS', 'TAGS']);
+		// Upstream's 20260912-102943 exists to exercise `[other properties]`, which
+		// the spec now documents and the CLI ignores: `FOO` and `DUPLICATE` sit
+		// among the three, and are kept rather than dropped.
+		expect([...keys].sort()).toEqual(['DUPLICATE', 'FOO', 'PRIORITY', 'STATUS', 'TAGS']);
 	});
 
 	it('reads a creation date for every task, straight from its id', () => {
@@ -95,11 +98,13 @@ describe('conformance with the tatr parser', () => {
 		// Measured on the real repository. Counting these correctly means honouring
 		// team suffixes: `20260826-204052` cites `20260830-000838-rexim`, an edge a
 		// pattern without the suffix silently misses.
-		expect(edges).toHaveLength(27);
-		expect(nodes.size).toBe(30);
+		expect(edges).toHaveLength(36);
+		expect(nodes.size).toBe(36);
 
-		// The hub, cited by four other tasks and citing two.
-		const incoming = edges.filter((edge) => edge.endsWith('->20260310-133453'));
-		expect(incoming).toHaveLength(3);
+		// The hub, upstream's mass-update task, cited by eight others. One of them,
+		// 20260912-102943, names it only in its title, which a scan of the body
+		// alone would miss.
+		const incoming = edges.filter((edge) => edge.endsWith('->20260828-211200'));
+		expect(incoming).toHaveLength(8);
 	});
 });

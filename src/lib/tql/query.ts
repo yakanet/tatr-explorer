@@ -9,10 +9,13 @@
  *     and     ::= compare *( 'and' compare )
  *     compare ::= primary *( ('lt'|'le'|'gt'|'ge'|'eq'|'ne') primary )
  *     primary ::= ':' tag | '~' word | '~' '"' words '"' | '[' expr ']'
- *               | 'not' primary | 'any' | 'tagged' | 'priority' | number
+ *               | 'not' primary | 'any' | 'tagged' | 'priority' | number | huid
  *
  * Square brackets group instead of parentheses, and comparisons are spelled as
  * words, so a query survives a shell without quoting.
+ *
+ * A `huid` is a task id, and selects the task whose id is exactly that: no
+ * prefix matching, so `20260830-000838` does not find `20260830-000838-rexim`.
  *
  * `~` searches titles, and it is the one thing the C implementation has no
  * notion of. The divergence is deliberate and one-directional: every query the
@@ -31,6 +34,8 @@
  * are reported at the offending token rather than silently coerced.
  */
 
+import { isValidHuid } from '../tatr/huid.ts';
+
 /** A half-open range into the query source, used to point diagnostics at a token. */
 export interface Span {
 	start: number;
@@ -46,11 +51,14 @@ export type Node =
 	| { kind: 'tagged'; span: Span }
 	| { kind: 'priority'; span: Span }
 	| { kind: 'integer'; value: number; span: Span }
+	| { kind: 'id'; id: string; span: Span }
 	| { kind: 'not'; operand: Node; span: Span }
 	| { kind: 'binary'; op: BinaryOp; left: Node; right: Node; span: Span };
 
 /** The task fields a query can see. */
 export interface TqlTask {
+	/** The folder name, compared whole by a `huid` term. */
+	readonly id: string;
 	readonly tags: readonly string[];
 	readonly priority: number;
 	/** Read by `~` only, and absent from the C implementation's own query task. */
@@ -116,7 +124,8 @@ const PRIMARY_HELP = `What are primary expressions:
     any            - expression that always returns true
     tagged         - checks if a task is tagged
     priority       - priority of a task as an integer
-    <number>       - signed integer`;
+    <number>       - signed integer
+    <huid>         - valid id of a task`;
 
 /** A parse that succeeded but used deprecated syntax. */
 export interface TqlWarning {
@@ -257,6 +266,10 @@ export function parseWithWarnings(source: string): ParseResult {
 		if (token.text === 'tagged') return { kind: 'tagged', span: token.span };
 		if (token.text === 'priority') return { kind: 'priority', span: token.span };
 
+		// The shape alone, as `is_valid_huid` reads it: `tatr ls 20260231-000000`
+		// parses and finds nothing, so refusing it here would be a divergence.
+		if (isValidHuid(token.text)) return { kind: 'id', id: token.text, span: token.span };
+
 		if (/^-?\d+$/.test(token.text)) {
 			return { kind: 'integer', value: Number.parseInt(token.text, 10), span: token.span };
 		}
@@ -333,6 +346,8 @@ function evaluateNode(node: Node, task: TqlTask): Value {
 			return { type: 'integer', value: task.priority };
 		case 'integer':
 			return { type: 'integer', value: node.value };
+		case 'id':
+			return { type: 'boolean', value: task.id === node.id };
 		case 'not': {
 			const operand = expect(evaluateNode(node.operand, task), 'boolean', node.operand.span);
 			return { type: 'boolean', value: !operand.value };
@@ -393,7 +408,7 @@ export function evaluate(node: Node, task: TqlTask): boolean {
  * before testing either, exactly as the C implementation does. No branch can
  * hide behind a short circuit that never happens.
  */
-const WITNESS: TqlTask = { tags: [], priority: 0, title: '' };
+const WITNESS: TqlTask = { id: '', tags: [], priority: 0, title: '' };
 
 /**
  * Compiles a query into a matcher, throwing {@link TqlError} for a syntax *or* a

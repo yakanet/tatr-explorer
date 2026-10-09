@@ -17,16 +17,16 @@ const ids = (tasks: Task[]) => tasks.map((task) => task.id);
 describe('toColumns', () => {
 	it('splits the real repository three ways', () => {
 		const [backlog, progress, done] = toColumns(all);
-		expect(backlog.tasks).toHaveLength(21);
-		expect(progress.tasks).toHaveLength(2);
-		expect(done.tasks).toHaveLength(41);
+		expect(backlog.tasks).toHaveLength(26);
+		expect(progress.tasks).toHaveLength(7);
+		expect(done.tasks).toHaveLength(46);
 	});
 
 	it('accounts for every task exactly once', () => {
 		const columns = toColumns(all);
 		const placed = columns.flatMap((column) => ids(column.tasks));
-		expect(placed).toHaveLength(64);
-		expect(new Set(placed).size).toBe(64);
+		expect(placed).toHaveLength(79);
+		expect(new Set(placed).size).toBe(79);
 	});
 
 	it('puts a task carrying the tag in progress', () => {
@@ -69,7 +69,7 @@ describe('toColumns', () => {
 	});
 
 	it('handles several tasks in progress, which upstream has', () => {
-		// The convention is one at a time; tsoding/tatr carries two, so a board
+		// The convention is one at a time; tsoding/tatr carries seven, so a board
 		// that assumed one would drop a card.
 		const [, progress] = toColumns(all);
 		expect(progress.tasks.length).toBeGreaterThan(1);
@@ -84,7 +84,7 @@ describe('toColumns', () => {
 	});
 
 	it('totals what a column holds before the query', () => {
-		expect(toColumns(all).map((column) => column.total)).toEqual([21, 2, 41]);
+		expect(toColumns(all).map((column) => column.total)).toEqual([26, 7, 46]);
 	});
 });
 
@@ -93,18 +93,18 @@ describe('toColumns under a query', () => {
 
 	it('narrows each column and keeps its total', () => {
 		const [backlog, progress, done] = toColumns(all, scoped);
-		expect(progress.tasks).toHaveLength(2);
-		expect(progress.total).toBe(2);
+		expect(progress.tasks).toHaveLength(7);
+		expect(progress.total).toBe(7);
 		// Nothing else in the repository carries the tag, and the totals still say
 		// how much was set aside.
-		expect([backlog.tasks.length, backlog.total]).toEqual([0, 21]);
-		expect([done.tasks.length, done.total]).toEqual([0, 41]);
+		expect([backlog.tasks.length, backlog.total]).toEqual([0, 26]);
+		expect([done.tasks.length, done.total]).toEqual([0, 46]);
 	});
 
 	it('leaves the totals alone when nothing matches', () => {
 		const columns = toColumns(all, () => false);
 		expect(columns.map((column) => column.tasks.length)).toEqual([0, 0, 0]);
-		expect(columns.map((column) => column.total)).toEqual([21, 2, 41]);
+		expect(columns.map((column) => column.total)).toEqual([26, 7, 46]);
 	});
 
 	it('counts a task in the column it belongs to, matched or not', () => {
