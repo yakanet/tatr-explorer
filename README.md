@@ -13,9 +13,9 @@ In the browser. No server, no backend, no clone.
 
 </div>
 
-![The dashboard reading tsoding/tatr](docs/overview.jpg)
+![The dashboard reading this repository](docs/overview.jpg)
 
-<div align="center"><sub>Reading <a href="https://github.com/tsoding/tatr"><code>tsoding/tatr</code></a>, the repository the test fixtures are taken from.</sub></div>
+<div align="center"><sub>Reading <a href="https://github.com/yakanet/tatr-dashboard"><code>yakanet/tatr-dashboard</code></a>, this repository, which tracks its own work with tatr.</sub></div>
 
 ## Your tasks already live in git. Now you can see them.
 

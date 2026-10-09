@@ -22,7 +22,7 @@ said by colour alone.
 ---
 
 Done. `tokens.css` carries the Calm values for both themes, plus the tints, the
-tag dots, `track`, radii, shadows and a `--focus-ring`; every view, the query
+tag dots, `track`, radii, shadows and a 44px `--target`; every view, the query
 bar, the key help, the status panel and the folder picker are restyled on them.
 The favicon and the logo take the orchid.
 
