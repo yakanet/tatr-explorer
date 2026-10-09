@@ -7,25 +7,21 @@ import { parseHuid, scanHuids } from './huid.ts';
 import { isClosed, parseTaskMd, readPriority, readTags } from './task-md.ts';
 
 /**
- * Task ids mentioned in a `TASK.md`, deduplicated and sorted, minus the task's
- * own.
+ * Task ids mentioned in a `TASK.md`, deduplicated and sorted.
  *
  * Ids appear bare, wrapped as `TASK(...)`, and as the timestamp of a journal
  * entry in `NOTE(...)`. The reference implementation makes no distinction
  * between those: it scans the whole file, title and properties included, and
  * keeps whatever looks like an id. So does this, since an id in a title is an
- * arrow in `tatr graph` like any other.
+ * arrow in `tatr graph` like any other — the task's own id included, which
+ * `tatr graph` draws as an arrow from the task back to itself.
  *
  * What separates a real reference from a note's timestamp is that only the
  * former names a task that exists, which is a question for the caller holding
  * the repository — see `buildGraph`.
  */
-export function extractReferences(taskMd: string, selfId?: string): string[] {
-	const found = new Set<string>();
-	for (const id of scanHuids(taskMd)) {
-		if (id !== selfId) found.add(id);
-	}
-	return [...found].sort();
+export function extractReferences(taskMd: string): string[] {
+	return [...new Set(scanHuids(taskMd))].sort();
 }
 
 export interface Task {
@@ -45,10 +41,10 @@ export interface Task {
 	/** Every property, including keys outside the documented three. */
 	properties: Map<string, string>;
 	/**
-	 * Task ids this task mentions anywhere in its file, deduplicated and
-	 * self-references removed. Extracted at parse time so the cross-reference graph survives
-	 * without keeping every description around: the ids cost about 2 kB for a
-	 * 64-task repository, the descriptions cost 24 kB.
+	 * Task ids this task mentions anywhere in its file, deduplicated, its own
+	 * among them when it cites itself. Extracted at parse time so the
+	 * cross-reference graph survives without keeping every description around:
+	 * the ids cost about 2 kB for a 64-task repository, the descriptions 24 kB.
 	 */
 	references: string[];
 	/**
@@ -84,7 +80,7 @@ export function readTask(id: string, taskMd: string): Task | null {
 		priority: readPriority(parsed.properties),
 		tags: readTags(parsed.properties),
 		properties: parsed.properties,
-		references: extractReferences(taskMd, huid.id),
+		references: extractReferences(taskMd),
 		description: parsed.description,
 		malformed: parsed.malformed
 	};

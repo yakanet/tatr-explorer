@@ -79,10 +79,7 @@ describe('conformance on our corpus of edge cases', () => {
 		}
 	);
 
-	// Known divergence, 20261009-233817: `tatr graph` draws a task citing itself,
-	// this viewer drops it. `it.fails` turns red the day it is fixed, so the mark
-	// cannot outlive the bug.
-	it.fails('draws the same arrows as `tatr graph`', () => {
+	it('draws the same arrows as `tatr graph`, a task citing itself included', () => {
 		const arrows = buildGraph(tasks)
 			.clusters.flatMap((cluster) => cluster.nodes)
 			.flatMap((node) => node.out.map((to) => `${node.task.id} -> ${to}`))

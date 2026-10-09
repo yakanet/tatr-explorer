@@ -185,9 +185,9 @@ describe('references', () => {
 		expect(extractReferences('see 20260830-000838-rexim')).toEqual(['20260830-000838-rexim']);
 	});
 
-	it('drops the task referring to itself', async () => {
+	it('keeps a task referring to itself, which `tatr graph` draws', async () => {
 		const { extractReferences } = await import('./task.ts');
-		expect(extractReferences('this is 20260826-152351 itself', '20260826-152351')).toEqual([]);
+		expect(extractReferences('this is 20260826-152351 itself')).toEqual(['20260826-152351']);
 	});
 
 	it('finds nothing in prose without ids', async () => {

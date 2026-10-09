@@ -78,12 +78,18 @@
 	const attachmentUrl = (name: string) =>
 		task ? resolveAttachment({ ref, branch: repo.branch, taskId: task.id }, name) : null;
 
+	// A task citing itself is neither a task it refers to nor one referring here,
+	// which together would read "mutual": it has a line of its own.
 	const outgoing = $derived(
 		(task?.references ?? [])
+			.filter((other) => other !== id)
 			.map((other) => repo.tasks.find((candidate) => candidate.id === other))
 			.filter((other) => other !== undefined)
 	);
-	const incoming = $derived(repo.tasks.filter((other) => other.references.includes(id)));
+	const incoming = $derived(
+		repo.tasks.filter((other) => other.id !== id && other.references.includes(id))
+	);
+	const citesItself = $derived(task?.references.includes(id) ?? false);
 	const mutual = $derived(new Set(incoming.map((other) => other.id)));
 
 	/**
@@ -166,7 +172,7 @@
 				<p class="note">Any property key is shown, not just these.</p>
 			</section>
 
-			{#if outgoing.length > 0 || incoming.length > 0}
+			{#if outgoing.length > 0 || incoming.length > 0 || citesItself}
 				<section class="panel">
 					<h2>References</h2>
 					<ul>
@@ -188,6 +194,11 @@
 								<span class="direction">refers here</span>
 							</li>
 						{/each}
+						{#if citesItself}
+							<li>
+								<span class="direction">cites itself</span>
+							</li>
+						{/if}
 					</ul>
 					<p class="note">Found by scanning task text for ids.</p>
 				</section>

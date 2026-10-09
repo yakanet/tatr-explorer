@@ -85,11 +85,14 @@ describe('buildGraph', () => {
 		]);
 	});
 
-	it('ignores a task citing itself', () => {
+	it('keeps a task citing itself, as one arrow that is not mutual', () => {
+		// `tatr graph` draws it; the corpus spec compares against its `.dot`.
 		const graph = buildGraph([make('20260101-000001', 'see 20260101-000001')]);
-		expect(graph.clusters).toEqual([]);
-		expect(graph.isolated).toHaveLength(1);
-		expect(graph.linkCount).toBe(0);
+		expect(graph.clusters[0].edges).toEqual([
+			{ from: '20260101-000001', to: '20260101-000001', mutual: false }
+		]);
+		expect(graph.isolated).toEqual([]);
+		expect(graph.linkCount).toBe(1);
 	});
 
 	it('ignores an id no task carries', () => {
@@ -133,9 +136,10 @@ describe('star cards', () => {
 	const around = (card: (typeof cards)[number]) => card.links.map((link) => link.task);
 
 	it('draws every link exactly once', () => {
-		const drawn = cards.flatMap((card) =>
-			around(card).map((other) => [card.pivot.id, other.id].sort().join(' '))
-		);
+		const drawn = cards.flatMap((card) => [
+			...around(card).map((other) => [card.pivot.id, other.id].sort().join(' ')),
+			...(card.self ? [`${card.pivot.id} ${card.pivot.id}`] : [])
+		]);
 		expect(new Set(drawn).size).toBe(drawn.length);
 		expect(drawn).toHaveLength(graph.clusters.reduce((n, cluster) => n + cluster.edges.length, 0));
 	});
@@ -172,6 +176,25 @@ describe('star cards', () => {
 		expect(pair[0].links.map(({ task, kind }) => [task.id, kind])).toEqual([
 			['20260101-000002', 'in']
 		]);
+	});
+
+	it('gives a task citing itself a line of its own, not itself as a neighbour', () => {
+		const [card] = starCards(
+			buildGraph([
+				make('20260101-000001', '20260101-000001 and 20260101-000002'),
+				make('20260101-000002')
+			])
+		);
+		expect(card.pivot.id).toBe('20260101-000001');
+		expect(card.self).toBe(true);
+		expect(card.links.map(({ task, kind }) => [task.id, kind])).toEqual([
+			['20260101-000002', 'out']
+		]);
+	});
+
+	it('makes a card of a task that cites only itself', () => {
+		const cards = starCards(buildGraph([make('20260101-000001', 'see 20260101-000001')]));
+		expect(cards).toEqual([expect.objectContaining({ links: [], self: true })]);
 	});
 
 	it('lets a task appear in more than one card', () => {

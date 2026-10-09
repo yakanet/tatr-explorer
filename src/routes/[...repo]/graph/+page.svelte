@@ -17,8 +17,10 @@
 	const graph = $derived(buildGraph(repo.tasks));
 	const cards = $derived(starCards(graph));
 
+	/** How many links a card holds, its pivot citing itself among them. */
+	const linksOf = (card: StarCard) => card.links.length + (card.self ? 1 : 0);
 	/** How many links each pivot's own card holds, for a neighbour to point at it. */
-	const held = $derived(new Map(cards.map((card) => [card.pivot.id, card.links.length])));
+	const held = $derived(new Map(cards.map((card) => [card.pivot.id, linksOf(card)])));
 
 	const SIZE = 200;
 	const PIVOT_R = 18;
@@ -161,6 +163,9 @@
 					<span><b class="in">←</b>cites the task in the middle</span>
 					<span><b class="out">→</b>is cited by it</span>
 					<span><b class="both">⇄</b>both ways</span>
+					{#if cards.some((card) => card.self)}
+						<span><b class="self">↺</b>cites itself</span>
+					{/if}
 					<span><span class="jump">+3</span>has a card of its own</span>
 				</p>
 			{/if}
@@ -210,7 +215,7 @@
 							>
 						</h2>
 						<p class="meta">
-							<code class="id">{card.pivot.id}</code> · {plural(draw.nodes.length, 'link', 'links')} here
+							<code class="id">{card.pivot.id}</code> · {plural(linksOf(card), 'link', 'links')} here
 						</p>
 						<ol>
 							{#each draw.nodes as node, i (node.task.id)}
@@ -245,6 +250,16 @@
 									</span>
 								</li>
 							{/each}
+							<!-- `tatr graph` draws an arrow from a task citing itself back to
+							     it. A spoke has nowhere to go, so it is a line of the list,
+							     unnumbered, since the drawing has no node for it. -->
+							{#if card.self}
+								<li>
+									<span class="number" aria-hidden="true"></span>
+									<span class="glyph self" aria-hidden="true">↺</span>
+									<span class="itself">Cites itself</span>
+								</li>
+							{/if}
 						</ol>
 					</div>
 				</article>
@@ -463,8 +478,13 @@
 		color: var(--link-out);
 	}
 
-	.both {
+	.both,
+	.self {
 		color: var(--link-both);
+	}
+
+	.itself {
+		color: var(--muted);
 	}
 
 	.text a {

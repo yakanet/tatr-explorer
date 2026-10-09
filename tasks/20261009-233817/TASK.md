@@ -1,8 +1,8 @@
 # A task that cites itself is drawn by `tatr graph` and dropped here
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 70
-- TAGS: format,ui,scope
+- TAGS: format,ui
 
 Found by the corpus of 20261009-233816: when a task's text holds its own id,
 `tatr graph` writes an arrow from the task to itself into `graph.dot`. This
@@ -32,3 +32,21 @@ Not affected: an id in a body is still not linked to the page it is on.
 This repository has one: 20260907-173535 cites itself, the example id swapped for
 its own when the site ignored self-citations. It will show as one. Readers' caches
 hold references computed before, so a self-citation appears after a Refresh.
+
+---
+
+Done as listed. `extractReferences` keeps the task's own id and `buildGraph`
+no longer filters it, so the corpus's graph matches `tatr graph` arrow for arrow
+and its known-failure mark is gone.
+
+A self-arrow is a `GraphEdge` whose ends are the same task, never `mutual`. It
+counts in `linkCount`, and its task is no longer isolated. In `starCards` it
+counts once towards choosing pivots and lands on its own card as `self: true`
+rather than as a neighbour, so a task citing only itself gets a card with no
+spoke. On screen that is an unnumbered "↺ Cites itself" line under the
+numbered ones, the key gains "↺ cites itself" only when a card needs it, and
+"N links here" and a neighbour's "+N" count it. The task page ends its
+References panel with "cites itself" instead of listing the task as mutual.
+
+Checked on this repository, where 20260907-173535 cites itself: its card reads
+"4 links here" with three spokes and the line, and its page shows the line.

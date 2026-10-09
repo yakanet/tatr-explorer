@@ -17,11 +17,17 @@
  */
 import type { Task } from './task.ts';
 
-/** A citation between two tasks that both exist, drawn once. */
+/**
+ * A citation between two tasks that both exist, drawn once. `from` and `to` are
+ * the same task when it cites itself, which `tatr graph` draws too.
+ */
 export interface GraphEdge {
 	from: string;
 	to: string;
-	/** True when each task cites the other, so the connection points both ways. */
+	/**
+	 * True when each task cites the other, so the connection points both ways.
+	 * Never for a self-citation, which reads both ways but is one arrow.
+	 */
 	mutual: boolean;
 }
 
@@ -61,7 +67,7 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	let linkCount = 0;
 
 	for (const task of tasks) {
-		const cited = task.references.filter((id) => id !== task.id && known.has(id)).sort();
+		const cited = task.references.filter((id) => known.has(id)).sort();
 		if (cited.length === 0) continue;
 
 		out.set(task.id, cited);
@@ -73,7 +79,7 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	const edges = new Map<string, GraphEdge>();
 	for (const [from, cited] of out) {
 		for (const to of cited) {
-			const mutual = out.get(to)?.includes(from) ?? false;
+			const mutual = from !== to && (out.get(to)?.includes(from) ?? false);
 			const [a, b] = mutual && to < from ? [to, from] : [from, to];
 			edges.set(`${a} ${b}`, { from: a, to: b, mutual });
 		}
@@ -148,6 +154,8 @@ export interface StarCard {
 	 * the list beside it is numbered in.
 	 */
 	links: StarLink[];
+	/** Whether the pivot cites itself: a link of its own, with no neighbour to draw. */
+	self: boolean;
 }
 
 const KIND_ORDER: StarLink['kind'][] = ['in', 'both', 'out'];
@@ -176,21 +184,26 @@ export function starCards(graph: ReferenceGraph): StarCard[] {
 		const count = new Map<string, number>();
 		for (const edge of left) {
 			count.set(edge.from, (count.get(edge.from) ?? 0) + 1);
-			count.set(edge.to, (count.get(edge.to) ?? 0) + 1);
+			if (edge.to !== edge.from) count.set(edge.to, (count.get(edge.to) ?? 0) + 1);
 		}
 		const [pivot] = [...count].sort(([a, m], [b, n]) => n - m || (a < b ? -1 : 1))[0];
 
 		const links: StarLink[] = [];
+		let self = false;
 		for (const edge of [...left]) {
 			if (edge.from !== pivot && edge.to !== pivot) continue;
 			left.delete(edge);
+			if (edge.from === edge.to) {
+				self = true;
+				continue;
+			}
 			const task = tasks.get(edge.from === pivot ? edge.to : edge.from)!;
 			links.push({ task, kind: edge.mutual ? 'both' : edge.from === pivot ? 'out' : 'in' });
 		}
 		links.sort(
 			(a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || byId(a.task, b.task)
 		);
-		cards.push({ pivot: tasks.get(pivot)!, links });
+		cards.push({ pivot: tasks.get(pivot)!, links, self });
 	}
 	return cards;
 }
