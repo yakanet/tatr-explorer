@@ -155,9 +155,10 @@
 				<button type="submit" class="action primary">Open</button>
 			</form>
 
-			<!-- The parser takes all four, and nothing on screen admitted it. -->
+			<!-- The parser takes all four, and nothing on screen admitted it. It reads
+			     a remote on any host, but only GitHub is served, so the line says so. -->
 			<p class="accepts">
-				Accepts <code>owner/name</code>, a full URL, an SSH remote, or
+				Accepts <code>owner/name</code>, a GitHub URL or SSH remote, or
 				<code>owner/name@branch</code>.
 			</p>
 
@@ -217,11 +218,6 @@
 			</ul>
 		</section>
 	{/if}
-
-	<p class="scheme">
-		Every repository gets its own address:
-		<code>/tsoding/tatr?q=:bug</code>
-	</p>
 </main>
 
 <style>
@@ -297,8 +293,7 @@
 		padding: 0 1rem 0 0;
 	}
 
-	.accepts,
-	.scheme {
+	.accepts {
 		margin: 0.75rem 0 0;
 		font-size: 0.8125rem;
 		line-height: 1.6;
@@ -377,9 +372,5 @@
 		grid-row: 1 / span 2;
 		grid-column: 2;
 		color: var(--muted);
-	}
-
-	.scheme {
-		margin-top: 2rem;
 	}
 </style>
