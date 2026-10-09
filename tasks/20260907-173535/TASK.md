@@ -31,7 +31,7 @@ Four constraints, all of them found in the code rather than guessed:
 
 On the shape: markdown-it's own linkify works by splitting `text` tokens in a
 core rule, which is the pattern to follow. Code spans are not text tokens, so
-`` `20260906-211255` `` stays literal for free, but the inside of an existing
+`` `20260907-173535` `` stays literal for free, but the inside of an existing
 link has to be skipped explicitly or the nesting comes back by another door.
 
 The href wants `resolve('/[...repo]/task/[id]')`, which is what carries the
