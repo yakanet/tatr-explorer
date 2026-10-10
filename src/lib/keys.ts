@@ -8,8 +8,8 @@
  *
  * The bindings are the ones a reader of this format already has in their
  * fingers: `j`/`k` and `g g` from vi, `/` and `?` from less, `1`-`9` from
- * anything with tabs. Arrows do whatever their vi twin does, so nothing here
- * has to be learned to be usable.
+ * anything with tabs, `b` for branch. Arrows do whatever their vi twin does, so
+ * nothing here has to be learned to be usable.
  */
 
 export type Action =
@@ -25,7 +25,9 @@ export type Action =
 	/** Escape: close whatever is open, or give up the focus. */
 	| { kind: 'dismiss' }
 	/** Switch view by position in the nav, counted from zero. */
-	| { kind: 'view'; index: number };
+	| { kind: 'view'; index: number }
+	/** Open the header's field for reading another branch. */
+	| { kind: 'branch' };
 
 /**
  * What a partly-typed sequence leaves behind. Only `g` starts one, so this is a
@@ -52,6 +54,7 @@ const SIMPLE: Record<string, Action> = {
 	End: { kind: 'last' },
 	'/': { kind: 'search' },
 	'?': { kind: 'help' },
+	b: { kind: 'branch' },
 	Escape: { kind: 'dismiss' }
 };
 
@@ -81,18 +84,30 @@ export function press(key: string, pending: Pending = NOTHING_PENDING): Pressed 
 	return { action: null, pending: NOTHING_PENDING };
 }
 
+interface Binding {
+	keys: string;
+	does: string;
+	/**
+	 * The action that only some pages offer — a nav to switch between, a branch
+	 * to choose. The help panel leaves the binding out elsewhere rather than
+	 * advertise a key that is inert there.
+	 */
+	needs?: Extract<Action['kind'], 'view' | 'branch'>;
+}
+
 /**
  * Every binding, for the help panel. Ordered as it should be read, not as the
  * table above happens to be written.
  */
-export const BINDINGS: readonly { keys: string; does: string }[] = [
+export const BINDINGS: readonly Binding[] = [
 	{ keys: 'j / k', does: 'move down and up' },
 	{ keys: '↓ / ↑', does: 'the same' },
 	{ keys: 'g g', does: 'jump to the first' },
 	{ keys: 'G', does: 'jump to the last' },
 	{ keys: 'Enter', does: 'open what is focused' },
 	{ keys: '/', does: 'search' },
-	{ keys: '1 … 9', does: 'switch view' },
+	{ keys: '1 … 9', does: 'switch view', needs: 'view' },
+	{ keys: 'b', does: 'read another branch', needs: 'branch' },
 	{ keys: '?', does: 'this list' },
 	{ keys: 'Esc', does: 'close, or leave the box' }
 ];

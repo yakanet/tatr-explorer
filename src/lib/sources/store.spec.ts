@@ -48,6 +48,13 @@ describe('memoryStore', () => {
 		]);
 	});
 
+	it('lists its keys alone, for a caller that needs no value', async () => {
+		const store = memoryStore();
+		await store.write('a', 1);
+		await store.write('b', 2);
+		expect((await store.keys()).sort()).toEqual(['a', 'b']);
+	});
+
 	it('clears everything', async () => {
 		const store = memoryStore();
 		await store.write('a', 1);

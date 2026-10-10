@@ -44,6 +44,12 @@ export interface RepoStore {
 	 * matter would want a separate index of counts.
 	 */
 	list<T>(): Promise<{ key: string; value: T; storedAt: number }[]>;
+	/**
+	 * Every key held, without the values: what the header's branch menu needs
+	 * to know is only which branches are cached, and reading the values to learn
+	 * it would cost as much as the whole cache weighs.
+	 */
+	keys(): Promise<string[]>;
 }
 
 const newestFirst = (a: { storedAt: number }, b: { storedAt: number }) => b.storedAt - a.storedAt;
@@ -61,6 +67,9 @@ export function memoryStore(): RepoStore {
 		async clear(key?: string) {
 			if (key === undefined) map.clear();
 			else map.delete(key);
+		},
+		async keys() {
+			return [...map.keys()];
 		},
 		async list<T>() {
 			return [...map.entries()]
@@ -213,6 +222,13 @@ function persistentStore(): RepoStore {
 						: []
 				)
 				.sort(newestFirst);
+		},
+
+		async keys() {
+			const handle = await database();
+			if (!handle) return fallback.keys();
+			const keys = await transact('readonly', (store) => request(store.getAllKeys()));
+			return (keys ?? []).map(String);
 		},
 
 		async clear(key?: string) {

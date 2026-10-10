@@ -126,6 +126,24 @@ function fromHostAndPath(host: string, path: string): RepoRef | null {
 	return build(host, owner, name, branch);
 }
 
+/**
+ * Whether a name could be a branch, by the rules `git check-ref-format` applies:
+ * a name git would refuse cannot exist, and refusing it here saves the request
+ * that would only say so.
+ *
+ * Two characters are refused on our own account, for now. `#` and `%` are legal
+ * in git, but our URLs carry the branch unencoded, reading the first as the end
+ * of the path and the second as an escape. Encoding the branch where a URL is
+ * built would lift this, and fix the same gap in the homepage's field, which
+ * accepts `owner/name@branch` unchecked.
+ */
+export function isBranchName(name: string): boolean {
+	if (name === '' || name === '@') return false;
+	// eslint-disable-next-line no-control-regex
+	if (/[\x00-\x20\x7f~^:?*[\\#%]/.test(name)) return false;
+	return !/\.\.|\/\/|@\{|^\/|\/$|\.$|\.lock$|(^|\/)\./.test(name);
+}
+
 /** Renders a reference back into the path form used by our own URLs. */
 export function formatRepoPath(ref: RepoRef): string {
 	// The folder's name is deliberately not in the URL: it would read as an

@@ -56,6 +56,7 @@ describe('press', () => {
 	it('reads the rest of the map', () => {
 		expect(press('/').action).toEqual({ kind: 'search' });
 		expect(press('?').action).toEqual({ kind: 'help' });
+		expect(press('b').action).toEqual({ kind: 'branch' });
 		expect(press('Escape').action).toEqual({ kind: 'dismiss' });
 		expect(press('G').action).toEqual({ kind: 'last' });
 		expect(press('Home').action).toEqual({ kind: 'first' });
@@ -75,7 +76,7 @@ describe('press', () => {
 describe('BINDINGS', () => {
 	it('documents every key the map answers to', () => {
 		const documented = BINDINGS.map((binding) => binding.keys).join(' ');
-		for (const key of ['j', 'k', 'g g', 'G', '/', '?', 'Esc']) {
+		for (const key of ['j', 'k', 'g g', 'G', '/', '?', 'b', 'Esc']) {
 			expect(documented).toContain(key);
 		}
 	});

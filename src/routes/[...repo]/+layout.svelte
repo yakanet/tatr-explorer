@@ -3,6 +3,7 @@
 	import { goto, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import BranchField from '#lib/components/BranchField.svelte';
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
@@ -42,11 +43,8 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/**
-	 * What the header calls this repository: the URL form for a forge, branch and
-	 * all, and for a folder the name the reading found — no URL carries it.
-	 */
-	const label = $derived(isLocal(ref) ? repo.name : path);
+	/** A folder on this machine, which has no branch to choose. */
+	const local = $derived(isLocal(ref));
 
 	/**
 	 * Whether Refresh means anything here, which only the source knows.
@@ -82,6 +80,8 @@
 		{ name: 'References', base: resolve('/[...repo]/graph', { repo: path }), search: '' }
 	]);
 
+	let branching = $state(false);
+
 	/** `1`-`9` counts positions in the nav, so an absent view simply does nothing. */
 	function switchTo(index: number) {
 		const view = views[index];
@@ -96,13 +96,18 @@
 
 <Shortcuts
 	onview={switchTo}
+	onbranch={local ? undefined : () => (branching = true)}
 	onhelp={() => (helping = !helping)}
 	ondismiss={dismiss}
 	modal={helping}
 />
 
 {#if helping}
-	<KeyHelp views={views.map((view) => view.name)} onclose={() => (helping = false)} />
+	<KeyHelp
+		views={views.map((view) => view.name)}
+		branch={!local}
+		onclose={() => (helping = false)}
+	/>
 {/if}
 
 <!-- Three zones: whose tasks on the left, which view in the middle, how fresh
@@ -110,7 +115,11 @@
 <header>
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
-		<span class="repo">{label}</span>
+		{#if local}
+			<span class="repo">{repo.name}</span>
+		{:else}
+			<BranchField {ref} bind:open={branching} />
+		{/if}
 	</div>
 
 	<nav class="segmented">

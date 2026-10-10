@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatRepoPath } from './ref.ts';
-import { parseKey, FALLBACK, toSuggestions, type CachedShape } from './recent.ts';
+import { branchesOf, parseKey, FALLBACK, toSuggestions, type CachedShape } from './recent.ts';
 
 const row = (key: string, closed: number, open: number, storedAt = 1) => ({
 	key,
@@ -87,5 +87,36 @@ describe('toSuggestions', () => {
 
 	it('counts a repository with no tasks at all without dividing by anything', () => {
 		expect(suggest([row('github.com/a/one@', 0, 0)])[0]).toMatchObject({ total: 0, open: 0 });
+	});
+});
+
+describe('branchesOf', () => {
+	const ref = { host: 'github.com', owner: 'owner', name: 'repo' };
+
+	it('lists the branches of this repository the cache holds, sorted', () => {
+		const keys = ['github.com/owner/repo@main', 'github.com/owner/repo@feature/web-ui'];
+		expect(branchesOf(ref, keys)).toEqual(['feature/web-ui', 'main']);
+	});
+
+	it('leaves out the default branch, which the menu offers as HEAD', () => {
+		expect(branchesOf(ref, ['github.com/owner/repo@', 'github.com/owner/repo@dev'])).toEqual([
+			'dev'
+		]);
+	});
+
+	it('keeps the branch being read, whichever it is', () => {
+		const keys = ['github.com/owner/repo@dev', 'github.com/owner/repo@main'];
+		expect(branchesOf({ ...ref, branch: 'dev' }, keys)).toEqual(['dev', 'main']);
+	});
+
+	it('leaves out other repositories, a namesake on another host included', () => {
+		const keys = [
+			'github.com/owner/other@dev',
+			'github.com/owner/repository@dev',
+			'github.com/someone/repo@dev',
+			'codeberg.org/owner/repo@dev',
+			'nonsense'
+		];
+		expect(branchesOf(ref, keys)).toEqual([]);
 	});
 });

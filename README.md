@@ -44,13 +44,19 @@ someone else and land them exactly there.
 
 Nothing to sign in to, nothing to configure, no repository to register first.
 
+The address in the header leads to the other branches: `HEAD`, the ones already
+read, or any name typed in, and the view and its query come along. Only branches
+read before are listed, since asking GitHub for the list would spend a request
+before you had chosen anything.
+
 Inside a task, the ids it cites are links too, in its title as in its body —
 the ones this repository has, which the References panel lists; an id belonging
 to somebody else's tracker stays text.
 
 It answers the keyboard throughout: `j`/`k` walk whatever the view is showing —
 rows, bars, the titles on the graph's cards — `g g` and `G` reach the ends, `/`
-puts the caret in the query, `1`-`4` switch view, and `?` lists the rest.
+puts the caret in the query, `1`-`4` switch view, `b` opens the branches, and
+`?` lists the rest.
 
 ## The query language you already know
 

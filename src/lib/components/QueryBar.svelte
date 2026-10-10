@@ -220,10 +220,6 @@
 		padding: 0.25rem 1.1rem;
 	}
 
-	.bar.invalid {
-		border-color: var(--danger);
-	}
-
 	.prompt {
 		font-family: var(--font-mono);
 		font-weight: 700;
@@ -243,39 +239,8 @@
 	}
 
 	.menu {
-		position: absolute;
-		top: calc(100% + 0.6rem);
-		left: -0.6rem;
-		z-index: 10;
 		min-width: 24rem;
 		max-width: min(34rem, 90vw);
-		padding: 0.4rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-menu);
-	}
-
-	ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	li button {
-		display: flex;
-		align-items: baseline;
-		gap: 0.7rem;
-		width: 100%;
-		padding: 0.45rem 0.75rem;
-		font: inherit;
-		font-size: 0.8125rem;
-		text-align: left;
-		color: inherit;
-		background: none;
-		border: none;
-		border-radius: var(--radius-md);
-		cursor: pointer;
 	}
 
 	li.active button {

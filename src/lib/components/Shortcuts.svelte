@@ -3,6 +3,7 @@
 
 	let {
 		onview,
+		onbranch,
 		onhelp,
 		ondismiss,
 		modal = false
@@ -13,6 +14,8 @@
 		 * being wired to something invented for them.
 		 */
 		onview?: (index: number) => void;
+		/** `b`: absent where there is no branch to choose, a folder or the homepage. */
+		onbranch?: () => void;
 		onhelp: () => void;
 		/** Escape, which the layout uses to close whatever it has open. */
 		ondismiss: () => void;
@@ -181,6 +184,9 @@
 				break;
 			case 'view':
 				onview?.(action.index);
+				break;
+			case 'branch':
+				onbranch?.();
 				break;
 		}
 	}

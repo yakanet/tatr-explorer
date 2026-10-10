@@ -111,3 +111,10 @@
 .input-pill input::placeholder {
 	color: var(--muted);
 }
+
+/* A field whose content was refused: the query bar marks it with a class, the
+   branch field through the input's own validity. */
+.input-pill.invalid,
+.input-pill:has(input:invalid) {
+	border-color: var(--danger);
+}

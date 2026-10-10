@@ -10,7 +10,7 @@
  * Kept apart from the page so that turning cache rows into cards can be
  * asserted: the parsing of a key, the counting, the fallback and the order.
  */
-import { parseRepoPath, type RepoRef } from './ref.ts';
+import { parseRepoPath, repoKey, type RepoRef } from './ref.ts';
 
 /** Whatever the cache holds that a card needs. Deliberately narrow. */
 export interface CachedShape {
@@ -42,6 +42,25 @@ export function parseKey(key: string): RepoRef | null {
 	const path = at === -1 ? key : key.slice(0, at);
 	const branch = at === -1 ? '' : key.slice(at + 1);
 	return parseRepoPath(branch ? `${path}@${branch}` : path);
+}
+
+/**
+ * The named branches of one repository already in the cache, for the header's
+ * branch menu to offer.
+ *
+ * Asking the forge for its branches is one more request against the hourly
+ * budget, spent before the reader has chosen anything; the branches they have
+ * read before cost nothing to list, and are the likeliest to be wanted again.
+ * The default branch is not among them, the menu offering it as `HEAD`.
+ */
+export function branchesOf(ref: RepoRef, keys: readonly string[]): string[] {
+	// `repoKey` ends the repository at an `@`, so the prefix cannot match a
+	// namesake whose name merely starts the same.
+	const prefix = repoKey({ ...ref, branch: undefined });
+	return keys
+		.filter((key) => key.startsWith(prefix) && key !== prefix)
+		.map((key) => key.slice(prefix.length))
+		.sort();
 }
 
 export function toSuggestions(

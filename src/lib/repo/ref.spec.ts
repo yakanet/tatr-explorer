@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	describeRef,
 	formatRepoPath,
+	isBranchName,
 	isLocal,
 	localRef,
 	parseRepoInput,
@@ -111,6 +112,45 @@ describe('formatRepoPath', () => {
 
 	it('omits the default host', () => {
 		expect(formatRepoPath({ host: 'github.com', owner: 'a', name: 'b' })).toBe('a/b');
+	});
+});
+
+describe('isBranchName', () => {
+	it('accepts what a branch is usually called', () => {
+		for (const name of ['main', 'dev', 'feature/web-ui', 'release-1.0', 'v2_fix', 'été']) {
+			expect(isBranchName(name), name).toBe(true);
+		}
+	});
+
+	it('refuses what git refuses', () => {
+		const refused = [
+			'',
+			'@',
+			'my branch',
+			'tab\there',
+			'a..b',
+			'a//b',
+			'/dev',
+			'dev/',
+			'dev.',
+			'dev.lock',
+			'.hidden',
+			'feature/.hidden',
+			'a@{1}',
+			'a~1',
+			'a^2',
+			'a:b',
+			'what?',
+			'a*',
+			'a[0]',
+			'back\\slash'
+		];
+		for (const name of refused) expect(isBranchName(name), name).toBe(false);
+	});
+
+	it('refuses what git allows but our URL cannot carry', () => {
+		expect(isBranchName('fix#12')).toBe(false);
+		expect(isBranchName('100%')).toBe(false);
 	});
 });
 

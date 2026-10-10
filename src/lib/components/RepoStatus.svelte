@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import FolderPicker from '#lib/components/FolderPicker.svelte';
+	import { onBranch } from '#lib/repo/branch.ts';
 	import { describeRef, formatRepoPath, isLocal, type RepoRef } from '#lib/repo/ref.ts';
 	import type { RepositoryState } from '#lib/state/repository.svelte.ts';
 
@@ -39,7 +40,17 @@
 			</p>
 		{:else if repo.failure.kind === 'not-found'}
 			<h2>Not found</h2>
-			<p>No repository at <code>{formatRepoPath(ref)}</code>, or it is private.</p>
+			{#if ref.branch}
+				<!-- The listing answers 404 alike for a branch, a repository and a
+				     private one, so the three are named together rather than guessed
+				     between at the cost of another request. -->
+				<p>
+					No branch <code>{ref.branch}</code> in <code>{describeRef(ref)}</code>, or no such
+					repository, or it is private.
+				</p>
+			{:else}
+				<p>No repository at <code>{formatRepoPath(ref)}</code>, or it is private.</p>
+			{/if}
 		{:else if repo.failure.kind === 'no-source'}
 			<h2>No folder open</h2>
 			<p>
@@ -67,6 +78,9 @@
 				<FolderPicker label="Choose a folder…" />
 			{:else}
 				<button class="action" onclick={() => repo.load(ref, true)}>Try again</button>
+				{#if ref.branch}
+					<a href={onBranch(ref, undefined)}>Read HEAD instead</a>
+				{/if}
 			{/if}
 			<a href={resolve('/')}>Another repository</a>
 		</div>

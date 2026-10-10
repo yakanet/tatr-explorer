@@ -1,18 +1,26 @@
 <script lang="ts">
 	import { BINDINGS } from '#lib/keys.ts';
 
-	let { views, onclose }: { views: string[]; onclose: () => void } = $props();
+	let {
+		views,
+		branch = false,
+		onclose
+	}: {
+		views: string[];
+		/** Whether `b` has a branch to choose here, which a folder has not. */
+		branch?: boolean;
+		onclose: () => void;
+	} = $props();
 
 	let panel = $state<HTMLElement | null>(null);
 
 	/**
-	 * A page with no views does not advertise a way to switch between them.
-	 * The homepage is one: it lists repositories, and `1`-`9` mean nothing
-	 * there.
+	 * A page advertises only the keys that do something on it. The homepage has
+	 * no views to switch between and no branch to choose, so neither `1`-`9` nor
+	 * `b` is listed there.
 	 */
-	const shown = $derived(
-		views.length > 0 ? BINDINGS : BINDINGS.filter((binding) => binding.keys !== '1 … 9')
-	);
+	const offered = $derived({ view: views.length > 0, branch });
+	const shown = $derived(BINDINGS.filter(({ needs }) => !needs || offered[needs]));
 
 	// Opened from the keyboard, so it has to be closable from the keyboard.
 	$effect(() => {
