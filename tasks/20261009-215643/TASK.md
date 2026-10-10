@@ -1,6 +1,6 @@
 # Read a pull request's tasks against the branch it targets
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 50
 - TAGS: data
 
@@ -28,3 +28,16 @@ To measure before designing:
 
 Done when a PR's address shows its tasks, and what it adds, closes and changes
 against its base, at a cost stated on screen before it is spent.
+
+---
+
+Closed without being done: it leans on GitHub too much. A pull request is a
+GitHub object, not a git one. Finding its head means `pulls/<n>` or the
+`refs/pull/<n>/head` convention, a fork's head lives in another repository, and
+naming the changed paths cheaply means the compare API. Every one of those is
+specific to one forge and spends the reader's budget, where everything else
+here reads plain branches of a repository and could follow any forge.
+
+What remains possible without it: reading the PR's branch by name, in the same
+repository, with the branch menu (20261009-220852), and the badges showing what
+moved since the previous reading.
