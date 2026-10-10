@@ -24,7 +24,7 @@ export interface RenderOptions {
 	taskId: string;
 	/**
 	 * Where a task id written in a body points, or `null` for an id that leads
-	 * nowhere — one this repository does not have, or this task's own.
+	 * nowhere: one this repository does not have, or this task's own.
 	 *
 	 * Handed in rather than built here: the href has to carry the `BASE_PATH`
 	 * the deployed site is served under, which is `$app/paths`' business, and
@@ -81,12 +81,12 @@ const TASK_LINK = 'tatr_task_id';
  * Turns a task id written in a body into a link to that task's page.
  *
  * Bodies cite each other by id constantly, and the reason for a reference is in
- * the sentence holding it — so that is where the link belongs, rather than only
+ * the sentence holding it, so that is where the link belongs, rather than only
  * in the References panel beside it.
  *
  * Done as markdown-it's own linkify is done: a core rule that splits `text`
  * tokens once the inline parse is over. Which is what makes an id inside a code
- * span stay literal without asking — a code span is not a text token — and what
+ * span stay literal without asking (a code span is not a text token), and what
  * makes an id inside an existing link need stepping over, or the anchor nests.
  */
 function linkTaskIds(
@@ -95,7 +95,7 @@ function linkTaskIds(
 ): void {
 	md.core.ruler.push('tatr_task_ids', (state) => {
 		// A title is rendered inline into a row that is itself a link, and an
-		// anchor inside an anchor is taken apart by the browser — along with the
+		// anchor inside an anchor is taken apart by the browser, along with the
 		// row link the keyboard follows. Titles keep their ids as text.
 		if (state.inlineMode) return;
 
@@ -223,7 +223,7 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
 }
 
 /**
- * Renders a single line without wrapping it in a paragraph — for titles, which
+ * Renders a single line without wrapping it in a paragraph, for titles, which
  * routinely carry inline code in this format (`` `tatr ls` relative paths are
  * broken ``). Showing the backticks raw would be showing the file, not the task.
  */

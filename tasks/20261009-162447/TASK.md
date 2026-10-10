@@ -7,8 +7,8 @@
 `is_valid_huid` in `src/huid.c` checks the shape of a folder name and nothing
 else: eight digits, a dash, six digits, an optional suffix. `src/task.c` loads
 every folder that passes. A folder named `20260231-000000` is therefore a task
-to the CLI, and `tatr ls` lists it — measured with the binary built from
-9b0d752 over a scratch `tasks/` holding exactly that.
+to the CLI, and `tatr ls` lists it (measured with the binary built from
+9b0d752 over a scratch `tasks/` holding exactly that).
 
 Here, `load.ts` and `readTask` both go through `parseHuid`, which also reads
 the digits as an instant and refuses one that does not exist. The same folder
@@ -22,16 +22,16 @@ the same split and now uses `isValidHuid`.
 
 Not a one-line fix, which is why it is a task: `Task.created` is a `Date`, and
 the dashboard's months, the stats and the sort all lean on it. Something has to
-decide what such a task's creation date is — none, most likely, with every
-consumer of `created` made to cope — rather than inventing one. A fixture for
+decide what such a task's creation date is (none, most likely, with every
+consumer of `created` made to cope) rather than inventing one. A fixture for
 it cannot come from tsoding/tatr, which has no such folder; it would be a small
 `tasks/` of our own, run through the binary the same way.
 
 ---
 
-Measured before deciding. Over five folders — `20260101-120000`,
+Measured before deciding. Over five folders (`20260101-120000`,
 `20260231-000000`, `20261399-999999`, `00000000-000000`, and a closed
-`20260231-000000-x` — the binary built from 9b0d752 lists every one: `tatr ls`
+`20260231-000000-x`), the binary built from 9b0d752 lists every one: `tatr ls`
 sorts them by priority and then by id as plain strings, `tatr ls -id` puts month
 13 first, `summary` counts them, `find` and `ref` work on them. The CLI writes
 the clock into an id when it makes one and never reads it back; no command shows
@@ -41,7 +41,7 @@ So the date was ours to lose. `parseHuid` keeps any id of the right shape and
 gives it `created: null` when its digits form no instant, and the loader asks
 `isValidHuid`, which makes "Folder name is not a task id" true again. The five
 folders now load as the CLI loads them, in the same order, which `load.spec.ts`
-pins with the recorded output — inline rather than as a fixture, being five ids
+pins with the recorded output, inline rather than as a fixture, being five ids
 from folders of our own.
 
 Two places read `created`, sorting never did. The month chart leaves such a

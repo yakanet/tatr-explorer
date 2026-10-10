@@ -12,7 +12,7 @@ faithful port rather than an approximation.
 Done, in `src/lib/tql.ts`. Ported from `src/query.c`, not from the README, which
 omits three things: `.tag` is still accepted for backward compatibility, `not`
 binds to a *primary* so `not :a and :b` means `[not :a] and :b`, and evaluation
-is typed — `:a lt 5` is a type error rather than a silent coercion.
+is typed (`:a lt 5` is a type error rather than a silent coercion).
 
 Validated by differential testing: `tests/fixtures/tql-cli-cases.json` holds 34
 real invocations of the compiled `tatr ls` binary over its own tasks folder, and

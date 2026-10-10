@@ -6,7 +6,7 @@
 
 A repository's metadata already lives in IndexedDB and is only refreshed when
 the reader asks, so a repository read once could be read again with no network
-at all — if the site itself loaded. It does not: the shell, the scripts, the
+at all, if the site itself loaded. It does not: the shell, the scripts, the
 stylesheet and the font come from GitHub Pages on every cold start.
 
 A service worker keeping the build's own files would close that gap, and
@@ -33,6 +33,6 @@ To decide before writing it:
 Offline, Refresh should say there is no network; what it keeps on screen is
 already right (20260907-213824).
 
-Done when a repository read once opens from a cold start with the network off —
-dashboard, list, board and graph alike — and a deploy reaches a returning reader
+Done when a repository read once opens from a cold start with the network off
+(dashboard, list, board and graph alike) and a deploy reaches a returning reader
 within one visit.

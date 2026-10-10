@@ -1,5 +1,5 @@
 /**
- * TQL — the Tatr Query Language, as accepted by `tatr ls`.
+ * TQL: the Tatr Query Language, as accepted by `tatr ls`.
  *
  * The grammar and the diagnostics of `src/query.c`, with one addition of
  * our own. The grammar:
@@ -21,11 +21,11 @@
  * notion of. The divergence is deliberate and one-directional: every query the
  * CLI accepts still behaves identically here, but a query written with `~` will
  * not run there. A browser reader has no `grep` beside the tool, so the
- * alternative was a second input box next to this language — which read as two
+ * alternative was a second input box next to this language, which read as two
  * unrelated ways to say one thing.
  *
- * `~` rather than a bare quoted string, because the match is loose — every word,
- * in any order, case ignored — and quotes promise a phrase everywhere else.
+ * `~` rather than a bare quoted string, because the match is loose (every word,
+ * in any order, case ignored) and quotes promise a phrase everywhere else.
  * With `~` carrying that meaning, quotes are left doing the one honest job of
  * grouping words that contain spaces.
  *
@@ -69,7 +69,7 @@ export interface TqlTask {
  * Whether a title satisfies a `~` term.
  *
  * Every word has to appear, in any order and in any position, so
- * `~"support windows"` finds "Windows support" — typing the words in the wrong
+ * `~"support windows"` finds "Windows support"; typing the words in the wrong
  * order otherwise would not. Case is ignored; nothing else is normalised,
  * because titles are shown verbatim and a reader is matching what they see.
  */
@@ -97,9 +97,9 @@ export class TqlError extends Error {
 /**
  * What `src/query.c` prints above this particular diagnostic, verbatim.
  *
- * Two primaries with nothing between them is the mistake a reader makes first —
- * `~support not ~mac` instead of `~support and not ~mac` — and the answer to it
- * is the list of things that could have gone in the gap, not the name of the
+ * Two primaries with nothing between them is the mistake a reader makes first
+ * (`~support not ~mac` instead of `~support and not ~mac`), and the answer to
+ * it is the list of things that could have gone in the gap, not the name of the
  * token that could not.
  */
 const INFIX_HELP = `Supported infix operators:
@@ -155,7 +155,7 @@ interface Token {
 /**
  * Splits a query into tokens. Brackets are single-character tokens; everything
  * else runs until a bracket or whitespace, which is why tags may not contain
- * either — except inside quotes, where a run of anything up to the closing
+ * either, except inside quotes, where a run of anything up to the closing
  * quote belongs to the token, so `~"windows support"` stays one piece.
  */
 export function tokenize(source: string): Token[] {
@@ -237,7 +237,7 @@ export function parseWithWarnings(source: string): ParseResult {
 			}
 			if (rest.length < 2 || !rest.endsWith('"')) {
 				// An unclosed quote is an unclosed bracket: same mistake, so the same
-				// words the CLI uses for `[:bug` — `Expected `]`.`, no help block,
+				// words the CLI uses for `[:bug`: `Expected `]`.`, no help block,
 				// because naming the character that is missing is the whole advice.
 				throw new TqlError('Expected `"`.', missing);
 			}
@@ -400,7 +400,7 @@ export function evaluate(node: Node, task: TqlTask): boolean {
  * matched.
  *
  * The language is typed but its checks run during evaluation, so `priority`
- * parses and compiles perfectly — an integer where a boolean is required — and
+ * parses and compiles perfectly (an integer where a boolean is required), and
  * without this the error would surface from the matcher, one task in, wherever
  * that happens to be called from. It cost a page a 500 once already.
  *
@@ -412,7 +412,7 @@ const WITNESS: TqlTask = { id: '', tags: [], priority: 0, title: '' };
 
 /**
  * Compiles a query into a matcher, throwing {@link TqlError} for a syntax *or* a
- * type error — the caller cannot tell the difference apart, and should not have
+ * type error: the caller cannot tell the difference apart, and should not have
  * to remember that one of the two arrives later than the other.
  */
 export function compile(source: string): (task: TqlTask) => boolean {

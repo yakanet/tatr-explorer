@@ -13,7 +13,7 @@ bun.lockb
 # `tasks/` is this project's own backlog in the tatr format, and it is also the
 # fixture the viewer is pointed at. Reflowing a task's prose would change what
 # the screen shows, which is the one thing this project refuses to do to a
-# repository it reads — its own included.
+# repository it reads, its own included.
 tasks/
 
 # Replays of the reference binary's output, compared byte for byte. Regenerating

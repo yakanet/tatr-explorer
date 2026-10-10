@@ -5,15 +5,15 @@
 - TAGS: tql,infra
 
 The 34 differential invocations compare which tasks a *valid* query returns.
-Nothing compares what an invalid one prints — and five divergences were found
+Nothing compares what an invalid one prints, and five divergences were found
 there by hand in one sitting: the wording of a missing primary, of an
 unrecognised one, of two primaries meeting, `Expected \`]\`.` losing its full
 stop, `empty tag` losing its lowercase, and a caret drawn as a run instead of
 the single `^` the C prints.
 
 Every one of those was invisible to the suite. Add a fixture of invalid queries
-with the binary's complete stderr — the help block, the source, the caret line,
-the message — and compare `formatDiagnostic` against it byte for byte.
+with the binary's complete stderr (the help block, the source, the caret line,
+the message) and compare `formatDiagnostic` against it byte for byte.
 
 Cases the fixture should hold, being the ones that hit distinct branches:
 
@@ -44,8 +44,8 @@ Done, as `tql.diagnostics.spec.ts` against `tatr-query-errors.json`: twelve
 invalid queries with the binary's complete stderr, compared whole.
 
 It found two more divergences while being written, which is the argument for it.
-The deprecation warning was truncated by half — the reference says "deprecated
-and will be removed in the future" — and the CLI renders a warning with source
+The deprecation warning was truncated by half (the reference says "deprecated
+and will be removed in the future"), and the CLI renders a warning with source
 and caret exactly as it renders an error, so `formatDiagnostic` takes either
 now.
 
@@ -55,7 +55,7 @@ sv_from_cstr("any")` happens in the caller, never in the compiler. `parse('')`
 throwing is faithful, and `QueryState` already substituted the same thing.
 
 One design fault fell out of it. The spec's own renderer reproduced the bug that
-took a page to 500 — parsing without evaluating, so type errors escaped — and
+took a page to 500 (parsing without evaluating, so type errors escaped), and
 two callers finding the same hole means the hole was in the wrong place. The
 type check moved into `compile()`, which is what the word means; `QueryState`
 lost its private witness with it.

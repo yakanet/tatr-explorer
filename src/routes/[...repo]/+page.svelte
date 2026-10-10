@@ -49,7 +49,7 @@
 		resolve('/[...repo]/list', { repo: formatRepoPath(ref) }) + searchFor(text, status);
 
 	/**
-	 * Clicking a bar means "show me those tasks", so it opens the filtered list —
+	 * Clicking a bar means "show me those tasks", so it opens the filtered list:
 	 * open only, matching what the bar counted, whatever status was chosen
 	 * before.
 	 */
@@ -66,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>{repo.name} — overview</title>
+	<title>{repo.name} · overview</title>
 </svelte:head>
 
 <main>
@@ -79,7 +79,7 @@
 				     `tatr ls`: the overview is what `tatr summary` would say. -->
 				<p class="prompt">
 					$ tatr summary <span class="since"
-						>— {months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}</span
+						>· {months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}</span
 					>
 				</p>
 				<h1>
@@ -111,7 +111,7 @@
 			<section class="panel">
 				<header>
 					<h2>open by priority</h2>
-					<span class="hint">— higher is more urgent</span>
+					<span class="hint">· higher is more urgent</span>
 				</header>
 				{#if priorities.length === 0}
 					<p class="empty">Nothing open.</p>
@@ -136,7 +136,7 @@
 			<section class="panel">
 				<header>
 					<h2>open by tag</h2>
-					<span class="hint">— click to see them</span>
+					<span class="hint">· click to see them</span>
 				</header>
 				{#if tags.length === 0}
 					<p class="empty">No open task carries a tag.</p>
@@ -169,7 +169,7 @@
 		<section class="panel">
 			<header>
 				<h2>created per month</h2>
-				<span class="hint">— every task ever</span>
+				<span class="hint">· every task ever</span>
 				<span class="legend">
 					<span class="chip"><span class="key open"></span>still open</span>
 					<span class="chip"><span class="key closed"></span>since closed</span>

@@ -1,16 +1,16 @@
 /**
  * Loads a repository's tasks: list once, then read the task files in parallel.
  *
- * Only the listing can be rate-limited, so listers are tried in order —
- * GitHub, then ungh — and the result reports which one answered. Contents
- * always come from raw.githubusercontent, which imposes no budget.
+ * Only the listing can be rate-limited, so listers are tried in order (GitHub,
+ * then ungh), and the result reports which one answered. Contents always come
+ * from raw.githubusercontent, which imposes no budget.
  *
  * A loaded repository is cached and never expires on its own: quota is only ever
  * spent on a first visit or on an explicit refresh, so the reader decides when
  * to pay for fresh data. {@link LoadResult.storedAt} carries the age so the UI
  * can show it next to that refresh control.
  *
- * Only metadata is cached — descriptions are more than half the bytes and are
+ * Only metadata is cached: descriptions are more than half the bytes and are
  * cheap to re-read, since raw.githubusercontent costs no quota. What the graph
  * needs from those descriptions, the referenced task ids, is extracted at parse
  * time and kept, so dropping the prose costs no feature.
@@ -52,7 +52,7 @@ export interface LoadResult {
 	storedAt: number;
 	branch: string;
 	/**
-	 * The state the reader last saw, when this reading replaced one — so a
+	 * The state the reader last saw, when this reading replaced one, so a
 	 * refresh can say what moved. Null on a first visit, and replaced rather
 	 * than cleared: a comparison lasts exactly as long as the reading it came
 	 * with.
@@ -60,7 +60,7 @@ export interface LoadResult {
 	previous: Snapshot | null;
 	/**
 	 * How this reading names itself on screen: `owner/name`, or the name of the
-	 * folder that was opened — which no URL carries, so only the reading knows.
+	 * folder that was opened, which no URL carries, so only the reading knows.
 	 */
 	label: string;
 }

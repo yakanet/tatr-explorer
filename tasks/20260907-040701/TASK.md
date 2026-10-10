@@ -14,8 +14,8 @@ All four parts are already in `RepoRef`, and the loader knows which provider the
 files came from, so the link costs a template and nothing else.
 
 This is deliberately the answer to wanting a task's history rather than reading
-it ourselves. The format carries no modification date — upstream task
-20260304-115038 is about exactly that absence — and the API route to it is
+it ourselves. The format carries no modification date (upstream task
+20260304-115038 is about exactly that absence), and the API route to it is
 `/commits?path=tasks/<id>/TASK.md`, one request per task against an
 unauthenticated budget of sixty an hour. Sixty-four tasks cannot be dated at any
 price the reader should pay. The forge already renders history well; a link
@@ -32,7 +32,7 @@ carry the provider it points at rather than assuming GitHub, which is what
 `blobUrl` sits next to `rawUrl`, and the pair now reads as one idea: the raw
 contents come from a CDN that costs no budget, the file's page comes from the
 forge's own domain. It is the one URL where `ref.host` is genuinely the answer
-rather than a constant, which is as far as this can go before 20260906-211255 —
+rather than a constant, which is as far as this can go before 20260906-211255:
 the path shape is still GitHub's, GitLab spelling it `/-/blob/`.
 
 `HEAD` works there, checked against the real forge rather than assumed: a blob
@@ -46,15 +46,15 @@ with the way back.
 
 It was first at the end of the meta line, beside the creation date, on the
 argument that both say where the page came from. Wrong: the aside is where this
-page keeps everything *about* the task — its properties, its references, the
-files beside it — and a reader looking for the file looks there. The meta line
+page keeps everything *about* the task (its properties, its references, the
+files beside it), and a reader looking for the file looks there. The meta line
 is a caption, and a caption is read, not used.
 
 It opens away from the page, like every external destination the renderer
 emits.
 
 A latent bug came out of writing it. `rawUrl` encoded the branch with
-`encodeURIComponent`, which turns `feature/web-ui` into `feature%2Fweb-ui` — a
+`encodeURIComponent`, which turns `feature/web-ui` into `feature%2Fweb-ui`, a
 branch of that literal name, which no repository has. Since `parseKey` keeps
 branches with slashes on purpose, every read of such a repository was failing at
 the URL. Branch and path are encoded segment by segment now, by the same helper,

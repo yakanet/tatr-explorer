@@ -13,12 +13,12 @@ import { isClosed, parseTaskMd, readPriority, readTags } from './task-md.ts';
  * entry in `NOTE(...)`. The reference implementation makes no distinction
  * between those: it scans the whole file, title and properties included, and
  * keeps whatever looks like an id. So does this, since an id in a title is an
- * arrow in `tatr graph` like any other — the task's own id included, which
- * `tatr graph` draws as an arrow from the task back to itself.
+ * arrow in `tatr graph` like any other (the task's own id included, which
+ * `tatr graph` draws as an arrow from the task back to itself).
  *
  * What separates a real reference from a note's timestamp is that only the
  * former names a task that exists, which is a question for the caller holding
- * the repository — see `buildGraph`.
+ * the repository (see `buildGraph`).
  */
 export function extractReferences(taskMd: string): string[] {
 	return [...new Set(scanHuids(taskMd))].sort();
@@ -49,13 +49,13 @@ export interface Task {
 	references: string[];
 	/**
 	 * Other files in the task's folder, from the listing rather than from the
-	 * body — `readTask` only sees one file, so the loader fills this in. Names
+	 * body: `readTask` only sees one file, so the loader fills this in. Names
 	 * and sizes only, which is metadata and stays in the cache.
 	 */
 	attachments?: Attachment[];
 	/**
 	 * The body. Present when the task was just read, absent when it came from the
-	 * cache, which stores metadata only — fetch it with `loadTaskDescription`.
+	 * cache, which stores metadata only; fetch it with `loadTaskDescription`.
 	 */
 	description?: string;
 	/** True when the title line was missing its `#`, which voids the properties. */
@@ -63,7 +63,7 @@ export interface Task {
 }
 
 /**
- * Builds a task. Returns `null` when the folder name is not a HUID — the CLI
+ * Builds a task. Returns `null` when the folder name is not a HUID: the CLI
  * skips those entries rather than failing.
  */
 export function readTask(id: string, taskMd: string): Task | null {

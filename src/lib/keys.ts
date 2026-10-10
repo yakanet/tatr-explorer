@@ -3,8 +3,8 @@
  *
  * Deciding what a keystroke means is a pure function of the key and whatever
  * half-finished sequence preceded it, so it is worth asserting rather than
- * driving a browser to find out. The listener's own job — ignoring keys typed
- * into a field, ignoring modified keys — is the part that needs a DOM.
+ * driving a browser to find out. The listener's own job (ignoring keys typed
+ * into a field, ignoring modified keys) is the part that needs a DOM.
  *
  * The bindings are the ones a reader of this format already has in their
  * fingers: `j`/`k` and `g g` from vi, `/` and `?` from less, `1`-`9` from
@@ -31,7 +31,7 @@ export type Action =
 
 /**
  * What a partly-typed sequence leaves behind. Only `g` starts one, so this is a
- * single slot rather than a buffer — `g g` is the whole of the grammar.
+ * single slot rather than a buffer: `g g` is the whole of the grammar.
  */
 export interface Pending {
 	sequence: 'g' | null;
@@ -88,7 +88,7 @@ interface Binding {
 	keys: string;
 	does: string;
 	/**
-	 * The action that only some pages offer — a nav to switch between, a branch
+	 * The action that only some pages offer: a nav to switch between, a branch
 	 * to choose. The help panel leaves the binding out elsewhere rather than
 	 * advertise a key that is inert there.
 	 */

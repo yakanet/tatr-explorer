@@ -8,8 +8,8 @@ import { compile, formatDiagnostic, parseWithWarnings, TqlError } from './query.
  *
  * That suite replays which tasks a valid query returns. This one replays what an
  * invalid query *prints*: `tatr-query-errors.json` holds the complete stderr the
- * compiled binary produced for each case — the help block, the source, the caret
- * line and the message — and `formatDiagnostic` is compared against it whole.
+ * compiled binary produced for each case (the help block, the source, the caret
+ * line and the message), and `formatDiagnostic` is compared against it whole.
  *
  * The gap this closes was measured rather than imagined. Five divergences lived
  * in here unnoticed while every valid query matched: three messages worded
@@ -39,7 +39,7 @@ const unprefixed = (stderr: string) => stderr.replace(/^(ERROR|WARNING): /m, '')
 
 /**
  * The primary list gains two `~` lines, the honest consequence of adding the
- * primary — see the divergence noted in `query.ts`. Dropping them here compares
+ * primary (see the divergence noted in `query.ts`). Dropping them here compares
  * everything else exactly.
  */
 const withoutTilde = (rendered: string) =>

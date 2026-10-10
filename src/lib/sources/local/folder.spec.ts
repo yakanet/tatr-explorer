@@ -20,7 +20,7 @@ function entry(relativePath: string, contents = 'x'): File {
  * A stand-in for what `showDirectoryPicker` returns.
  *
  * The real one is exercised by the origin-private file system, which hands out
- * this same interface — but that lives in a browser, and what is worth pinning
+ * this same interface, but that lives in a browser, and what is worth pinning
  * here is the walk: which branches it descends and which it refuses.
  */
 function directory(name: string, tree: Record<string, string>): FileSystemDirectoryHandle {
@@ -251,7 +251,7 @@ describe('looksLikeTasksFolder', () => {
 
 describe('picking the tasks folder itself', () => {
 	// Why it is allowed: a directory input makes the browser ask about every file
-	// in the folder by count — "import 7,775 files?" for a checkout — and picking
+	// in the folder by count ("import 7,775 files?" for a checkout), and picking
 	// `tasks/` makes that question about the tasks alone.
 	it('puts the paths back where the rest of the viewer expects them', () => {
 		const folder = fromFileList([
@@ -292,7 +292,7 @@ describe('picking the tasks folder itself', () => {
 });
 
 /**
- * A stand-in for what a dropped folder hands over, callbacks and all — and it
+ * A stand-in for what a dropped folder hands over, callbacks and all. It
  * answers `readEntries` two at a time, because a reader that returns everything
  * at once cannot catch the bug that API is famous for.
  */

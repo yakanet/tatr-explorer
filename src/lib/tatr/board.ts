@@ -2,13 +2,13 @@
  * The board: three columns, from the one tag that means a stage.
  *
  * A column per tag is the obvious reading of "columns from tags" and it does not
- * work — 11 of the 79 tasks in tsoding/tatr carry more than one, so the same
+ * work: 11 of the 79 tasks in tsoding/tatr carry more than one, so the same
  * card would appear in several columns at once. Tags there are categories
  * (`bug`, `ui`, `tql`), not steps.
  *
  * `scope` is the exception, and the reason a board is possible at all: upstream
  * it means "currently working on", which is exactly a stage. So the columns are
- * closed, `scope`, and everything else — the shape upstream arrived at in its
+ * closed, `scope`, and everything else: the shape upstream arrived at in its
  * own task 20260826-200847, "Maybe if the people want to kanban this entire
  * thing they should just use tags for that?".
  *
@@ -31,7 +31,7 @@ export interface Column {
 	tasks: Task[];
 	/**
 	 * What the column holds before it. A header reading 21 while showing 3 is a
-	 * lie, and one reading 3 alone loses how much was set aside — so the view can
+	 * lie, and one reading 3 alone loses how much was set aside, so the view can
 	 * say `3 / 21` and neither.
 	 */
 	total: number;
@@ -41,7 +41,7 @@ export interface Column {
  * Sorts the three columns.
  *
  * Open tasks go by priority, as `tatr ls` does. Closed ones go newest first
- * instead, because priority stops meaning anything once a task is done — which
+ * instead, because priority stops meaning anything once a task is done, which
  * is the whole of upstream task 20260304-115038, "Priority becomes irrelevant
  * when the task is closed (modification date is more important)". The id is the
  * closest thing to a date we hold, the modification time not being in the

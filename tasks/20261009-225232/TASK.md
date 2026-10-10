@@ -4,9 +4,9 @@
 - PRIORITY: 20
 - TAGS: data
 
-The homepage field reads an SSH remote on any host —
-`git@git.mycompany.com:team/repo.git`, an IP address, `ssh://` with a port — but
-only github.com is served, and only through GitHub's HTTP APIs. A git server
+The homepage field reads an SSH remote on any host
+(`git@git.mycompany.com:team/repo.git`, an IP address, `ssh://` with a port),
+but only github.com is served, and only through GitHub's HTTP APIs. A git server
 reachable over SSH alone, or a forge whose API the site does not speak, is
 refused with "not supported yet". Today such a repository is read by cloning it
 and opening the folder.
@@ -22,13 +22,13 @@ SSH itself runs in JavaScript or WebAssembly; the obstacles are around it.
   unpacking what it sends. A git client in the browser was measured and refused
   over HTTP already: about 1.5 MB of code to fetch 30 kB of tasks.
 - **The transport**, which settles it. SSH needs a raw TCP connection, and a web
-  page never gets one — on purpose, or any site could probe the reader's local
-  network or speak SMTP. Every way around it puts something outside the page:
+  page never gets one (on purpose, or any site could probe the reader's local
+  network or speak SMTP). Every way around it puts something outside the page:
   - _A relay turning a WebSocket into TCP_, as web SSH terminals use: SSH stays
     encrypted end to end, the relay only forwards bytes. Run publicly, it is the
     server this site refuses to have. Borrowed (WebVM uses Tailscale's), it
-    adds a third party and an account. Run by the reader — that relay, or a
-    small HTTP server fetching over SSH for the page — it costs no server, but
+    adds a third party and an account. Run by the reader (that relay, or a
+    small HTTP server fetching over SSH for the page), it costs no server, but
     the reader installs and starts it, and Chrome increasingly asks before a
     public site reaches `localhost` or the local network.
   - _An extension with Native Messaging_: the extension talks to a program
@@ -51,7 +51,7 @@ SSH itself runs in JavaScript or WebAssembly; the obstacles are around it.
   APIs are the real way in, which is the forge work of 20260906-211255.
 
 Every option the site could accept asks the reader to install or start
-something on their machine — which cloning the repository and opening the folder
+something on their machine, which cloning the repository and opening the folder
 already does, with fewer parts, today.
 
 Two parsing gaps found on the way, harmless while only GitHub is served: an SSH

@@ -4,7 +4,7 @@
  * Everything here is derived from the four dimensions the format actually
  * carries: binary status, numeric priority, tags, and the creation date encoded
  * in the HUID. There are no closure dates in a task file, so there can be no
- * burndown, no cycle time and no "closed this month" — the activity series
+ * burndown, no cycle time and no "closed this month"; the activity series
  * counts *creations*, split by present status. Anything else would be invented.
  */
 import type { Task } from './task.ts';
@@ -31,7 +31,7 @@ export interface PriorityBucket {
 }
 
 /**
- * One row per distinct priority, highest first — not fixed ranges, because a
+ * One row per distinct priority, highest first, not fixed ranges, because a
  * repository's priorities are whatever its author chose.
  */
 export function byPriority(tasks: Task[]): PriorityBucket[] {
@@ -66,7 +66,7 @@ export interface MonthBucket {
 }
 
 /**
- * Creations per month, from the first month that has any through the last —
+ * Creations per month, from the first month that has any through the last,
  * empty months included, because their emptiness is the point. Repositories
  * like this one are written in bursts, and a series that silently skips the
  * quiet months would hide that.
@@ -152,7 +152,7 @@ export interface Summary {
  *
  * The dashboard opens by saying something rather than by presenting a row of
  * counters, so this picks the one fact worth leading with. Every candidate is
- * checked against the data — nothing here is a template with a number dropped
+ * checked against the data: nothing here is a template with a number dropped
  * into it, and when nothing stands out the sentence simply stops.
  *
  * Each clause says what happened rather than what did not: a reader opens a
@@ -187,7 +187,7 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 	}
 
 	// Repositories like this one are written in bursts, and the month that holds
-	// a third of everything is the one worth naming — if it stands alone, since a
+	// a third of everything is the one worth naming, if it stands alone, since a
 	// tie has no month to name, and over a span long enough to be a burst in.
 	const months = byMonth(tasks);
 	const sizes = months.map((month) => month.open + month.closed);

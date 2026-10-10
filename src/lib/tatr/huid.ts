@@ -1,12 +1,12 @@
 /**
- * HUID — Human-Unique IDentifier, the name of a task folder.
+ * HUID: Human-Unique IDentifier, the name of a task folder.
  *
  * The format is `YYYYMMDD-HHMMSS` in UTC, optionally followed by `-` and a
  * suffix of alphanumerics and dashes, which teams use to keep ids unique when
  * they generate them in parallel branches.
  *
  * Because the id *is* a timestamp, a task has a creation date without a single
- * extra request — when its digits form a real instant. The CLI writes them from
+ * extra request, when its digits form a real instant. The CLI writes them from
  * the clock but never reads them back, so `20260231-000000` is a task to it like
  * any other, and is one here too, without a date. The format is the one
  * `src/huid.c` defines; what is written here follows its behaviour, which the
@@ -68,8 +68,8 @@ export function parseHuid(id: string): Huid | null {
  * - **No word boundary.** `abc20260101-000001` holds an id, and so does
  *   `TASK(20260101-000001)`. The format's own files wrap ids in punctuation, so
  *   a boundary would lose them.
- * - **The end of the text ends an id.** A time cut short by it is accepted —
- *   `20260101-0000`, and even `20260101-` — while the same thing before a space
+ * - **The end of the text ends an id.** A time cut short by it is accepted
+ *   (`20260101-0000`, and even `20260101-`), while the same thing before a space
  *   is not. Which is harmless, every caller looking the task up and finding
  *   nothing, and is pinned by the spec because it decides where a scan stops.
  *
@@ -81,8 +81,8 @@ const AT_CURSOR = /\d{8}-(?:\d{6}(?:-[A-Za-z0-9-]*)?|\d{0,5}$)/y;
 /**
  * Reads an id at `start`, returning the index just past it, or `-1`.
  *
- * The one pattern above carries a cursor, which is assigned here on every call
- * — so it keeps nothing between them, and two scans are never in flight.
+ * The one pattern above carries a cursor, which is assigned here on every
+ * call, so it keeps nothing between them, and two scans are never in flight.
  */
 function chopHuid(text: string, start: number): number {
 	AT_CURSOR.lastIndex = start;

@@ -25,5 +25,5 @@ vite.config.ts.timestamp-*
 # JetBrains
 .idea/
 
-# Seeded design canvas — regenerate with seed-canvas.mjs from the .dc.html sources
+# Seeded design canvas: regenerate with seed-canvas.mjs from the .dc.html sources
 .claude/design/tatr-dashboard-design.html

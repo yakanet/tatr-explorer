@@ -17,7 +17,7 @@ What `tatr new` produces, read from `new_run` and `append_task_md_content` at
 
     - STATUS: OPEN
     - PRIORITY: <100 unless -p>
-    - TAGS: <a,b — nothing after the colon when there are none>
+    - TAGS: <a,b (nothing after the colon when there are none)>
 
     No description.
 
@@ -26,17 +26,17 @@ given, and the CLI refuses one that already exists, blaming the clock. Upstream
 marks `append_task_md_content` as due to change (TASK(20260913-063421)), so the
 template is pinned to that commit, not assumed.
 
-From one small form — title, priority, tags offered from `tasks/tags` with their
-descriptions, an optional suffix — up to two outputs:
+From one small form (title, priority, tags offered from `tasks/tags` with their
+descriptions, an optional suffix) up to two outputs:
 
 - **The command**, `tatr new -p 80 -t ui Title words`, to run where the
   repository is checked out. It is quoted for a POSIX shell with the same code as
   the `tatr ls` command of 20260907-040702, which is best built first.
-- **The folder name and the file**, to paste — if an id is shown at all, since
-  one generated now is stale by the time anyone pastes it. The command does not
+- **The folder name and the file**, to paste (if an id is shown at all, since
+  one generated now is stale by the time anyone pastes it). The command does not
   have that problem.
 
-To decide as well: where the form lives — a key, a button in the header.
+To decide as well: where the form lives (a key, a button in the header).
 
 Done when the file prepared is byte for byte what `tatr new` writes for the same
 arguments at that commit, which a differential test against the binary pins.

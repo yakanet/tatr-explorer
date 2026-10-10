@@ -4,8 +4,8 @@
 - PRIORITY: 45
 - TAGS: ui
 
-A branch can be read already — `/{owner}/{name}@{branch}`, and the homepage
-field accepts `owner/name@branch` — and the header shows the address branch and
+A branch can be read already (`/{owner}/{name}@{branch}`, and the homepage
+field accepts `owner/name@branch`), and the header shows the address branch and
 all. But once a repository is open, nothing leads to another branch or back to
 `HEAD`: the address bar is the only way.
 

@@ -27,7 +27,7 @@ Done, in `src/lib/tatr/`: `huid.ts`, `task-md.ts`, `tags-file.ts` and `task.ts`.
 Ported from `src/md.c`, `src/task.c` and `src/huid.c`. Three things the README
 does not say, all of them now covered by tests:
 
-- The default priority is **999999**, not 100 — "unset priority is high so you
+- The default priority is **999999**, not 100: "unset priority is high so you
   don't forget to set it", so an unset task sorts to the top instead of hiding in
   the middle.
 - An unparsable priority is 0 and `12abc` is 12, because the reference uses
@@ -37,5 +37,5 @@ does not say, all of them now covered by tests:
 
 Validated the same way as the query language: `tests/fixtures/tatr-ls-output.json`
 holds what the compiled binary printed for all 64 tasks, and the suite re-derives
-every field it shows — title, status, priority, tags — and compares. 226 tests in
+every field it shows (title, status, priority, tags) and compares. 226 tests in
 total across the project.

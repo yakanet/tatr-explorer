@@ -8,7 +8,7 @@ Scaffold with `sv@next create`, TypeScript, Vitest, adapter-static, and the
 GitHub Pages workflow.
 
 SvelteKit 3 is deliberate: the point is to learn that generation. Notable
-differences from 2.x that this project hits — config moved into `vite.config.ts`,
+differences from 2.x that this project hits: config moved into `vite.config.ts`,
 `$lib` became `#lib` with mandatory file extensions, `tsconfig` extends
 `$app/tsconfig`, and `base`/`assets` were removed from `$app/paths` in favour of
 `resolve()`.

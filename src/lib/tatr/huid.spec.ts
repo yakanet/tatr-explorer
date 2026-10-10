@@ -115,8 +115,8 @@ describe('scanHuids', () => {
 	/**
 	 * The scan stops at the end of the text rather than at the end of a
 	 * well-formed id, so the last id in a text can be accepted while
-	 * incomplete. Harmless — every caller then looks the task up and finds
-	 * nothing — but it decides where a scan ends, so it is pinned rather than
+	 * incomplete. Harmless (every caller then looks the task up and finds
+	 * nothing), but it decides where a scan ends, so it is pinned rather than
 	 * left to be discovered by whoever rewrites this.
 	 */
 	it('accepts a time cut short by the end of the text', () => {

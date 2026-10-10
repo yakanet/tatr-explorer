@@ -26,7 +26,7 @@ description in the source calls it "largely useless right now", and the numbers
 say why. On tsoding/tatr the citations form **11 components whose largest holds
 four tasks**, with 34 of the 64 tasks citing nobody and cited by nobody. A
 force-directed canvas of that is a field of lonely bubbles, so the view is a
-card per component instead — the drawing is placed exactly, a pair on a line and
+card per component instead. The drawing is placed exactly, a pair on a line and
 the rest around a circle, which also means the same picture on every visit.
 
 Nodes are numbered and the titles sit in a legend beneath. That is the whole
@@ -36,7 +36,7 @@ to fit in a nice compact picture": nothing has to fit in a node.
 What the C source settled:
 
 - **`NOTE(<huid>)` headings are journal timestamps, not references.** The CLI
-  makes no distinction — it scans the file for anything id-shaped — and only
+  makes no distinction (it scans the file for anything id-shaped) and only
   keeps ids naming a folder that exists, which drops them on its own. 25 such ids
   in tsoding/tatr. So nothing here reports a broken link: the format has no such
   notion.
@@ -47,7 +47,7 @@ What the C source settled:
 Covered by a third differential fixture: the 27 arrows the compiled `tatr graph`
 wrote into its `.dot`, replayed field by field.
 
-Our own repository then contradicted the layout immediately — it has a component
+Our own repository then contradicted the layout immediately: it has a component
 of **eight** tasks, all answering one. Hence the ring sized from the number of
 satellites rather than fixed, and the busiest task in the middle. A repository
 that is genuinely dense would want d3-force for its large components; nothing
@@ -60,8 +60,8 @@ of the legend below it.
 
 Reopened. A card per component stopped scaling: this repository's tasks now
 form one component of 22, and a ring of 22 crossed by its chords is a drawing
-nobody can read. The busiest task in the middle made it worse — every chord
-passed behind it and read as one of its links — which is why the middle is now
+nobody can read. The busiest task in the middle made it worse (every chord
+passed behind it and read as one of its links), which is why the middle is now
 kept for real stars only.
 
 What is wanted instead: a card per pivot task, showing only the links into it
@@ -85,13 +85,14 @@ there, so the graph can be walked a star at a time. This repository comes out
 at 13 cards of one to five links.
 
 An arrow says its direction three ways: its head, its side of the drawing and
-its colour — orchid into the pivot, mint out of it, grey both ways, the list's
-glyphs matching. The first pair tried, orchid and sky, merged for a protan
+its colour (orchid into the pivot, mint out of it, grey both ways, the list's
+glyphs matching). The first pair tried, orchid and sky, merged for a protan
 reader (ΔE 4.6); orchid and mint stay apart for every colour-vision type, with
 the dark theme's mint one step darker to keep it in the band an arrow needs.
 
 Tried and dropped on the way, in a canvas of six mockups: the stars as three
 columns of titles with CSS wires (readable, but a long page of full-width
 cards), a compact list form, one drawing per group with focus on click, an
-index of pivots, and arcs down a list of every task. What the cards no longer
-show at a glance — how the tasks hang together — the masthead says in words.
+index of pivots, and arcs down a list of every task. How the tasks hang
+together, which the cards no longer show at a glance, the masthead says in
+words.

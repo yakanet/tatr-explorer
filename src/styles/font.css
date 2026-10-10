@@ -5,8 +5,8 @@
  * badly beside a README promising no analytics and no server. The file is the
  * package's latin subset as it ships: the tasks this viewer reads are English,
  * and Latin-1 already carries the accents of the western European languages.
- * Anything beyond it — Polish, Cyrillic, which Google's other subsets used to
- * cover, and the arrows on the reference cards, which nothing covered — is drawn
+ * Anything beyond it (Polish, Cyrillic, which Google's other subsets used to
+ * cover, and the arrows on the reference cards, which nothing covered) is drawn
  * by the next face in `--font-mono`.
  *
  * Written by hand rather than importing the package's `wght.css`, which

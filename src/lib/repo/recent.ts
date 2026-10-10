@@ -2,7 +2,7 @@
  * The repositories to offer on the homepage.
  *
  * A reader who has opened three is far likelier to want a fourth visit than a
- * first one, so the cache is the list — and the counts a card shows are already
+ * first one, so the cache is the list, and the counts a card shows are already
  * in it, which means a card costs no request at all. With nothing cached, this
  * project's own repository is offered: it is certain to exist and to follow the
  * layout, since it tracks its own work with tatr.
@@ -34,7 +34,7 @@ export const FALLBACK: RepoRef = { host: 'github.com', owner: 'yakanet', name: '
  * A cache key back into a reference.
  *
  * `repoKey` writes `host/owner/name@branch`, with the branch left empty when
- * there is none — and a branch may itself contain slashes, so the split has to
+ * there is none, and a branch may itself contain slashes, so the split has to
  * come off the first `@` rather than the last segment.
  */
 export function parseKey(key: string): RepoRef | null {

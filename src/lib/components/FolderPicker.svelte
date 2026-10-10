@@ -4,8 +4,8 @@
 	// Three of them, and what separates them is what they hand back rather than
 	// what they ask. A dropped folder or `showDirectoryPicker` gives a handle,
 	// which can be walked again, so a refresh is a real reread; the directory
-	// input gives a flat list, once. Dropping is the widest door — the legacy
-	// entry API behind it exists where the picker does not — so a browser without
+	// input gives a flat list, once. Dropping is the widest door (the legacy
+	// entry API behind it exists where the picker does not), so a browser without
 	// the picker still has one way to a folder it can reread.
 	//
 	// Whichever answered, the reader clicked or dropped: they have no interest in
@@ -151,7 +151,7 @@
 	<div class="veil">
 		<p>
 			<strong>Drop a folder to open it</strong>
-			<span>nothing is uploaded — it is read where it sits</span>
+			<span>nothing is uploaded: it is read where it sits</span>
 		</p>
 	</div>
 {/if}

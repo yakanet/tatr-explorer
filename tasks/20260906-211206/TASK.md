@@ -26,7 +26,7 @@ to 23 open / 41 closed / 64 total / 30 untagged, which matches what the CLI
 reports. A reload shows "cached just now" without touching the network, and
 sveltejs/svelte produces the "No tasks folder" state.
 
-The two loading phases are shown separately on purpose — listing is the single
+The two loading phases are shown separately on purpose: listing is the single
 request that can be rate-limited, then the files stream in with a count. That
 split is what lets the failure states say something useful instead of just
 failing.

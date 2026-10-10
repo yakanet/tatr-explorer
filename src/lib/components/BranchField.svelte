@@ -19,7 +19,7 @@
 	let input = $state<HTMLInputElement | null>(null);
 	let toggle = $state<HTMLButtonElement | null>(null);
 
-	// Whichever way the reader left — a link, the field, Back — the menu was
+	// Whichever way the reader left (a link, the field, Back), the menu was
 	// about the page they left.
 	afterNavigate(() => {
 		open = false;
@@ -37,7 +37,7 @@
 
 	/**
 	 * `HEAD` means the default branch, as it does to git, which refuses it as a
-	 * branch name — so no branch can be hidden behind it.
+	 * branch name, so no branch can be hidden behind it.
 	 */
 	function submit(event: SubmitEvent) {
 		event.preventDefault();

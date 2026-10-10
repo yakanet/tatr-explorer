@@ -4,8 +4,8 @@
 - PRIORITY: 30
 - TAGS: infra,ui
 
-Every library is covered — two of the suites replay the compiled binary over the
-64 tasks of tsoding/tatr — and not one test renders a component. The gap is
+Every library is covered (two of the suites replay the compiled binary over the
+64 tasks of tsoding/tatr), and not one test renders a component. The gap is
 already anticipated in `vite.config.ts`, which excludes
 `src/**/*.svelte.spec.ts` from the `server` project for a client project that
 was never added.
@@ -24,7 +24,7 @@ Add the browser project and cover what a glance cannot assert on its own:
   which needs a repository nobody wants to fetch in a test.
 
 Deliberately low priority: half of what went wrong in the views was contrast,
-alignment and proportion, which no assertion catches — a reader looking at the
+alignment and proportion, which no assertion catches; a reader looking at the
 screen found all of it faster. What tests would pin down is the other half, the
 calculations still buried in components, so the first useful step is pulling
 those out rather than reaching for a browser runner.

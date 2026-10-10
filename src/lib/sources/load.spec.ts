@@ -62,7 +62,7 @@ describe('lister fallback', () => {
 	const list = (listers: OpenOptions['listers']) => githubKind.open(ref, { listers }).list();
 
 	// A listing no longer says who produced it, so the question is put to the
-	// listers themselves — which is the stronger form of it anyway: that the
+	// listers themselves, which is the stronger form of it anyway: that the
 	// second was asked, rather than that the answer carries its name.
 	it('stops at the first lister that answers', async () => {
 		const first = fakeLister();
@@ -334,7 +334,7 @@ describe('what the cache keeps', () => {
 });
 
 /**
- * A repository of a few task files that can be rewritten between readings —
+ * A repository of a few task files that can be rewritten between readings,
  * which the 79-task fixture cannot be, being a fixture.
  */
 function mutable(files: Record<string, string>) {
@@ -412,8 +412,8 @@ describe('what the reader last saw', () => {
 	});
 
 	it('says nothing at all when a refresh brought nothing', async () => {
-		// The comparison is still taken and stored — it is the reading that moved
-		// on — so what a view gets is a snapshot identical to the tasks, which
+		// The comparison is still taken and stored (it is the reading that moved
+		// on), so what a view gets is a snapshot identical to the tasks, which
 		// compares to no movement.
 		const files = { [a]: file(90, 'ui') };
 		const { lister, fetchImpl } = mutable(files);
@@ -504,7 +504,7 @@ describe('a folder on this machine', () => {
 
 	it('reports a folder that is not a tatr repository as one, not as none', async () => {
 		// It was opened; it simply holds no tasks, which is what the reader has to
-		// be told — the same thing a repository without the folder is told.
+		// be told: the same thing a repository without the folder is told.
 		const ref = open([dropped('src/app.css', 'body{}'), dropped('README.md', '# a project\n')]);
 		await expect(loadRepository(ref, { store })).rejects.toThrow(NoTasksFolderError);
 	});

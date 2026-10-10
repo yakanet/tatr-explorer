@@ -73,7 +73,7 @@ export class QueryState {
 	 * Whoever renders a diagnostic gets handed this rather than `text`: the two
 	 * differ by the trim, and printing the untrimmed line above a caret measured
 	 * on the trimmed one slid the source right and left the caret pointing at
-	 * nothing — leading spaces being invisible, the reader saw a caret accusing
+	 * nothing: leading spaces being invisible, the reader saw a caret accusing
 	 * a character several columns from the one it meant.
 	 */
 	get source(): string {
@@ -116,7 +116,7 @@ export class QueryState {
 	 * The query as a view's address carries it, so a filtered view is a link: the
 	 * list uses the text and the status, the board the text alone, the other
 	 * views neither. The list writes its status even when it is `open`, so that
-	 * each of its addresses is a whole query — one without a status would read,
+	 * each of its addresses is a whole query; one without a status would read,
 	 * coming back to it through history, as "keep the status chosen since".
 	 */
 	searchOf(view: 'list' | 'board'): string {

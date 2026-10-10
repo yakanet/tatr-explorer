@@ -68,7 +68,7 @@ describe('what moved since the last reading', () => {
 /**
  * A refresh over a real source, and a real failure: an open folder whose grant
  * is gone, which is what every reload of a local repository produces. No mock
- * stands in for `loadRepository` — the point being what the state does when the
+ * stands in for `loadRepository`, the point being what the state does when the
  * loader throws, and a source that can genuinely throw is already here.
  */
 describe('a refresh that fails', () => {

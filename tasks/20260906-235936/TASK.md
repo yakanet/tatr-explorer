@@ -10,8 +10,8 @@ term in the query itself, so `~windows and :bug` reads as one thought:
     primary ::= ':' tag | '~' word | '~' '"' words '"' | '[' expr ']'
               | 'not' primary | 'any' | 'tagged' | 'priority' | number
 
-`~` rather than a bare quoted string, because a match on the title is loose —
-every word, in any order, case ignored — and quotes promise a phrase everywhere
+`~` rather than a bare quoted string, because a match on the title is loose
+(every word, in any order, case ignored), and quotes promise a phrase everywhere
 else, so `"windows support"` finding "Support for Windows" would surprise the
 reader. With `~` carrying that meaning, quotes are left doing the one honest job
 of grouping words that contain spaces. It also leaves `="..."` free should an
@@ -30,7 +30,7 @@ type error like any other. `TqlTask` gains `title` alongside `tags` and
 It is one-directional: every query the CLI accepts keeps working here, but a
 query written here with `~` will not run there. That trade has to be written
 down where the other decisions live, and the README's claim that a query copied
-out of a shell behaves identically needs the qualifier — it stays true one way
+out of a shell behaves identically needs the qualifier: it stays true one way
 round only.
 
 What to settle while building it:
@@ -41,7 +41,7 @@ What to settle while building it:
 - **The `text=` URL parameter goes away.** Nothing published uses it yet, so now
   is the cheap moment.
 - **Completion after `~`.** It should offer nothing, or words drawn from the
-  titles — but never tags, which cannot appear there.
+  titles, but never tags, which cannot appear there.
 
 The differential tests are the safety rail: 34 query invocations replayed from
 the real binary must still pass unchanged, since adding a primary may not alter
@@ -59,7 +59,7 @@ Done. One box again, and the language gained the primary it was missing.
 The tokenizer needed the smaller half of the work: it cuts on whitespace and
 brackets, so `~"windows support"` arrived as two tokens. A quoted run now
 belongs to the token it sits in, which leaves an unterminated quote reaching the
-end of the source — where the parser reports it, since that is what typing looks
+end of the source, where the parser reports it, since that is what typing looks
 like halfway through.
 
 The divergence stayed as small as it could be. `"windows"` without a `~` is
@@ -69,10 +69,10 @@ bare `~`, an unterminated quote and an empty phrase, each with a span.
 
 What confirmed it was safe: none of the 34 replayed CLI invocations contains a
 quote or a tilde, so the new primary cannot alter any query the reference
-implementation can express — and the fixtures pass unchanged.
+implementation can express, and the fixtures pass unchanged.
 
 Gone with it: the separate `filter titles` field, its `text=` URL parameter, and
-`matchesTitle` from the state — the matcher belongs to the language now.
+`matchesTitle` from the state. The matcher belongs to the language now.
 Completion stays silent inside a `~` term, where neither a tag nor a keyword can
 appear.
 

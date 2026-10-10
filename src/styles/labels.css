@@ -3,7 +3,7 @@
  * into a file rather than prose this site wrote.
  *
  * `.mono` was declared in two components and *applied* in five, which is a
- * class of mistake scoped CSS makes silently — the markup asked for a rule the
+ * class of mistake scoped CSS makes silently: the markup asked for a rule the
  * component did not have, so a board's priorities and tags, a file's size and a
  * repository's path all rendered in the body face while the list's rendered
  * right. One rule, once. Everything is monospace now, but the class still says
@@ -18,7 +18,7 @@
  * the matching ink. The hue comes from `tagHue`, by name, so a tag keeps its
  * colour from page to page; the name is always printed, so the colour never
  * carries the meaning alone. Clickable in the list and on the dashboard, inert
- * on a board card — which is why the cursor is not here.
+ * on a board card, which is why the cursor is not here.
  */
 .tag {
 	--tag-tint: var(--tint);
@@ -96,7 +96,7 @@
 }
 
 /* A task id beside its title: small and quiet, the title being what is read.
-   Code, but not in a well — a column of wells would be louder than the
+   Code, but not in a well: a column of wells would be louder than the
    titles. Never broken at its hyphen: half an id is not an id, and beside a
    long title the browser would otherwise take the room from it rather than
    from the words, which can wrap. */
@@ -116,7 +116,7 @@
 }
 
 /* How a row says it moved since the reader's last reading, in the list and on
-   the board's cards alike — one word, beside the title it belongs to.
+   the board's cards alike: one word, beside the title it belongs to.
 
    Not a band on the row: that already means "the keyboard is here", and two
    meanings on one channel is one too many. Here rather than in each view for the

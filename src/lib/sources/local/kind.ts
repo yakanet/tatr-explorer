@@ -1,12 +1,12 @@
 /**
- * The folder the reader has open, as a source — this folder's entry, as
+ * The folder the reader has open, as a source. This folder's entry, as
  * `kind.ts` is in every source folder: the file that builds the
  * {@link SourceKind} the registry holds.
  *
  * A local source is a session where a forge is an address: the browser grants
  * access on a gesture and takes it back on a reload, so nothing here could be
  * restored from a URL. Hence state that belongs to the module rather than to
- * storage — and hence this file, which holds for a folder what a forge keeps in
+ * storage, and hence this file, which holds for a folder what a forge keeps in
  * its chain of listers and its URL shapes: the source itself.
  */
 import { isLocal } from '../../repo/ref.ts';
@@ -72,7 +72,7 @@ function assetUrl(path: string): string | null {
 }
 
 /**
- * The folder the reader has open, as a source — this folder's entry, as
+ * The folder the reader has open, as a source. This folder's entry, as
  * `kind.ts` is in every source folder: the file that builds the
  * {@link SourceKind} the registry holds.
  *

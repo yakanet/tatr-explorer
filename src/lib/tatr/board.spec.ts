@@ -58,7 +58,7 @@ describe('toColumns', () => {
 	});
 
 	it('orders done newest first, ignoring priority', () => {
-		// Priority stops meaning anything once a task is closed — upstream task
+		// Priority stops meaning anything once a task is closed; upstream task
 		// 20260304-115038 says as much.
 		const [, , done] = toColumns([
 			make('20260101-000001', 110, [], true),
@@ -109,7 +109,7 @@ describe('toColumns under a query', () => {
 
 	it('counts a task in the column it belongs to, matched or not', () => {
 		// A closed task rejected by the query still raises Done's total, never
-		// Backlog's — the query cannot move a card between columns.
+		// Backlog's: the query cannot move a card between columns.
 		const columns = toColumns([make('20260101-000001', 90, [], true)], () => false);
 		expect(columns.map((column) => column.total)).toEqual([0, 0, 1]);
 	});

@@ -31,7 +31,7 @@
 	 * Escape is handled here rather than left to the shortcut layer.
 	 *
 	 * The panel takes the focus when it opens, so a key pressed in it starts
-	 * from inside — and the panel used to stop every key from propagating, which
+	 * from inside, and the panel used to stop every key from propagating, which
 	 * swallowed the one shortcut it advertises in its own list. Owning Escape is
 	 * both shorter and the reason nothing has to be stopped now.
 	 */

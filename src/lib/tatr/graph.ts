@@ -12,7 +12,7 @@
  * show a title: `neato` needs short labels, and the upstream task that asked
  * for this graph stalled on exactly that. Here the graph is grouped into its
  * connected components, which the page counts, and drawn as stars
- * (`starCards`), each numbered against a list of titles beside it — a title
+ * (`starCards`), each numbered against a list of titles beside it: a title
  * then has nowhere it needs to fit.
  */
 import type { Task } from './task.ts';
@@ -150,8 +150,8 @@ export interface StarCard {
 	pivot: Task;
 	/**
 	 * In reading order: what cites the pivot, then both ways, then what it
-	 * cites, oldest first within each — the order the drawing goes round in and
-	 * the list beside it is numbered in.
+	 * cites, oldest first within each (the order the drawing goes round in and
+	 * the list beside it is numbered in).
 	 */
 	links: StarLink[];
 	/** Whether the pivot cites itself: a link of its own, with no neighbour to draw. */
@@ -164,7 +164,7 @@ const KIND_ORDER: StarLink['kind'][] = ['in', 'both', 'out'];
  * The graph as stars: each card a pivot and only the links into it and out of
  * it, so no card has a line crossing another, however dense the repository.
  *
- * A card per linked task would draw every link twice — once around each end —
+ * A card per linked task would draw every link twice (once around each end),
  * and a pair of tasks would make two cards of one neighbour each. So pivots are
  * chosen to draw each link exactly once: the task with the most links not yet
  * drawn takes them all, and the next one takes what is left. A task can still

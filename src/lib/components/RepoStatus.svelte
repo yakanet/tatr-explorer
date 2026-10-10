@@ -35,7 +35,7 @@
 				all of them. Every fallback was tried too.
 			</p>
 			<p class="note">
-				Only the initial listing costs quota — reading task files never does. A repository loaded
+				Only the initial listing costs quota: reading task files never does. A repository loaded
 				once stays available without spending any.
 			</p>
 		{:else if repo.failure.kind === 'not-found'}
@@ -54,7 +54,7 @@
 		{:else if repo.failure.kind === 'no-source'}
 			<h2>No folder open</h2>
 			<p>
-				A folder is read where it sits, so the browser only grants access while you are here — a
+				A folder is read where it sits, so the browser only grants access while you are here: a
 				reload takes it back. Choose or drop it again to carry on.
 			</p>
 		{:else if repo.failure.kind === 'no-tasks-folder'}

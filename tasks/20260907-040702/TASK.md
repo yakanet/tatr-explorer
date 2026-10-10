@@ -14,8 +14,8 @@ with a button to copy it. It teaches the CLI to a reader who arrived through the
 web, and it lets someone check the claim instead of taking it on trust.
 
 The interesting case is the one where it cannot be said. A query holding a `~`
-term has no CLI equivalent — that is the point of 20260906-235936, the one
-addition we allow — so the line has to admit it rather than print a command that
+term has no CLI equivalent (that is the point of 20260906-235936, the one
+addition we allow), so the line has to admit it rather than print a command that
 would not run. Something that names the term and says the search is ours, which
 makes the divergence visible exactly where a reader might otherwise carry a
 query to a terminal and watch it fail.

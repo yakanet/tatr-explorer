@@ -50,7 +50,7 @@
 	 * Whether Refresh means anything here, which only the source knows.
 	 *
 	 * Recomputed when the reference changes, and a folder being opened is not a
-	 * change of reference — it is module state, which nothing here observes. It
+	 * change of reference: it is module state, which nothing here observes. It
 	 * holds because every way of opening a folder ends in a navigation that
 	 * renews `ref`; if one ever does not, this is where it will read `Refresh`
 	 * over a folder that cannot be refreshed.
@@ -60,7 +60,7 @@
 	let helping = $state(false);
 
 	/**
-	 * The query travels with the link, so a filtered view stays shareable — but
+	 * The query travels with the link, so a filtered view stays shareable, but
 	 * each view's address carries only what that view uses (see `searchOf`).
 	 * What a view ignores stays in memory rather than in its URL, and comes back
 	 * with the next view that uses it.
@@ -175,7 +175,7 @@
 	   like the cards under it, and a band edge-to-edge would be the only hard
 	   line left on a site made of rounded surfaces. */
 	/* The sides share what is left equally, so the views sit at the middle of
-	   the page, over the column every view centres below it — however long the
+	   the page, over the column every view centres below it, however long the
 	   repository's name or the reading's age. When one side outgrows its share
 	   the views give way rather than overlap it. */
 	header {

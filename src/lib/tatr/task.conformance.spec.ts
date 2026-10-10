@@ -8,7 +8,7 @@ import { compareByPriority, readTask } from './task.ts';
  *
  * `tsoding-tatr-raw.json` holds the 79 `TASK.md` files of tsoding/tatr verbatim;
  * `tatr-ls-output.json` holds what the compiled `tatr ls` binary printed for the
- * same folder. Every field the CLI shows — status, priority, tags, title — is
+ * same folder. Every field the CLI shows (status, priority, tags, title) is
  * re-derived here and compared, so a divergence from the C parser fails the suite.
  *
  * To regenerate: `pnpm run fixtures`, with the checkout at `../tatr` built.

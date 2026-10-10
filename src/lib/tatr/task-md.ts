@@ -19,8 +19,8 @@
 export const INVALID_TITLE = '!!! INVALID: TASK TITLE MUST START WITH # !!!';
 
 /**
- * Priority when the property is absent. Deliberately huge upstream — "unset
- * priority is high so you don't forget to set it" — so an unset task sorts to
+ * Priority when the property is absent. Deliberately huge upstream ("unset
+ * priority is high so you don't forget to set it"), so an unset task sorts to
  * the top rather than disappearing into the middle.
  */
 export const UNSET_PRIORITY = 999999;
@@ -113,8 +113,8 @@ export function readPriority(properties: Map<string, string>): number {
 }
 
 /**
- * A task is closed only when its status is exactly `CLOSED`. Every other value —
- * including a misspelt or missing one — counts as open, deliberately, so a task
+ * A task is closed only when its status is exactly `CLOSED`. Every other value
+ * (including a misspelt or missing one) counts as open, deliberately, so a task
  * is never hidden by its own error.
  */
 export function isClosed(properties: Map<string, string>): boolean {

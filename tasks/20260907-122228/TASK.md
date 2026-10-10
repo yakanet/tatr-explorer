@@ -6,7 +6,7 @@
 
 A reader points this viewer at a public repository, which means the one thing it
 cannot show is the repository someone is actually working in: private, or simply
-not pushed yet. This project has felt it on itself — the site could not show the
+not pushed yet. This project has felt it on itself: the site could not show the
 tasks in this very folder until they were pushed, the dev server reading from
 GitHub like everything else.
 
@@ -17,8 +17,8 @@ is uploaded and the browser arbitrates the permission, which is the promise the
 README already makes.
 
 **This belongs before 20260906-211255, not after it.** A local folder removes
-four things that interface currently assumes — the URL, the budget, the branch
-and the shareable address — so it is what says what shape the contract should
+four things that interface currently assumes (the URL, the budget, the branch
+and the shareable address), so it is what says what shape the contract should
 have. Implementing GitLab first would validate none of it, GitLab being
 GitHub-shaped. The consequences for the contract are written where the contract
 is, in 20260906-211255.
@@ -29,14 +29,14 @@ Feasibility, measured rather than argued.
 
 **The interface is universal; the door is not.** `FileSystemDirectoryHandle`
 with `entries()` and `getFile()` is what does the work, and it is reached two
-ways with very different support — caniuse's own data, not a guess:
+ways with very different support (caniuse's own data, not a guess):
 
     File System Access (showDirectoryPicker)   Chrome/Edge yes, Firefox no, Safari no
     <input type="file" webkitdirectory>        everywhere
 
 `navigator.storage.getDirectory()` is supported everywhere and is *not* this: it
 is the origin's private sandbox, which cannot see a folder on the disk. It was
-useful anyway — it hands back the same handle interface with no native dialog,
+useful anyway: it hands back the same handle interface with no native dialog,
 so the traversal could be exercised without a click.
 
 **The two doors differ in one way that matters.** The picker's handle survives
@@ -44,7 +44,7 @@ IndexedDB (stored, read back, `isSameEntry` true for the same folder and false
 for another), so a folder can be recognised later and a refresh is a genuine
 reread. The input yields a flat `FileList` with `webkitRelativePath` and no
 handle: one snapshot, and refreshing means picking again. Which is a smaller
-difference than it looks, because the cache already works that way — read once,
+difference than it looks, because the cache already works that way: read once,
 reread only when asked.
 
 **Cost, on a tree this repository's size** (38 files, 59 kB, through OPFS so a
@@ -58,7 +58,7 @@ answers `SecurityError: Must be handling a user gesture`, so it hangs off a
 click. `.git/HEAD` reads fine, so the branch stays displayable: it is a file.
 
 **And the code is readier than expected.** Outside the providers, only four
-places assume a URL — the two reads in `load.ts`, `resolveAttachment`, and
+places assume a URL: the two reads in `load.ts`, `resolveAttachment`, and
 `blobUrl` for the Source panel. The first three become `read(path)` and
 `assetUrl(path)`; the fourth has no local equivalent at all, so that panel is
 simply absent, which is the first honest sign that a source is not a forge.
@@ -70,7 +70,7 @@ Built as described, and the decisions worth keeping out of the code are these.
 **Nothing is cached.** The cache exists to protect an API budget this source
 does not spend, and a stored copy of a folder someone is editing would be wrong
 before it was written. So a folder never appears in the homepage's list of
-repositories already read — it is not one.
+repositories already read; it is not one.
 
 **A local reference is one URL segment**, `/local`, and the folder's name is
 deliberately not in it: nobody else's machine could follow that address. The
@@ -95,7 +95,7 @@ before this was closed:
   produced the file-count dialog and, with it, the acceptance of a `tasks/`
   folder.
 - **Firefox** read `tsoding/tatr` from the disk on the deployed site: 64 tasks,
-  41 closed, the months chart with its five empty months — the reference
+  41 closed, the months chart with its five empty months, the reference
   repository shown without a single network request.
 - **Chrome** exposes the picker, and that is the one path still never taken by a
   human hand: it needs a click, and every real use so far landed on the input.

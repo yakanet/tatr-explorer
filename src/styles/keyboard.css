@@ -4,7 +4,7 @@
  * reader who cannot see where it is cannot navigate at all.
  *
  * `:focus-visible` rather than `:focus`, so a click does not leave a ring
- * behind — the browser already knows which of the two the reader used. An
+ * behind: the browser already knows which of the two the reader used. An
  * outline rather than a shadow: it follows a pill's or a card's radius all the
  * same, the offset leaves a gap in whatever is behind, forced-colours mode
  * repaints it instead of dropping it, and a card's own `box-shadow` cannot
@@ -15,7 +15,7 @@
  * broke in the build only. Vite targets browsers that predate `:has()`, so the
  * minifier wraps a list holding one in `:is(…)`, which takes the weight of its
  * heaviest member, `.input-pill:has(…)`. `:where()` is as forgiving as `:is()`
- * — a browser without `:has()` keeps the rest of the ring — and adds no weight.
+ * (a browser without `:has()` keeps the rest of the ring) and adds no weight.
  */
 :where(
 	:focus-visible,
@@ -39,13 +39,13 @@
 /*
  * A row inside a table is a line, not a word: an inline anchor's own ring marks
  * the few words it wraps, while the reader needs to see which line they are on.
- * So the table row carries the mark instead, as a band in the accent's wash —
+ * So the table row carries the mark instead, as a band in the accent's wash,
  * the same lilac a selected completion takes, so "the cursor is here" looks the
  * same everywhere.
  *
  * These live here rather than in each view because `data-key-focus` is set at
  * runtime, and Svelte's scoped CSS prunes selectors it cannot find in the
- * markup — the rule would be dropped as unused. The convention is shared
+ * markup: the rule would be dropped as unused. The convention is shared
  * anyway: any view putting a `data-key-row` inside a `tr` gets this.
  */
 tr:has([data-key-row]:focus-visible),

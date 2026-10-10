@@ -7,7 +7,7 @@ import { compile } from './query.ts';
  * Differential test against the reference implementation.
  *
  * `tests/fixtures/tql-cli-cases.json` holds the output of the real `tatr ls`
- * binary, built from tsoding/tatr and run over its own `tasks/` folder — the
+ * binary, built from tsoding/tatr and run over its own `tasks/` folder, the
  * same folder captured in `tsoding-tatr.json`. Every case below re-runs that
  * query through this library and asserts it selects exactly the same task ids,
  * so a divergence from the C implementation fails the suite.

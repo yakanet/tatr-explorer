@@ -128,7 +128,7 @@
 </script>
 
 <svelte:head>
-	<title>{repo.name} — references</title>
+	<title>{repo.name} · references</title>
 </svelte:head>
 
 <main>

@@ -9,7 +9,7 @@
  *
  * FNV-1a over the UTF-8 bytes, because it is a few lines, has no dependency and
  * spreads short words well enough; four buckets mean collisions, which is
- * acceptable because the name is always printed — the hue helps the eye, it
+ * acceptable because the name is always printed: the hue helps the eye, it
  * never carries the meaning on its own.
  */
 export type TagHue = 1 | 2 | 3 | 4;

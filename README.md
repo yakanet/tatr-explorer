@@ -19,8 +19,8 @@ In the browser. No server, no backend, no clone.
 
 ## Your tasks already live in git. Now you can see them.
 
-[tatr](https://github.com/tsoding/tatr) keeps every task as a folder —
-`tasks/20260315-160715/TASK.md` — holding a few `- KEY: value` lines and
+[tatr](https://github.com/tsoding/tatr) keeps every task as a folder
+(`tasks/20260315-160715/TASK.md`) holding a few `- KEY: value` lines and
 free-form Markdown. It is a genuinely good idea: no database, no lock file,
 tasks move with the branch, and a change to one shows up in a diff.
 
@@ -49,18 +49,18 @@ read, or any name typed in, and the view and its query come along. Only branches
 read before are listed, since asking GitHub for the list would spend a request
 before you had chosen anything.
 
-Inside a task, the ids it cites are links too, in its title as in its body —
+Inside a task, the ids it cites are links too, in its title as in its body:
 the ones this repository has, which the References panel lists; an id belonging
 to somebody else's tracker stays text.
 
-It answers the keyboard throughout: `j`/`k` walk whatever the view is showing —
-rows, bars, the titles on the graph's cards — `g g` and `G` reach the ends, `/`
+It answers the keyboard throughout: `j`/`k` walk whatever the view is showing
+(rows, bars, the titles on the graph's cards), `g g` and `G` reach the ends, `/`
 puts the caret in the query, `1`-`4` switch view, `b` opens the branches, and
 `?` lists the rest.
 
 ## The query language you already know
 
-The search box speaks TQL — the grammar `tatr ls` accepts. Copy a query out of
+The search box speaks TQL, the grammar `tatr ls` accepts. Copy a query out of
 your shell history, paste it in, get the same answer.
 
 | Query                              | Matches                                   |
@@ -75,19 +75,19 @@ your shell history, paste it in, get the same answer.
 | `any`                              | everything                                |
 
 Comparisons are spelled as words (`lt le gt ge eq ne`) and square brackets
-replace parentheses — that is how a query survives a shell without quoting. The
+replace parentheses: that is how a query survives a shell without quoting. The
 parser is typed: `and`/`or`/`not` take booleans, comparisons take integers, and
 a mistake is pointed at _the offending token_ instead of being silently coerced.
 Tag names and keywords complete as you type, with what each tag means alongside
-it — the repository's own vocabulary, which nothing else on screen lists.
+it: the repository's own vocabulary, which nothing else on screen lists.
 
 **One addition to the language: `~` searches titles**, and the CLI has
-no notion of it. The divergence is deliberate and it runs one way only — every
+no notion of it. The divergence is deliberate and it runs one way only: every
 query `tatr ls` accepts behaves identically here, but a query written with `~`
 will not run there. A reader in a browser has no `grep` sitting beside the tool, and the
 alternative was a second search box next to the language, which read as two
 unrelated ways to say one thing. `~` rather than a bare quoted string because
-the match is loose — every word, in any order, case ignored — and quotes promise
+the match is loose (every word, in any order, case ignored) and quotes promise
 a phrase everywhere else; with `~` carrying that meaning, quotes are left
 grouping words that contain spaces and nothing more.
 
@@ -95,13 +95,13 @@ grouping words that contain spaces and nothing more.
 `tatr ls -c`, which lists the closed tasks _only_; the CLI has no single
 command for both. The dashboard needs one: its "in total" and "untagged" count
 every task, and each opens the list on the very tasks it counted. Like `~`, it
-runs one way — the other two behave exactly as the flags do.
+runs one way: the other two behave exactly as the flags do.
 
 ![The filtered list](docs/list.jpg)
 
 ## Nothing to sign up for. Nothing to hand over.
 
-There is no account, no cookie, no analytics, no telemetry — there is no
+There is no account, no cookie, no analytics, no telemetry: there is no
 _server_. The site is a folder of static files, and everything it knows about a
 repository it learned in your browser, seconds ago.
 
@@ -111,7 +111,7 @@ repository it learned in your browser, seconds ago.
   type, the tasks you follow: none of it is sent anywhere, because there is
   nowhere to send it.
 - **The cache is yours too.** Task metadata is kept in your own browser's
-  IndexedDB and re-read only when _you_ press Refresh — never on a timer behind
+  IndexedDB and re-read only when _you_ press Refresh, never on a timer behind
   your back. Clear your site data and it is gone, completely.
 - **Only metadata is kept.** Descriptions are more than half the bytes and cost
   nothing to fetch again, so they are never written down at all.
@@ -122,7 +122,7 @@ behind the same IP address, so:
 
 - **One request lists a whole repository.** `git/trees/HEAD?recursive=1` returns
   the entire tree in a single call, and asking for `HEAD` skips the extra
-  round-trip that would resolve the default branch by name — including on
+  round-trip that would resolve the default branch by name, including on
   repositories that still call it `master`.
 - **Contents come from a CDN.** `raw.githubusercontent.com` does not count
   against the API quota at all.
@@ -141,29 +141,29 @@ from the same folder as the page.
 ## Or a folder on your own machine
 
 The one repository a public URL cannot reach is the one you are working in.
-**Open a folder** instead, and the browser reads it where it sits — private,
+**Open a folder** instead, and the browser reads it where it sits: private,
 unpushed, offline, whatever is checked out right now, including the task you
 have not committed yet.
 
 Nothing is uploaded, and nothing could be: the page has no server to upload to.
 Your browser grants access to that one folder, for as long as the tab is open,
-and takes it back when you reload — so a local folder is a session rather than
+and takes it back when you reload, so a local folder is a session rather than
 an address, and `/local` is a marker rather than a link anyone else could
 follow. The branch comes from `.git/HEAD`, which is a file like any other; the
 `tasks/` folder is all that is read.
 
 **Or drag the folder onto the page**, which is the widest door of the three: the
 API behind a drop exists in every browser, and on Chromium a dropped folder even
-arrives as a handle — the good kind of source.
+arrives as a handle, the good kind of source.
 
 Because that is what separates the three ways in. A handle can be walked again,
 so **Refresh** rereads the folder and a task you closed in your editor shows up
 closed; a handle comes from a drop or from the File System Access API, which is
 Chromium today and which Brave ships turned off. The directory input, everywhere
-else, hands over one snapshot, and refreshing means picking again — which the
+else, hands over one snapshot, and refreshing means picking again, which the
 button says instead of pretending.
 
-Two of the three ask your permission, and they ask differently — so the page
+Two of the three ask your permission, and they ask differently, so the page
 says which one is coming before you click. The picker asks for access to that
 one folder. The directory input asks by the _file count_, because it cannot know
 that this page will not upload what it is given: a whole checkout produces
@@ -177,7 +177,7 @@ Whichever door it came through, a folder with no tasks in it is told so rather
 than trawled: the reader picked a folder, and the page can see in one look
 whether it holds task folders.
 
-## Identical to the CLI — and that claim is tested
+## Identical to the CLI, and that claim is tested
 
 The format parser, the query language and the reference graph are ported from
 the C source, not from the README, which simplifies. All three are covered by
@@ -187,13 +187,13 @@ the C source, not from the README, which simplifies. All three are covered by
   by field;
 - **50 query invocations**, each compared against the exact set of tasks the CLI
   printed;
-- **15 invalid queries**, each compared against everything the CLI printed —
+- **15 invalid queries**, each compared against everything the CLI printed:
   the help, the caret and the message;
 - **36 arrows** of `tatr graph`, compared one by one.
 
-A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks —
-impossible dates, suffixes, a status that is neither, a title without its `#`, a
-priority given twice, text outside ASCII — run through the same binary.
+A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks
+(impossible dates, suffixes, a status that is neither, a title without its `#`,
+a priority given twice, text outside ASCII), run through the same binary.
 
 A divergence fails the suite. When upstream moves, `pnpm run fixtures` records
 everything again from the checkout at `../tatr`, and the recordings earn it: the
@@ -205,7 +205,7 @@ The same discipline governs what reaches the screen: repository content is shown
 show a screen the product cannot produce.
 
 The recordings of `tsoding/tatr` carry upstream's own task text, which makes them
-the one thing in this repository that is not MIT — see [`NOTICE`](NOTICE). No code from tatr is
+the one thing in this repository that is not MIT (see [`NOTICE`](NOTICE)). No code from tatr is
 copied here; the viewer is an independent implementation of the same format.
 
 ![One task, rendered](docs/task.jpg)
@@ -241,7 +241,7 @@ fallback.
 ## It tracks itself
 
 This repository keeps its own work in its own `tasks/` folder, in the tatr
-format — which is why every example above is a live URL. Open
+format, which is why every example above is a live URL. Open
 [`/yakanet/tatr-explorer`](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer)
 and you are reading the backlog of the thing you are reading it with. Its tags
 are documented in `tasks/tags`, exactly as tatr expects:
@@ -264,4 +264,4 @@ highest priority first.
 The format, the CLI and the query language are [tsoding's](https://github.com/tsoding/tatr).
 This is a reader for them, nothing more.
 
-MIT licensed — see [LICENSE](LICENSE).
+MIT licensed: see [LICENSE](LICENSE).

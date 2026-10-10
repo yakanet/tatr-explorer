@@ -25,7 +25,7 @@
 	 * The query narrows each column, and the closed toggle has no say here.
 	 *
 	 * Closed tasks are a column on this view, so hiding them would empty a column
-	 * headed "closed" — a question the board answers by its shape. The bar drops
+	 * headed "closed", a question the board answers by its shape. The bar drops
 	 * the switch rather than reinterpreting it, and `matches` is the query without
 	 * the status filter that `apply` would have imposed.
 	 */
@@ -57,7 +57,7 @@
 </script>
 
 <svelte:head>
-	<title>{repo.name} — board</title>
+	<title>{repo.name} · board</title>
 </svelte:head>
 
 <main>
@@ -155,7 +155,7 @@
 		border-radius: var(--radius-xl);
 		background: var(--tint);
 		/* Done holds 46 cards on tsoding/tatr, so letting the page grow to fit it
-		   scrolls the other two headers off the top — and a board whose columns
+		   scrolls the other two headers off the top, and a board whose columns
 		   cannot be compared is a list. Each scrolls on its own instead, which is
 		   also what `j`/`k` expect: scrollIntoView finds the nearest scroll box. */
 		max-height: calc(100vh - 13rem);

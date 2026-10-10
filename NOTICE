@@ -58,7 +58,7 @@ What is not borrowed
 
 No source code from tatr is copied or translated into this repository. This
 viewer is an independent implementation, in TypeScript, of the same file format
-and the same query language — a format and a behaviour rather than an
+and the same query language: a format and a behaviour rather than an
 expression. Where a comment names a file of the C source, it says where the
 behaviour is defined, not where the code came from; what holds the two together
 is the differential tests above.

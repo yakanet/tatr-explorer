@@ -5,7 +5,7 @@
  * not a forge and reads tasks perfectly well; a forge is a source that also has
  * URLs, a budget, a branch and an address other people can follow. Naming the
  * interface after the smaller idea is what keeps the local source from being a
- * permanent exception — which is what it was, as a branch in the loader.
+ * permanent exception, which is what it was, as a branch in the loader.
  *
  * Contract only: no implementation is imported here, so a source may name this
  * type without anything importing it back.
@@ -30,8 +30,8 @@ export interface Listing {
  *
  * `ListingError` rather than a source error, because listing is the operation
  * that fails this way: a spent budget, a repository that is not there, a host
- * nobody serves. Reading a file never throws — one unreadable task is listed as
- * skipped instead of taking the whole load down — and a source with nothing
+ * nobody serves. Reading a file never throws (one unreadable task is listed as
+ * skipped instead of taking the whole load down), and a source with nothing
  * behind it throws {@link NoSourceError}, which is a different sentence.
  */
 export type ListingFailure =
@@ -84,8 +84,8 @@ export interface Source {
 	 *
 	 * The shape is the point: "do not cache this" stops being a branch in the
 	 * loader and becomes something a source declares. The cache exists to
-	 * protect an API budget, and a source that spends none — while pointing at
-	 * files someone is editing — answers null and settles the question.
+	 * protect an API budget, and a source that spends none (while pointing at
+	 * files someone is editing) answers null and settles the question.
 	 */
 	readonly cacheKey: string | null;
 
@@ -99,7 +99,7 @@ export interface Source {
 	 * Whether this reading can be taken again on demand.
 	 *
 	 * A forge always can, at the price of a request. A folder can only where
-	 * the browser handed over a handle to keep — otherwise the reader has to
+	 * the browser handed over a handle to keep; otherwise the reader has to
 	 * offer the folder again, and a Refresh button would be a lie.
 	 */
 	readonly repeatable: boolean;
@@ -107,7 +107,7 @@ export interface Source {
 	/**
 	 * Made ready to be read again, before a refresh: walk the folder once more.
 	 *
-	 * Absent where there is nothing to do — a forge's refresh is the loader
+	 * Absent where there is nothing to do: a forge's refresh is the loader
 	 * ignoring the cache, not the source doing anything.
 	 */
 	refresh?(): Promise<void>;
@@ -153,8 +153,8 @@ export interface OpenOptions {
 /**
  * A kind of source: how a reference is recognised, and turned into one.
  *
- * Recognising a reference is not something an instance can do — it is what
- * decides which instance to build — so it sits one storey up. And it cannot be
+ * Recognising a reference is not something an instance can do (it is what
+ * decides which instance to build), so it sits one storey up. And it cannot be
  * a closed list of hosts: a self-hosted Gitea is on whatever domain its owner
  * chose.
  */

@@ -1,8 +1,8 @@
 /**
  * The files a task folder holds besides its `TASK.md`.
  *
- * The listing already knows them — it downloads the whole tree in one request
- * and then keeps only the `TASK.md` entries — so showing them costs nothing but
+ * The listing already knows them (it downloads the whole tree in one request
+ * and then keeps only the `TASK.md` entries), so showing them costs nothing but
  * the lines that were being thrown away. Sizes come from the same place, so a
  * file can be listed with its weight without being fetched.
  *

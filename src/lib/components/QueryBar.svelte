@@ -37,7 +37,7 @@
 	// rather than remembered: what was third a moment ago may not exist now.
 	const selected = $derived(found ? Math.min(active, found.items.length - 1) : 0);
 
-	/** The caret can move without the text changing — an arrow key, a click. */
+	/** The caret can move without the text changing: an arrow key, a click. */
 	function track() {
 		caret = field?.selectionStart ?? query.text.length;
 	}

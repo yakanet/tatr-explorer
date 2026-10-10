@@ -10,7 +10,7 @@ import { compareByPriority, readTask } from './task.ts';
 
 /**
  * The second differential corpus, beside tsoding/tatr: a few tasks of ours, each
- * holding an edge case that repository lacks — impossible dates, suffixes, a
+ * holding an edge case that repository lacks: impossible dates, suffixes, a
  * status that is neither, a title without its `#`, a priority given twice,
  * trailing spaces, text outside ASCII, a self-citation, a folder that is not an
  * id. `scripts/fixtures.mjs` runs the real binary over them like over the first,

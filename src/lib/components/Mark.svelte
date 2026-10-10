@@ -27,7 +27,7 @@
 		display: block;
 		flex-shrink: 0;
 		/* A drawing has no baseline, so a row aligning on one would take this
-		   element's bottom edge for the whole line's — the text beside it then
+		   element's bottom edge for the whole line's; the text beside it then
 		   hangs wherever that edge happens to fall. Sitting out of the baseline
 		   group leaves the text to define it, and centring lands the artwork on
 		   the cap height of the word next to it. */

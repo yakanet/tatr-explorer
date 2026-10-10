@@ -1,8 +1,8 @@
 /**
  * Completion for the query box.
  *
- * A query is short and its vocabulary is closed — a dozen keywords plus whatever
- * tags the repository happens to define — so completion here is not a
+ * A query is short and its vocabulary is closed (a dozen keywords plus whatever
+ * tags the repository happens to define), so completion here is not a
  * convenience, it is how a reader discovers that vocabulary at all. Tag names
  * especially: nothing else on screen lists them with what they mean.
  *
@@ -64,7 +64,7 @@ const TOKEN = /[A-Za-z0-9_:.~"-]/;
 /**
  * Whether the caret sits inside a `~"..."` phrase.
  *
- * An unclosed quote before the caret is the whole test — quotes only ever open a
+ * An unclosed quote before the caret is the whole test: quotes only ever open a
  * search, and one that has not been closed means the caret is still in it. This
  * also covers a caret several words deep, which is exactly where reading the
  * token alone fails.
@@ -93,11 +93,11 @@ export function tokenAt(text: string, cursor: number): { start: number; end: num
  * on one.
  *
  * A token opening with `:` or `.` can only become a tag, so keywords are left
- * out entirely rather than ranked below — the reader has already said which
+ * out entirely rather than ranked below: the reader has already said which
  * half of the vocabulary they want.
  *
  * Inside a `~` search nothing is offered, since neither a tag nor a keyword can
- * appear there — a menu suggesting `:bug` into the middle of a phrase offers to
+ * appear there: a menu suggesting `:bug` into the middle of a phrase offers to
  * break the query. Detecting that cannot be done from the token alone: a phrase
  * holds spaces, `tokenAt` stops at them, and by the second word the `~"` is out
  * of view. The text before the caret is what knows.
@@ -155,7 +155,7 @@ export function apply(
 ): { text: string; cursor: number } {
 	const after = text.slice(range.end);
 	// A trailing space, so the next word starts a new token rather than extending
-	// this one — which is also what closes the menu, since the caret then sits on
+	// this one, which is also what closes the menu, since the caret then sits on
 	// no token at all. A query ending in a space parses the same.
 	const spaced = after.startsWith(' ') ? value : `${value} `;
 	return { text: text.slice(0, range.start) + spaced + after, cursor: range.start + spaced.length };

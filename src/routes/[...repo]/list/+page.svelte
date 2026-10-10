@@ -45,8 +45,8 @@
 		goto(url, { shallow: true, replace: true });
 	}
 
-	// An address that arrived without a status — typed, or from before there was
-	// one — is rewritten to carry the status in force, so coming back to it
+	// An address that arrived without a status (typed, or from before there was
+	// one) is rewritten to carry the status in force, so coming back to it
 	// through history shows what was shown rather than whatever was chosen since.
 	onMount(syncUrl);
 
@@ -63,7 +63,7 @@
 </script>
 
 <svelte:head>
-	<title>{repo.name} — list</title>
+	<title>{repo.name} · list</title>
 </svelte:head>
 
 <main>

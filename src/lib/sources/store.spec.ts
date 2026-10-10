@@ -67,7 +67,7 @@ describe('memoryStore', () => {
 
 describe('openStore', () => {
 	it('degrades to memory where IndexedDB does not exist, rather than throwing', async () => {
-		// This suite runs under node, so there is no IndexedDB here — which is the
+		// This suite runs under node, so there is no IndexedDB here, which is the
 		// same situation as a private window or the prerender pass.
 		expect(typeof indexedDB).toBe('undefined');
 		const store = openStore();
@@ -90,7 +90,7 @@ describe('openStore', () => {
  * There is no IndexedDB under node, and the walk is ours rather than the
  * platform's: what is worth pinning down is that it accumulates in order,
  * stops on the null cursor, and asks for the next record from inside the
- * handler — a step deferred to a microtask would let the transaction commit
+ * handler. A step deferred to a microtask would let the transaction commit
  * underneath it.
  */
 function fakeStore(records: { key: IDBValidKey; value: unknown }[]): IDBObjectStore {

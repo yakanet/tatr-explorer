@@ -70,7 +70,7 @@ describe('QueryState', () => {
 
 	it('still reports a type error hiding on the right of an and', () => {
 		// `and` evaluates both sides before testing either, so no branch escapes
-		// the witness — even one a short-circuiting language would skip.
+		// the witness, even one a short-circuiting language would skip.
 		expect(withText(':bug and priority').error?.message).toContain('Expected boolean');
 	});
 

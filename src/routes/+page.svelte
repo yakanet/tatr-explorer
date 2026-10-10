@@ -42,7 +42,7 @@
 	let suggestions = $state<Suggestion[]>([]);
 
 	/**
-	 * The cache decides what to offer, so this runs in the browser only — the
+	 * The cache decides what to offer, so this runs in the browser only: the
 	 * page is prerendered, and the static HTML ships with nothing in this slot
 	 * rather than with a guess that would flash and be replaced.
 	 */
@@ -106,7 +106,7 @@
 	<p class="lead">
 		Point it at any repository that follows the
 		<a href="https://github.com/tsoding/tatr#task-tracker">tatr</a> layout, or at a folder on this machine.
-		Nothing is uploaded — the files are read in your browser.
+		Nothing is uploaded: the files are read in your browser.
 	</p>
 
 	<!-- Two ways in, one at a time: each needs a line of explanation, and stacked
@@ -177,7 +177,7 @@
 			{:else}
 				<div class="local">
 					<FolderPicker />
-					<span class="hint">private, unpushed, offline — whatever is checked out right now</span>
+					<span class="hint">private, unpushed, offline: whatever is checked out right now</span>
 				</div>
 				<!-- What the browser is about to ask depends on which door it has, and
 				     a surprise dialog reads as a warning about this site. -->
@@ -188,7 +188,7 @@
 					</p>
 				{:else}
 					<p class="accepts">
-						Picking a folder makes your browser count its files first — choose just the
+						Picking a folder makes your browser count its files first. Choose just the
 						<code>tasks/</code> folder to keep that number small, or drop the folder here instead. Nothing
 						is uploaded: there is no server to upload to.
 					</p>

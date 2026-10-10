@@ -11,8 +11,8 @@ and then pairs them by index:
     const values = await transact('readonly', (store) => store.getAll());
     if (!keys || !values || keys.length !== values.length) return [];
 
-A write landing between the two — the loader finishing a repository while the
-homepage reads the cache — leaves the arrays describing different states. The
+A write landing between the two (the loader finishing a repository while the
+homepage reads the cache) leaves the arrays describing different states. The
 length guard catches the easy case and guarantees nothing about the pairing,
 while the code depends entirely on the order.
 
@@ -42,8 +42,8 @@ is now one predicate, shared with `read`, and `flatMap` uses it to narrow and
 map in one pass. A row from before the wrapper existed is skipped rather than
 shown as read at the epoch.
 
-Tested by driving `collect` with a fake object store — the walk is ours, the
-cursor is the platform's — and the accumulation test was checked against a walk
+Tested by driving `collect` with a fake object store (the walk is ours, the
+cursor is the platform's), and the accumulation test was checked against a walk
 that never calls `continue()`: it hangs, which is the honest failure of a cursor
 that does not advance. `memoryStore.list` had no test at all and has one now.
 

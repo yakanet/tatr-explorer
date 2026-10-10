@@ -4,7 +4,7 @@
  * The cache holds the state the reader last saw and a refresh replaces it, so
  * keeping the old one for the length of a comparison answers the question a
  * reader actually arrives with: what happened since I last looked? It costs no
- * request — both states are already on the machine, which is what the cache
+ * request: both states are already on the machine, which is what the cache
  * never expiring on its own buys back.
  *
  * The comparison sees only what the cache keeps, which is metadata. A rewritten
@@ -24,8 +24,8 @@ export interface Snapshot {
 }
 
 /**
- * How one task moved, spelled as the word a badge shows — the only place these
- * are ever read, so naming them anything else would only buy a lookup table to
+ * How one task moved, spelled as the word a badge shows (the only place these
+ * are ever read), so naming them anything else would only buy a lookup table to
  * keep in step.
  *
  * A task can move in more than one way at once, closed and repriorised in the
@@ -39,7 +39,7 @@ export interface Changes {
 	/** Every task that moved, and how. Keyed for a view to ask about one row. */
 	moved: Map<string, Movement[]>;
 	/**
-	 * How many tasks moved, each counted once — which is only ever asked as
+	 * How many tasks moved, each counted once, which is only ever asked as
 	 * "did anything?", the answer being on the rows themselves.
 	 */
 	total: number;
@@ -48,7 +48,7 @@ export interface Changes {
 /** Tags as a set: a reordered list is not a change worth announcing. */
 function sameTags(a: readonly string[], b: readonly string[]): boolean {
 	if (a.length !== b.length) return false;
-	// A comma cannot appear in a tag, the format splitting on it — and unlike the
+	// A comma cannot appear in a tag, the format splitting on it. And unlike the
 	// NUL that first stood here, it does not make git read this file as binary.
 	return a.toSorted().join(',') === b.toSorted().join(',');
 }

@@ -20,8 +20,8 @@ export const DEFAULT_HOST = 'github.com';
  * The host of a folder on the reader's own machine.
  *
  * Not a host at all, which is the point: it marks a reference that no URL can
- * resolve. A local folder is a session rather than an address — the browser
- * gives access to it on a gesture and takes it back on a reload — so our own
+ * resolve. A local folder is a session rather than an address (the browser
+ * gives access to it on a gesture and takes it back on a reload), so our own
  * URL carries the marker and nothing else, and the folder itself is held in
  * memory for as long as the reader stays.
  */
@@ -162,7 +162,7 @@ export function repoKey(ref: RepoRef): string {
 /**
  * How a reference reads on screen: `owner/name`, or a folder's own name.
  *
- * A local folder has no owner to qualify it, so its name stands alone — and
+ * A local folder has no owner to qualify it, so its name stands alone, and
  * before one is picked there is nothing to name at all.
  */
 export function describeRef(ref: RepoRef): string {

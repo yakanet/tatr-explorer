@@ -5,7 +5,7 @@
  * measurement rather than in principle:
  *
  * - **Size.** One 64-task repository serialises to ~45 kB, so localStorage's
- *   ~5 MB would hold about a hundred of them — but a single repository with a
+ *   ~5 MB would hold about a hundred of them, but a single repository with a
  *   few thousand tasks reaches several megabytes and would fill it alone.
  * - **Blocking.** localStorage is synchronous, so parsing a multi-megabyte
  *   entry stalls the main thread at exactly the moment the page is trying to
@@ -14,8 +14,8 @@
  *   a round trip. Through JSON they do not, and the loader would have to
  *   rebuild them by hand on every read.
  *
- * Storage is unavailable in several ordinary situations — private windows,
- * embedded contexts, the prerender pass, tests — so every path degrades to an
+ * Storage is unavailable in several ordinary situations (private windows,
+ * embedded contexts, the prerender pass, tests), so every path degrades to an
  * in-memory store rather than failing.
  */
 
@@ -37,8 +37,8 @@ export interface RepoStore {
 	 * Everything held, newest first, for the homepage's list of repositories
 	 * already read.
 	 *
-	 * It reads the values rather than only the keys, because what a card shows —
-	 * how many tasks, how many open — lives in them. That means loading the whole
+	 * It reads the values rather than only the keys, because what a card shows
+	 * (how many tasks, how many open) lives in them. That means loading the whole
 	 * cache: about 45 kB per repository, from local storage, which is nothing next
 	 * to the request a card would otherwise cost. A cache large enough for that to
 	 * matter would want a separate index of counts.
@@ -176,7 +176,7 @@ function persistentStore(): RepoStore {
 	 * Runs one transaction, or gives up quietly.
 	 *
 	 * `run` returns a promise rather than a request, so one request and a cursor
-	 * walk are the same kind of thing here — the walk being the reason: it has to
+	 * walk are the same kind of thing here, the walk being the reason: it has to
 	 * stay inside a single transaction, which is a property of where it runs.
 	 */
 	const transact = async <T>(

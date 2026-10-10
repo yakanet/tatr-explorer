@@ -59,8 +59,8 @@
 		ref,
 		branch: repo.branch,
 		taskId: id,
-		// An id this repository does not have — most of the ones our tasks cite
-		// are upstream's — would lead a reader to `No such task`, and this task's
+		// An id this repository does not have (most of the ones our tasks cite
+		// are upstream's) would lead a reader to `No such task`, and this task's
 		// own id to the page it is written on. Resolved against the same list the
 		// References panel uses, so a body links exactly what the panel lists.
 		taskUrl: (other: string) =>
@@ -100,7 +100,7 @@
 	 * asking the API for one costs a request per task.
 	 */
 	// Absent for a folder on this machine, which is the source saying there is no
-	// page anywhere to link this file to — rather than this view knowing that.
+	// page anywhere to link this file to, rather than this view knowing that.
 	const fileUrl = $derived(
 		openSource(ref, { branch: repo.branch })?.fileUrl?.(`tasks/${id}/TASK.md`) ?? null
 	);
@@ -109,7 +109,7 @@
 </script>
 
 <svelte:head>
-	<title>{task?.title ?? id} — {repo.name}</title>
+	<title>{task?.title ?? id} · {repo.name}</title>
 </svelte:head>
 
 <main>
@@ -166,7 +166,9 @@
 				<dl>
 					{#each task.properties as [key, value] (key)}
 						<dt>{key}</dt>
-						<dd>{value || '—'}</dd>
+						<dd>
+							{#if value}{value}{:else}<span class="muted">empty</span>{/if}
+						</dd>
 					{/each}
 				</dl>
 				<p class="note">Any property key is shown, not just these.</p>
@@ -335,7 +337,7 @@
 	 * rule joins them, so the shape says "added over time" on its own.
 	 *
 	 * They are deliberately all the same colour. Highlighting the last one coded
-	 * nothing the reader could not already see — it is the one at the bottom —
+	 * nothing the reader could not already see (it is the one at the bottom),
 	 * and a colour that carries no meaning still asks to be decoded. Dating them
 	 * instead is not an option here: not one of the 97 journal entries in
 	 * tsoding/tatr carries a date. The `## NOTE(<huid>)` headings that do are a
@@ -351,7 +353,7 @@
 	}
 
 	/* The rule runs the height of every entry, so it reaches the end of the text
-	   rather than stopping at the last bullet — which read as unfinished whenever
+	   rather than stopping at the last bullet, which read as unfinished whenever
 	   the last entry was long. It starts at the first bullet's centre, since
 	   nothing precedes it there. */
 	.entry::before {
@@ -371,7 +373,7 @@
 		top: var(--bullet-mid);
 	}
 
-	/* A single entry is not a sequence, so it gets no rule at all — a line down
+	/* A single entry is not a sequence, so it gets no rule at all: a line down
 	   the side of one block reads as a quotation, not as a journal. */
 	.entry.first.last::before {
 		display: none;

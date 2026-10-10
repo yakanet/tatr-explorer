@@ -1,20 +1,20 @@
 /**
- * GitHub as a source — this folder's entry, as `kind.ts` is in every source
+ * GitHub as a source. This folder's entry, as `kind.ts` is in every source
  * folder: the file that builds the {@link SourceKind} the registry holds.
  *
  * A forge is what GitHub is, and the rest of this file is what that means: the
  * listers it falls through, its URL shapes, and the reference it reads by
  * default.
  *
- * Both listers are GitHub — its own API, and ungh proxying it — so they are not
+ * Both listers are GitHub (its own API, and ungh proxying it), so they are not
  * two sources but one forge's fallback order, which is why they sit in this
  * folder and why the list belongs here rather than inside either of them. A
  * second forge would start with one lister and no fallback.
  *
  * File contents are read from raw.githubusercontent.com, which is a CDN and
  * sends no rate-limit headers at all: 64 files fetched in parallel came back in
- * a fifth of a second when measured. That split — listing is metered, contents
- * are not — is a fact about this forge, not about sources.
+ * a fifth of a second when measured. That split (listing is metered, contents
+ * are not) is a fact about this forge, not about sources.
  */
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
 import {
@@ -35,7 +35,7 @@ const NAME = 'github';
  * Refuses a reference this forge does not serve.
  *
  * Asked once, at the entrance of the fallback chain, rather than by each lister
- * in it: all three read GitHub — its API, a proxy of it, a cache of it — so the
+ * in it: all three read GitHub (its API, a proxy of it, a cache of it), so the
  * host is the forge's business and asking three times said so three times.
  */
 function assertHost(ref: RepoRef): void {
@@ -43,7 +43,7 @@ function assertHost(ref: RepoRef): void {
 		throw new ListingError(
 			'unsupported-host',
 			NAME,
-			`${ref.host} is not supported yet — only github.com`
+			`${ref.host} is not supported yet: only github.com is`
 		);
 	}
 }
@@ -72,8 +72,8 @@ function rawUrl(ref: RepoRef, branch: string, path: string): string {
  * served a guess.
  *
  * `ref.host` rather than a constant, this being the one URL that genuinely
- * lives on the forge's own domain. The path shape is still GitHub's — GitLab
- * spells it `/-/blob/` — which is 20260906-211255's problem, not this one's.
+ * lives on the forge's own domain. The path shape is still GitHub's (GitLab
+ * spells it `/-/blob/`), which is 20260906-211255's problem, not this one's.
  */
 function blobUrl(ref: RepoRef, branch: string, path: string): string {
 	return `https://${ref.host}/${ref.owner}/${ref.name}/blob/${encodePath(branch)}/${encodePath(path)}`;
@@ -85,12 +85,12 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
  * why it belongs to it rather than standing beside it as a source.
  *
  * jsDelivr was a third, and was dropped: it only ever answered when GitHub and
- * ungh had both failed, and it answered with a cached view — 63 of this
- * repository's 64 tasks when measured, missing the newest. Two third parties
+ * ungh had both failed, and it answered with a cached view (63 of this
+ * repository's 64 tasks when measured, missing the newest). Two third parties
  * for that last case was more machinery than a reader of task folders needs.
  */
 /**
- * One way of listing a repository — a function, there being nothing else to a
+ * One way of listing a repository: a function, there being nothing else to a
  * lister. The name it answers to lives in the failures it throws, which is
  * where provenance is read.
  */

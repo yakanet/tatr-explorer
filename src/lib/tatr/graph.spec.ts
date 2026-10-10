@@ -199,7 +199,7 @@ describe('star cards', () => {
 
 	it('lets a task appear in more than one card', () => {
 		// a cites b and c; d cites b and c too. Two pivots, a and d, each with b
-		// and c beside it — or b and c as pivots. Either way some task is shown
+		// and c beside it, or b and c as pivots. Either way some task is shown
 		// twice, which is the point: a card holds a pivot's own links only.
 		const tasks = [
 			make('20260101-000001', '20260101-000002 20260101-000003'),

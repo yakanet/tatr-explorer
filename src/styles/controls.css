@@ -2,13 +2,13 @@
  * A button: a pill, quiet by default.
  *
  * A class rather than a bare `button` rule, because half the buttons on this
- * site are not this — a tag is a button, a dashboard row is a button — and a
+ * site are not this (a tag is a button, a dashboard row is a button) and a
  * global element selector would repaint them all.
  *
  * `.action` is the quiet one: Refresh, Try again, Close. Reading is what a
  * reader came for, and refetching spends their request budget, so none of
  * those deserves the accent. `.action.primary` carries it, for the one thing a
- * view exists to do — opening a repository.
+ * view exists to do: opening a repository.
  */
 .action {
 	min-height: var(--target);
@@ -39,8 +39,8 @@
  * with the accent, the others on a grey track. The header's views, the home
  * page's two ways in and the query's status are the same idiom, so they are one
  * rule. The current item is whichever the markup already marks for assistive
- * technology — a link's `aria-current`, a tab's `aria-selected`, a radio's
- * `checked` — so the look cannot drift from what a screen reader announces.
+ * technology (a link's `aria-current`, a tab's `aria-selected`, a radio's
+ * `checked`), so the look cannot drift from what a screen reader announces.
  */
 .segmented {
 	display: inline-flex;

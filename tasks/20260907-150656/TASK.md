@@ -15,14 +15,14 @@ back, `isSameEntry` answers true for the same folder and false for another, and
 `queryPermission({ mode: 'read' })` responds.
 
 What that buys is one click instead of a file dialog. After a reload the panel
-would offer *Reopen `tatr-site`* — naming the folder, because it knows it — and
+would offer *Reopen `tatr-site`* (naming the folder, because it knows it), and
 `requestPermission` on that click brings it back. The permission itself is never
 stored: the browser re-asks, and a stored handle without a grant reads nothing.
 That is worth saying on screen, since remembering a folder sounds like keeping
 its contents, and it is not.
 
 The homepage could then list remembered folders beside the repositories already
-read, which is the same idea one storey up — with the difference that a card for
+read, which is the same idea one storey up, with the difference that a card for
 a folder is a request for permission rather than a link.
 
 Where it does not apply: the directory input hands over files and no handle, so
@@ -35,7 +35,7 @@ Two things to handle rather than discover:
 - **A folder that moved or went away.** The handle then throws on use, and the
   right answer is to forget it rather than to explain it.
 - **Which folder.** More than one can be remembered, so the identity of a local
-  source stops being "the one open" and becomes a choice — which is the first
+  source stops being "the one open" and becomes a choice, which is the first
   time a local folder needs a key of its own, and `repoKey` has no shape for
   one.
 
@@ -54,7 +54,7 @@ steps defined and so cannot be stored at all; the directory input gives a flat
 list of files, where there is nothing to keep.
 
 So the offer would exist on Chrome and Edge, and be absent on Firefox, on
-Safari, and on Brave, which ships the API turned off. Not a fallback — an
+Safari, and on Brave, which ships the API turned off. Not a fallback, an
 absence. And even where it worked it would be one click rather than none, since
 the permission never survives a reload; only the handle does.
 

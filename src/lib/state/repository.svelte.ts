@@ -55,7 +55,7 @@ export class RepositoryState {
 	/**
 	 * How to name this repository on screen, at any point in a load.
 	 *
-	 * The reading knows best — a local folder's name is in it and nowhere else —
+	 * The reading knows best (a local folder's name is in it and nowhere else),
 	 * but a page has a title before there is a reading, so the reference stands
 	 * in until then.
 	 */
@@ -65,7 +65,7 @@ export class RepositoryState {
 
 	/**
 	 * What moved since the reader's last reading, or null when there is nothing
-	 * to say — a first visit, or an unchanged repository.
+	 * to say: a first visit, or an unchanged repository.
 	 *
 	 * Null rather than an empty result, so a view has one thing to test and
 	 * cannot mark a row for having done nothing. It stands as long as the
@@ -89,7 +89,7 @@ export class RepositoryState {
 		//
 		// Both reads are behind `refresh` on purpose. This method is called from
 		// an effect, so a read here makes that effect depend on state this same
-		// method then writes — and `previous` is written a few lines down. Read
+		// method then writes, and `previous` is written a few lines down. Read
 		// unconditionally, it re-ran the effect, whose cleanup aborted the reading
 		// in flight, which left the page on its loading screen forever: exactly as
 		// long as a cached comparison kept the value changing.
@@ -176,13 +176,13 @@ function describe(error: unknown): Failure {
 
 /**
  * The wording is `Intl`'s, so plurals are not spelled out here. `numeric:
- * 'always'` rather than `'auto'`, which turns one day into "yesterday" — a
+ * 'always'` rather than `'auto'`, which turns one day into "yesterday": a
  * cache reads better on one scale throughout.
  */
 const RELATIVE = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
 
 /**
- * "just now", "12 minutes ago", "3 hours ago" — for the refresh control.
+ * For the refresh control: "just now", "12 minutes ago", "3 hours ago".
  *
  * The thresholds are the part worth having: `Intl` formats a number and a unit,
  * it does not choose them, and "just now" is not a unit it knows.

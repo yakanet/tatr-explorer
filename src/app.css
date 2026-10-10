@@ -3,13 +3,13 @@
  *
  * Svelte's scoped CSS is per component, so anything two views must agree on
  * has nowhere else to live: six primitives had been declared three and four
- * times over, and had drifted — three paddings for one panel, a `.mono` that
+ * times over, and had drifted: three paddings for one panel, a `.mono` that
  * five elements asked for and two components defined. A shared idiom belongs
  * to the site, not to whichever view drew it first.
  *
  * What stays in a component is what only that view knows: a density, a column
  * width, a layout. The rule of thumb is the one this file already followed for
- * `.panel` and the focus ring — if two views would have to keep it in step,
+ * `.panel` and the focus ring: if two views would have to keep it in step,
  * it is here.
  */
 @import './styles/font.css';

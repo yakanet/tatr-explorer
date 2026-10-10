@@ -6,8 +6,8 @@
 
 Found by the corpus of 20261009-233816: when a task's text holds its own id,
 `tatr graph` writes an arrow from the task to itself into `graph.dot`. This
-viewer drops it twice — `extractReferences` in `src/lib/tatr/task.ts` skips the
-task's own id, and `buildGraph` in `src/lib/tatr/graph.ts` filters it again — so
+viewer drops it twice (`extractReferences` in `src/lib/tatr/task.ts` skips the
+task's own id, and `buildGraph` in `src/lib/tatr/graph.ts` filters it again), so
 the graph has one arrow fewer than the CLI's, and the count of citations differs.
 The corpus test marks that comparison as a known failure until this is closed.
 

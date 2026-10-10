@@ -4,7 +4,7 @@
  *     <tag-name> [,] <tag-description>
  *
  * The separator is any run of whitespace and commas, so `tql,, Tatr Query
- * Language` — which exists upstream — names the tag `tql` and describes it as
+ * Language` (which exists upstream) names the tag `tql` and describes it as
  * `Tatr Query Language`.
  *
  * Behaviour taken from `src/tatr.c`.

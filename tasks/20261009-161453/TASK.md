@@ -10,8 +10,8 @@ selects the task with that id.
     tatr ls -c 20260828-211200
 
 Here the same query fails with "Unexpected start of a primary expression". That
-breaks the one promise the port makes — every query `tatr ls` accepts behaves
-identically here — and it is a change upstream, not an addition of ours, so
+breaks the one promise the port makes (every query `tatr ls` accepts behaves
+identically here), and it is a change upstream, not an addition of ours, so
 there is nothing to argue: it has to be ported.
 
 What `src/query.c` does, checked against the binary built from 9b0d752:
@@ -66,7 +66,7 @@ list as it does there. The README's query table has a row for it.
 
 One claim above was wrong. `isValidHuid` did not accept the same set as
 `is_valid_huid`: it read the digits as a date and refused `20260231-000000`,
-which the C takes as an id — `tatr ls 99999999-999999` answers "No tasks were
+which the C takes as an id: `tatr ls 99999999-999999` answers "No tasks were
 found", not an error. It checks the shape alone now, as its name promised, and
 the query uses it. The one caller that wanted the date, the loader, calls
 `parseHuid` itself, and that is a divergence of its own: 20261009-162447.
@@ -80,6 +80,6 @@ rather than from ours.
 The new corpus caught a divergence the old one could not show. Upstream's
 20260912-102943 names 20260828-211200 in its title and nowhere else, and
 `tatr graph` draws that arrow: the C scans the whole `TASK.md`, while
-`extractReferences` was handed the description only — under a comment saying
+`extractReferences` was handed the description only, under a comment saying
 the reference implementation "scans the whole file". It reads the whole file
 now, title and properties included.

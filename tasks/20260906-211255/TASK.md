@@ -8,7 +8,7 @@ The URL scheme already carries a host segment and `src/lib/sources/provider.ts`
 is meant to abstract listing and reading. GitLab and Gitea both expose a tree
 API and a raw endpoint, so the shape should transfer.
 
-Not urgent — no one has asked, and GitHub covers the case that motivated the
+Not urgent: no one has asked, and GitHub covers the case that motivated the
 project.
 
 ---
@@ -23,14 +23,14 @@ GitHub-specific parts are collected in one place:
 
 - **An id.** `github`. It is already half-present as `Provider.name`, which the
   UI prints when it says which source answered.
-- **The hosts it answers for.** `parseRepoPath` currently guesses — a leading
-  segment containing a dot is a host — and falls back to `github.com`, then
+- **The hosts it answers for.** `parseRepoPath` currently guesses (a leading
+  segment containing a dot is a host) and falls back to `github.com`, then
   `assertGitHub` rejects everything else. A forge has to declare its hosts, and
   the list cannot be closed: a self-hosted Gitea or GitLab is on whatever domain
   its owner chose, so an unknown host has to be either named by the reader
   (`gitlab.example.com/owner/name` already parses) or probed.
 - **Two URLs, and probably three.** Raw contents, the file's page on the forge
-  (`blobUrl`, added in 20260907-040701), and the repository's own page — the
+  (`blobUrl`, added in 20260907-040701), and the repository's own page: the
   header prints `owner/name` and links it nowhere.
 - **A logo.** Inline SVG, bundled, taking its colour from the theme, exactly as
   `Mark` does: the page makes no request for an image, and that rule is not
@@ -39,8 +39,8 @@ GitHub-specific parts are collected in one place:
 
 And what is not on the list above but will decide how much this costs:
 
-- **`Provider` is not a forge.** All three of today's providers are GitHub —
-  its API, ungh proxying it, jsDelivr serving a cached copy of it — and each one
+- **`Provider` is not a forge.** All three of today's providers are GitHub (its
+  API, ungh proxying it, jsDelivr serving a cached copy of it), and each one
   calls `assertGitHub`. So a forge *owns* an ordered list of listers with their
   fallback order, and a new forge starts with exactly one and no fallback. Which
   means `mayBeStale` and the "which source answered" line have to still read
@@ -59,7 +59,7 @@ And what is not on the list above but will decide how much this costs:
 - **How this forge says the budget is spent.** GitHub answers 403 with
   `x-ratelimit-remaining: 0`, or 429. `ProviderFailure` is the shared vocabulary
   and stays; the translation into it is per-forge. `truncated` belongs here too:
-  GitHub's tree API caps a listing, which is *incomplete* rather than *stale* —
+  GitHub's tree API caps a listing, which is *incomplete* rather than *stale*:
   two different things the UI currently conflates into one sentence.
 - **Whether contents are free and CORS-open.** The whole architecture rests on
   the split in 20260906-211159: listing is metered, contents are not, so the
@@ -127,7 +127,7 @@ cached" stops being a branch in the loader and becomes something the source
 declares. The local source answers null and the whole question is settled.
 
 `id` rather than a logo. A component in a data interface would drag Svelte into
-`lib/sources`, and the mark is a UI decision about an id — so the interface says
+`lib/sources`, and the mark is a UI decision about an id, so the interface says
 what it is and the UI keeps a registry of marks.
 
 **A kind, above the instance, for choosing between them.** Recognising a
@@ -137,7 +137,7 @@ to build.
     export interface SourceKind {
         readonly id: string;
         /** Whether this kind serves the reference: a host it answers for, or
-         *  the local marker. Cannot be a closed list of hosts — a self-hosted
+         *  the local marker. Cannot be a closed list of hosts: a self-hosted
          *  Gitea is on whatever domain its owner chose. */
         claims(ref: RepoRef): boolean;
         open(ref: RepoRef): Source;
@@ -146,8 +146,8 @@ to build.
     const KINDS: SourceKind[] = [github, local];
     export function openSource(ref: RepoRef): Source | null;
 
-**`Provider` stays, one storey down.** Today's three are all GitHub — its API,
-ungh proxying it, jsDelivr caching it — so they are what a *forge* falls back
+**`Provider` stays, one storey down.** Today's three are all GitHub (its API,
+ungh proxying it, jsDelivr caching it), so they are what a *forge* falls back
 through, not sources. `github.list()` keeps that ordered list inside itself, and
 a new forge starts with one lister and no fallback. Which means `Listing` has to
 keep saying which one answered, and stay sensible when the answer is always the
@@ -156,7 +156,7 @@ same.
 **Two changes to `Listing` while it is open.** `mayBeStale` is not the only way a
 listing can be less than the truth: GitHub's tree API caps large repositories,
 which is *incomplete*, not late. Those want to be two fields, `mayBeStale` and
-`complete`, because the sentence shown to the reader is different — one says the
+`complete`, because the sentence shown to the reader is different: one says the
 copy may be behind, the other says tasks are missing.
 
 **And `RepoRef` is still the real work**, which no interface hides: `owner` and
@@ -182,8 +182,8 @@ Four corrections the interface needed, none of them visible from the proposal:
   captures one when it is opened and builds every URL with it; which branch was
   read is a fact about the reading, and `Listing` already carries it.
 - **Two members were missing, both about repeating a reading.** `repeatable`
-  says whether Refresh means anything — a forge always, a folder only where a
-  handle was kept — and `refresh?()` is the folder being walked again. They
+  says whether Refresh means anything (a forge always, a folder only where a
+  handle was kept), and `refresh?()` is the folder being walked again. They
   deleted a `canReread()` check in the layout and the loader's local branch.
 - **A failure had to move into the contract.** `NoSourceError`: a source that
   exists with nothing behind it, which a forge cannot be and a folder is after
@@ -204,8 +204,8 @@ The registry keyed by id could silently lose a kind: written as an object with
 computed keys, two kinds sharing an id would leave one of them out, and a test
 that iterates the record would pass over the hole it left. So the list is what
 declares them and the record is *derived* from it, through a check that throws
-at import — proved by giving two kinds one id, which now fails to load rather
-than quietly serving one source less. The spec names the ids it expects instead
+at import (proved by giving two kinds one id, which now fails to load rather
+than quietly serving one source less). The spec names the ids it expects instead
 of counting the record against itself.
 
 And `loadTaskDescription` had started mapping an empty body to *no* body:
@@ -215,13 +215,13 @@ nothing, and a translation meant to be mechanical should not blur them.
 
 Left as a note in the code where a reader would trip on it: `repeatable` in the
 layout is a `$derived` over `ref` reading module state that is not reactive,
-which no current path can catch out — every `openFolder` ends in a navigation
+which no current path can catch out: every `openFolder` ends in a navigation
 that renews `ref`. And the `unsupported-host` error carries a host in the field
 documented for a provider's name, which nothing reads.
 
 The seam itself is covered now, which it was not: the loader's tests exercise
 the reading and `open.spec.ts` only asserted what each source *says about
-itself*. Nine tests ask what they do — a file read from the CDN and the URL it
+itself*. Nine tests ask what they do: a file read from the CDN and the URL it
 asked for, a refused file and a network that does not answer at all, both
 answering null rather than throwing, since one unreadable task is listed as
 skipped instead of taking the whole load down; and for a folder, a file in
@@ -230,7 +230,7 @@ nothing behind it. Checked by letting a fetch failure through, which fails two
 of them.
 
 One thing the interface tidied on its own: five of `local.ts`'s exports have no
-reader outside it any more — the session is reached through the source now, so
+reader outside it any more; the session is reached through the source now, so
 only opening and closing a folder leave the module. A surface that shrinks
 without anything being deleted is the sign the abstraction sits in the right
 place.
@@ -240,21 +240,21 @@ admitting rather than dressing up: the alternative was a module-level registry
 for the tests to mutate.
 
 **And the id is not in the URL, which is the question the POC leaves open.** Our
-own URLs carry a *host* — `/tsoding/tatr`, `/gitlab.com/group/project` — and the
+own URLs carry a *host* (`/tsoding/tatr`, `/gitlab.com/group/project`), and the
 kind is inferred from it, today by "any host with a dot is GitHub". `repoKey`
 carries the host too, and no id.
 
 That holds while one forge exists and breaks in two places when a second one
 does. A host cannot say which software answers it: `git.mycompany.com` may be a
 GitLab or a Gitea, and no table of known hosts will ever know. Either the page
-probes, or the reader names it — and the place a reader names it is the URL,
+probes, or the reader names it. And the place a reader names it is the URL,
 which would then carry the id as a segment of its own:
 `/gitea/git.mycompany.com/owner/name`. The second place is the cache: two
 readings of one host by two kinds would share an entry, since the key does not
 distinguish them.
 
 What settles the shape is that the URL *already* carries an id in one case.
-`/local` is not a host, and `LOCAL_HOST` says as much in its own doc comment —
+`/local` is not a host, and `LOCAL_HOST` says as much in its own doc comment:
 an id wearing a host's clothes. So the scheme mixes the two notions today, and
 the choice is to name the id everywhere or nowhere. Naming it everywhere reads
 better than it sounds: `github` is the default and stays absent, exactly as
@@ -277,12 +277,12 @@ the design. Headers read with an `Origin` of our own, against `gitlab.com`:
 - **The web raw endpoint is not.** `gitlab.com/owner/name/-/raw/main/file`
   answers 200 to `curl` and carries *no* `access-control-allow-origin`, so a
   `fetch` from the page is blocked. It stays usable for an `<img>` and for a
-  link, neither of which needs CORS — so `assetUrl` and `fileUrl` are fine and
+  link, neither of which needs CORS, so `assetUrl` and `fileUrl` are fine and
   `read` is not.
 - **So contents cost budget on GitLab.** They come from
   `/repository/files/:path/raw?ref=`, which is CORS-open and metered like the
   rest. 500 a minute against ~40 tasks is comfortable, but the sentence the
-  README prints — contents are free, only listing is counted — becomes a fact
+  README prints (contents are free, only listing is counted) becomes a fact
   about GitHub rather than about the viewer. `Source` needs to say it.
 - **Listing can be cheaper than on GitHub.** The tree API takes `path=`, so it
   lists `tasks/` alone: 43 entries in a single page where the whole repository
@@ -298,7 +298,7 @@ bounded by `path=`.
 
 Closed on a decision rather than on a second forge: none is wanted for now, so
 the GitLab source is set aside. What this task was really asked to produce got
-produced — the interface, and the knowledge of what a second forge would cost.
+produced: the interface, and the knowledge of what a second forge would cost.
 
 What stands: `Source` and `SourceKind`, both existing sources read through them,
 one path in the loader where there were two, and GitLab's endpoints measured
@@ -313,19 +313,19 @@ forge exists:
   would be generality serving nobody. Worth recording that it is smaller than
   this task feared: ten call sites in four files, and all ten already spell
   `${ref.owner}/${ref.name}`, which is to say they want the path. The real
-  content is in the parser, and in `repoKey` changing shape — the cache never
+  content is in the parser, and in `repoKey` changing shape: the cache never
   expires, so old entries would sit orphaned forever unless a version prefix
   retires them.
 - **The source id in the URL.** With one forge there is nothing to distinguish;
   `github` would be an implicit segment that never appears. The wart it would
-  fix — `/local` being an id wearing a host's clothes — is not worth a change to
+  fix (`/local` being an id wearing a host's clothes) is not worth a change to
   the URL scheme on its own.
 - **The mark registry**, which needs a second mark.
 - **`complete` beside `mayBeStale`.** Already decided the other way and working:
   a truncated tree throws, so the GitHub lister fails and the page falls through
   to a fallback rather than showing part of a repository. Splitting the field
   would let the reader see the tasks that *were* found under a warning, which is
-  arguably better for a monorepo — and nobody has one. GitHub's cap is 100,000
+  arguably better for a monorepo. And nobody has one. GitHub's cap is 100,000
   entries; this repository holds 38 files.
 
 One wart left standing on purpose: that truncation is reported as `malformed`,

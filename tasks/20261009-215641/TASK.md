@@ -35,6 +35,6 @@ To decide:
   measurement to say.
 
 Done when a body term matches exactly the tasks whose `TASK.md` holds every one
-of its words, case ignored — what `grep -il` finds for each word, intersected —
+of its words, case ignored (what `grep -il` finds for each word, intersected),
 its cost is visible before it is spent, and the README argues it as the second
 addition to the language.

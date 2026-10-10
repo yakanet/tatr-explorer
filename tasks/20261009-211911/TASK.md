@@ -18,8 +18,8 @@ packages move together, because next.27 reworked the API the framework hands
 to adapters (`builder.generateServerInstance`).
 
 `npx sv migrate sveltekit-3` is for a 2.x application. This one already has the
-version 3 layout — `#lib` with file extensions, the config in `vite.config.ts`,
-`resolve()` in place of `base` — so what is left is the bump, plus the
+version 3 layout (`#lib` with file extensions, the config in `vite.config.ts`,
+`resolve()` in place of `base`), so what is left is the bump, plus the
 following.
 
 **Two deprecated APIs in use, which `svelte-check` does not report.**
@@ -60,7 +60,7 @@ Done. `@sveltejs/kit` 3.0.1, adapter-static 4.0.0, and Svelte 5.57.2, since
 **The shallow `goto` is not a drop-in for `replaceState`.** SvelteKit's client
 runs the navigation hooks for it, and skips them for `replaceState` only "for
 backwards compatibility". The layout's `onNavigate` therefore read the query
-back from the address the list had just written — trimmed — on every keystroke,
+back from the address the list had just written (trimmed) on every keystroke,
 and each space vanished as it was typed: `priority ge 60` became
 `priorityge60`. The layout now skips a shallow `goto`, which is only ever the
 view writing its own address; going back through history is a `popstate` and is
