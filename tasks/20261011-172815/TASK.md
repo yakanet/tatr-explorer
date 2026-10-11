@@ -24,11 +24,10 @@ computed style) at 1672 and 390 pixels wide, two renamed classes aside.
 
 The first cut copied the rules several blocks shared, so the frames became
 components: `ChartPanel` and `BarChart` for the overview's charts, `SidePanel`
-for the task page's aside, `Jump` for the references' "+N". The clickable tag
-went global in `labels.css`, and `.muted` joined `.mono` there as a utility. Two
-computations left the components for `graph.ts`, with specs: a card's link
-count, and a task's references, now read from the graph's edges so the page
-counts the citations the cards draw. The addresses of a task and of the list,
-built in five places, are `taskHref` and `listHref` in `hrefs.ts`. The status,
-priority and date of a task's page are a component of their own, `Meta`, where
-20261010-030543 will put its controls.
+for the task page's aside, `Jump` and `Glyph` for the references' "+N" and
+arrows. The clickable tag went global in `labels.css`, and `.muted` joined
+`.mono` there as a utility. Two computations left the components for `graph.ts`,
+with specs: a card's link count, and a task's references, now read from the
+graph's edges so the page counts the citations the cards draw. The addresses of
+a task and of the list, built in five places, are `taskHref` and `listHref` in
+`hrefs.ts`.

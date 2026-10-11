@@ -8,7 +8,6 @@
 		type RenderOptions
 	} from '#lib/render/markdown.ts';
 	import type { Task } from '#lib/tatr/task.ts';
-	import Meta from './Meta.svelte';
 
 	interface Props {
 		task: Task;
@@ -25,10 +24,24 @@
 		if (body === null) return [];
 		return splitJournal(body);
 	});
+
+	/** Formats an instant to the minute, as `2026-10-11 17:28`, in UTC like the ids. */
+	function formatMinute(date: Date): string {
+		return date.toISOString().slice(0, 16).replace('T', ' ');
+	}
 </script>
 
 <article class="panel">
-	<Meta {task} />
+	<div class="meta">
+		<span class="status" class:closed={task.closed}>{task.status}</span>
+		<span class="prio">priority {task.priority}</span>
+		{#if task.created}
+			<span class="muted">·</span>
+			<span class="muted">
+				created {formatMinute(task.created)} UTC
+			</span>
+		{/if}
+	</div>
 
 	<h1>{@html renderInline(task.title, options)}</h1>
 
@@ -56,6 +69,33 @@
 </article>
 
 <style>
+	.meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.6rem;
+		font-size: 0.8125rem;
+		margin-bottom: 0.875rem;
+	}
+
+	/* The status pill takes the accent while open and grey once closed, so the
+	   tint agrees with the word. */
+	.status {
+		display: inline-flex;
+		align-items: center;
+		height: 1.625rem;
+		padding: 0 0.75rem;
+		font-weight: 700;
+		color: var(--accent-text);
+		background: var(--accent-wash);
+		border-radius: var(--radius-full);
+	}
+
+	.status.closed {
+		color: var(--ink-2);
+		background: var(--tint);
+	}
+
 	.panel {
 		padding: 1.5rem 1.75rem;
 	}

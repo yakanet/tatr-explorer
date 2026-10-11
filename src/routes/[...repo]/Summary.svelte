@@ -20,7 +20,7 @@
 	const summary = $derived(summarise(tasks));
 </script>
 
-<section class="masthead panel">
+<section class="summary panel">
 	<div class="lead">
 		<!-- The prompt names `tatr summary`, the CLI command this view stands
 		     for, as the list names `tatr ls`. -->
@@ -55,7 +55,7 @@
 </section>
 
 <style>
-	.masthead {
+	.summary {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;

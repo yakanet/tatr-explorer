@@ -10,7 +10,7 @@
 	let { heading, children }: Props = $props();
 </script>
 
-<section class="recent">
+<section class="repositories">
 	<h2>{heading}</h2>
 	<ul>
 		{@render children()}
@@ -18,7 +18,7 @@
 </section>
 
 <style>
-	.recent {
+	.repositories {
 		margin-top: 2.5rem;
 	}
 

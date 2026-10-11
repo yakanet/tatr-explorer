@@ -1,12 +1,8 @@
 /**
- * The drawing of a star card: the glyph each kind of link is shown with, and
- * the geometry, with the pivot in the middle, its neighbours on a ring, and a
- * spoke with an arrowhead for each link.
+ * The geometry of a star card's drawing: the pivot in the middle, its
+ * neighbours on a ring, and a spoke with an arrowhead for each link.
  */
 import type { StarCard, StarLink } from '#lib/tatr/graph.ts';
-
-/** The arrow each kind of link is shown with, in the cards and in their key. */
-export const GLYPH = { in: '←', out: '→', both: '⇄', self: '↺' } as const;
 
 export const SIZE = 200;
 const PIVOT_R = 18;

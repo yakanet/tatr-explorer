@@ -23,7 +23,7 @@
 </script>
 
 {#if top.length > 0}
-	<section class="panel leaders">
+	<section class="panel top-tasks">
 		<header>
 			<h2><span class="cmd">$ tatr ls</span> highest priority, still open</h2>
 		</header>
@@ -47,11 +47,11 @@
 {/if}
 
 <style>
-	.leaders {
+	.top-tasks {
 		padding: 1.5rem 1.125rem 0.75rem;
 	}
 
-	.leaders header {
+	.top-tasks header {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;

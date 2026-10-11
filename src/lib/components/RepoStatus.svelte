@@ -53,7 +53,8 @@
 		{/if}
 		<div class="actions">
 			{#if reopener}
-				<reopener.control label={reopener.label} />
+				{@const Control = reopener.control}
+				<Control label={reopener.label} />
 			{:else}
 				<button class="action" onclick={() => repo.refresh()}>Try again</button>
 				{#if ref.branch}

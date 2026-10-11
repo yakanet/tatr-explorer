@@ -192,7 +192,8 @@
 			{:else if reopener}
 				<!-- A source that cannot be read again offers to open it again instead:
 				     a directory input hands over files but no way back to their folder. -->
-				<reopener.control label="Reopen…" />
+				{@const Control = reopener.control}
+				<Control label="Reopen…" />
 			{/if}
 		{/if}
 	</div>

@@ -7,8 +7,9 @@
 	import { counted } from '#lib/plural.ts';
 	import { linkCount, type StarCard } from '#lib/tatr/graph.ts';
 	import type { Task } from '#lib/tatr/task.ts';
+	import Glyph from './Glyph.svelte';
 	import Jump from './Jump.svelte';
-	import { drawing, GLYPH, SIZE, type Point } from './star.ts';
+	import { drawing, SIZE, type Point } from './star.ts';
 
 	interface Props {
 		card: StarCard;
@@ -82,9 +83,7 @@
 					onfocusout={unlight}
 				>
 					<span class="number" aria-hidden="true">{i + 1}</span>
-					<span class="glyph {node.kind}" title={SAY[node.kind]}
-						>{GLYPH[node.kind]}<span class="sr">{SAY[node.kind]}:</span></span
-					>
+					<Glyph kind={node.kind} say={SAY[node.kind]} />
 					<span>
 						<a href={taskHref(ref, node.task.id)} data-key-row
 							>{@html renderTitle(node.task, assetUrl)}</a
@@ -107,7 +106,7 @@
 			{#if card.self}
 				<li>
 					<span class="number" aria-hidden="true"></span>
-					<span class="glyph self" aria-hidden="true">{GLYPH.self}</span>
+					<Glyph kind="self" />
 					<span class="itself">Cites itself</span>
 				</li>
 			{/if}
@@ -154,8 +153,8 @@
 	}
 
 	/* An arrow shows its direction by its head, its side of the drawing and its
-	   colour, which matches the glyph in the list. The line and heads take the
-	   colour from their group (`.in`, `.out`, `.both` below). */
+	   colour, which is its glyph's, except that an incoming arrow takes the mark
+	   shade, `--link-in`, where its glyph takes the text shade. */
 	line {
 		stroke: currentColor;
 		stroke-width: 2;
@@ -165,10 +164,16 @@
 		fill: currentColor;
 	}
 
-	/* An incoming arrow uses the mark shade, `--link-in`; the `.in` glyph uses
-	   the text shade. */
 	g.in {
 		color: var(--link-in);
+	}
+
+	g.out {
+		color: var(--link-out);
+	}
+
+	g.both {
+		color: var(--link-both);
 	}
 
 	circle {
@@ -268,25 +273,6 @@
 		font-weight: 700;
 		text-align: right;
 		color: var(--muted);
-	}
-
-	.glyph {
-		font-weight: 700;
-	}
-
-	/* The `.in` glyph takes the accent's text shade; the `.out` and `.both`
-	   colours are readable as text unchanged. */
-	.in {
-		color: var(--accent-text);
-	}
-
-	.out {
-		color: var(--link-out);
-	}
-
-	.both,
-	.self {
-		color: var(--link-both);
 	}
 
 	.itself {

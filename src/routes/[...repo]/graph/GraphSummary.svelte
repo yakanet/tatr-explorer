@@ -3,8 +3,8 @@
 	// group together, and the key to the arrows drawn in the cards below.
 	import { counted, plural } from '#lib/plural.ts';
 	import type { ReferenceGraph, StarCard } from '#lib/tatr/graph.ts';
+	import Glyph from './Glyph.svelte';
 	import Jump from './Jump.svelte';
-	import { GLYPH } from './star.ts';
 
 	interface Props {
 		graph: ReferenceGraph;
@@ -17,7 +17,7 @@
 	const hasTasks = $derived(graph.clusters.length > 0 || graph.isolated.length > 0);
 </script>
 
-<section class="masthead panel">
+<section class="summary panel">
 	<h1>
 		{#if cards.length === 0}
 			<span class="highlight">No task cites another</span>
@@ -42,11 +42,11 @@
 	{/if}
 	{#if cards.length > 0}
 		<p class="key">
-			<span><b class="in">{GLYPH.in}</b>cites the task in the middle</span>
-			<span><b class="out">{GLYPH.out}</b>is cited by it</span>
-			<span><b class="both">{GLYPH.both}</b>both ways</span>
+			<span><Glyph kind="in" />cites the task in the middle</span>
+			<span><Glyph kind="out" />is cited by it</span>
+			<span><Glyph kind="both" />both ways</span>
 			{#if cards.some((card) => card.self)}
-				<span><b class="self">{GLYPH.self}</b>cites itself</span>
+				<span><Glyph kind="self" />cites itself</span>
 			{/if}
 			<span><Jump count={3} />has a card of its own</span>
 		</p>
@@ -54,7 +54,7 @@
 </section>
 
 <style>
-	.masthead {
+	.summary {
 		margin-bottom: var(--card-gap);
 		padding: 1.75rem 1.9rem;
 	}
@@ -79,23 +79,5 @@
 		margin: 0.85rem 0 0;
 		font-size: 0.8125rem;
 		color: var(--ink-2);
-	}
-
-	.key b {
-		margin-right: 0.4rem;
-	}
-
-	/* The key shows each glyph in the colour the cards draw it. */
-	.in {
-		color: var(--accent-text);
-	}
-
-	.out {
-		color: var(--link-out);
-	}
-
-	.both,
-	.self {
-		color: var(--link-both);
 	}
 </style>
