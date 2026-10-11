@@ -17,6 +17,7 @@
  * a listing names, which a folder reads out of `.git/HEAD` and a forge does not.
  */
 import { describe, expect, it } from 'vitest';
+import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { subjects as github } from './github/subjects.ts';
 import { loadRepository } from './load.ts';
 import { subjects as local } from './local/subjects.ts';
@@ -61,30 +62,16 @@ function listedUnderTasks(listing: Listing): string[] {
 
 const TASK_FILES = underTasks(Object.keys(TREE));
 
-/*
- * What a source may do besides listing and reading, asked through these rather
- * than through its members, so that the members can change shape while the
- * tests below stay as they are.
- */
-
+/** The key a source is cached under, or null for one that is not `Cached`. */
 function cacheKeyOf(source: Source): string | null {
+	if (!isCached(source)) return null;
 	return source.cacheKey;
 }
 
-function canBeReadAgain(source: Source): boolean {
-	return source.repeatable;
-}
-
-async function readAgain(source: Source): Promise<void> {
-	await source.refresh?.();
-}
-
-function follows(source: Source): boolean {
-	return source.follow !== undefined;
-}
-
+/** The page a source links a file to, or undefined for one that is not `Linked`. */
 function pageOf(source: Source, path: string): string | undefined {
-	return source.fileUrl?.(path);
+	if (!isLinked(source)) return undefined;
+	return source.fileUrl(path);
 }
 
 /** A failure the page has a sentence for, rather than a bare error. */
@@ -155,16 +142,17 @@ function honoursTheContract(subject: Subject): void {
 			tree[added] = '# Added since\n\n- STATUS: OPEN\n';
 			await subject.sync?.(tree);
 
-			if (canBeReadAgain(source)) await readAgain(source);
+			if (isRereadable(source)) await source.reread();
 			const listed = listedUnderTasks(await source.list());
-			expect(!canBeReadAgain(source) || listed.includes(added)).toBe(true);
+			expect(!isRereadable(source) || listed.includes(added)).toBe(true);
 		});
 
 		it('follows its changes only where it can be read again', async () => {
 			// A change is answered by the same refresh a click takes, which a
-			// reading that cannot be taken again would answer with nothing.
+			// reading that cannot be taken again would answer with nothing: a
+			// `follow` without a `reread` is no capability, and is never followed.
 			const source = await holding();
-			expect(!follows(source) || canBeReadAgain(source)).toBe(true);
+			expect(isFollowable(source)).toBe('follow' in source);
 		});
 
 		it('links a file to its page only with a URL', async () => {

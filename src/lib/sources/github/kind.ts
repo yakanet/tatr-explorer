@@ -17,6 +17,7 @@
  * are not) is a fact about this forge, not about sources.
  */
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
+import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import {
 	ListingError,
@@ -130,7 +131,7 @@ async function listRepository(
  * forge rather than about sources: both the trees API and raw accept it, so the
  * request that would resolve a default branch by name is never made.
  */
-export const githubKind: SourceKind = {
+export const githubKind = {
 	id: NAME,
 
 	// Any domain for now, which is every host but the local marker: `assertHost`
@@ -138,7 +139,7 @@ export const githubKind: SourceKind = {
 	// method's job once a second forge claims some.
 	claims: (ref) => ref.host.includes('.'),
 
-	open(ref: RepoRef, options: OpenOptions = {}): Source {
+	open(ref: RepoRef, options: OpenOptions = {}): Source & Cached & Rereadable & Linked {
 		const branch = ref.branch ?? 'HEAD';
 		const doFetch = options.fetchImpl ?? fetch;
 
@@ -148,15 +149,17 @@ export const githubKind: SourceKind = {
 			cacheKey: repoKey(ref),
 			// Polite to the CDN while still finishing in well under a second.
 			concurrency: 12,
-			// At the price of one request, which is what the reader is asking for.
-			repeatable: true,
 
 			list: (signal) => listRepository(ref, { listers: options.listers, signal }),
 
 			read: (path, signal) => readText(doFetch, rawUrl(ref, branch, path), signal),
 
 			assetUrl: (path) => rawUrl(ref, branch, path),
-			fileUrl: (path) => blobUrl(ref, branch, path)
+			fileUrl: (path) => blobUrl(ref, branch, path),
+
+			// Read again at the price of one request, which is what the reader is
+			// asking for, and with nothing to prepare: the loader ignores the cache.
+			reread: async () => {}
 		};
 	}
-};
+} satisfies SourceKind;

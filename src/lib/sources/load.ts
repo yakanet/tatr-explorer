@@ -6,7 +6,7 @@
  * question about that reading (can it be taken again, where does a file live)
  * goes to the same instance instead of to a copy rebuilt from the reference.
  *
- * A source that names a cache key is cached and never expires on its own: quota
+ * A source that is `Cached` is cached and never expires on its own: quota
  * is only ever spent on a first visit or on an explicit refresh, so the reader
  * decides when to pay for fresh data. {@link LoadResult.storedAt} carries the
  * age so the UI can show it next to that refresh control.
@@ -22,6 +22,7 @@ import { readTask, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
+import { isCached, isRereadable } from './capabilities.ts';
 import type { Source } from './source.ts';
 import { openStore, type RepoStore } from './store.ts';
 
@@ -146,9 +147,9 @@ const TASK_FILE = /^tasks\/[^/]+\/TASK\.md$/;
  * Loads a repository, or the folder the reader has open: one path, because the
  * source answers for what used to be branched on here.
  *
- * `cacheKey` is the whole of it. A source that spends an API budget names a
- * place to be cached, and the reader's quota is protected; a source that reads
- * a folder for nothing answers null, and there is no cache to go stale.
+ * Whether it is `Cached` is the whole of it. A source that spends an API budget
+ * names a place to be cached, and the reader's quota is protected; a source that
+ * reads a folder for nothing names none, and there is no cache to go stale.
  */
 export async function loadRepository(
 	source: Source,
@@ -156,13 +157,12 @@ export async function loadRepository(
 ): Promise<LoadResult> {
 	// For a forge a refresh is this function ignoring the cache; for a folder it
 	// is the folder being walked again, which only the source can do.
-	if (options.refresh) await source.refresh?.();
+	if (options.refresh && isRereadable(source)) await source.reread();
 
 	const store = options.store ?? openStore();
-	const key = source.cacheKey;
 
-	if (key && !options.refresh) {
-		const cached = await store.read<CachedLoad>(key);
+	if (isCached(source) && !options.refresh) {
+		const cached = await store.read<CachedLoad>(source.cacheKey);
 		// IndexedDB stores structured clones, so Date and Map come back intact.
 		if (cached) {
 			return {
@@ -211,8 +211,9 @@ export async function loadRepository(
 		previous: comparedWith(options.replaces, assembled.tasks)
 	};
 
-	if (key) {
-		await store.write(key, { ...payload, tasks: withoutDescriptions(payload.tasks) }, storedAt);
+	if (isCached(source)) {
+		const stored = { ...payload, tasks: withoutDescriptions(payload.tasks) };
+		await store.write(source.cacheKey, stored, storedAt);
 	}
 
 	// The caller gets the bodies it just paid for; only the cache goes without.

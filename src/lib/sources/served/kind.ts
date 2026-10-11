@@ -12,6 +12,7 @@
  * one, follows the folder in every browser, and needs no picker.
  */
 import { isServed } from '../../repo/ref.ts';
+import type { Followable, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import { ListingError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { CHANGED, ROUTES } from './protocol.ts';
@@ -32,20 +33,17 @@ export function servedKind(name: string): SourceKind {
 
 		claims: (ref) => isServed(ref),
 
-		open(_ref, options = {}): Source {
+		open(_ref, options = {}) {
 			const doFetch = options.fetchImpl ?? fetch;
 			const fileUrl = (path: string) => route(`files/${encodePath(path)}`);
 
-			const source: Source = {
+			// Not cached: reading it is free, and a stored copy of files someone is
+			// editing would be wrong before it was written.
+			const source: Source & Rereadable = {
 				id: NAME,
 				label: name,
-				// Reading it is free, and a stored copy of files someone is editing
-				// would be wrong before it was written.
-				cacheKey: null,
 				// The dev server is this machine.
 				concurrency: Number.POSITIVE_INFINITY,
-				// Every listing is a fresh one, so there is nothing to make ready.
-				repeatable: true,
 
 				async list(signal) {
 					let response: Response;
@@ -62,19 +60,24 @@ export function servedKind(name: string): SourceKind {
 
 				read: (path, signal) => readText(doFetch, fileUrl(path), signal),
 
-				assetUrl: fileUrl
+				assetUrl: fileUrl,
+
+				// Every listing is a fresh one, so there is nothing to make ready.
+				reread: async () => {}
 			};
 
 			// The dev channel, which exists in the dev server only: and so does this
 			// source.
 			const hot = import.meta.hot;
-			if (hot) {
-				source.follow = (onChange) => {
+			if (!hot) return source;
+			const followed: Source & Followable = {
+				...source,
+				follow(onChange) {
 					hot.on(CHANGED, onChange);
 					return () => hot.off(CHANGED, onChange);
-				};
-			}
-			return source;
+				}
+			};
+			return followed;
 		}
 	};
 }

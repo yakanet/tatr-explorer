@@ -6,7 +6,7 @@ import { parseRepoInput } from '../../repo/ref.ts';
 const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
-/** Through the contract, which is the only way the application reaches these. */
+/** Through the kind, which is how the application reaches these. */
 const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
 
 describe('the URL of a file', () => {
@@ -30,7 +30,7 @@ describe('the URL of a file', () => {
 
 describe('the URL of its page on the forge', () => {
 	it('points at the file, where its history is', () => {
-		expect(open().fileUrl?.(path)).toBe(
+		expect(open().fileUrl(path)).toBe(
 			'https://github.com/owner/repo/blob/HEAD/tasks/20260304-115038/TASK.md'
 		);
 	});
@@ -38,13 +38,11 @@ describe('the URL of its page on the forge', () => {
 	it('uses the host the repository was named with', () => {
 		// The one URL that lives on the forge's own domain rather than on a CDN.
 		const elsewhere = parseRepoInput('example.com/owner/name')!;
-		expect(open(elsewhere).fileUrl?.(path)).toBe(
-			`https://example.com/owner/name/blob/HEAD/${path}`
-		);
+		expect(open(elsewhere).fileUrl(path)).toBe(`https://example.com/owner/name/blob/HEAD/${path}`);
 	});
 
 	it('keeps a branch with slashes, as the raw URL does', () => {
-		expect(open(ref, 'feature/web-ui').fileUrl?.(path)).toContain('/blob/feature/web-ui/tasks/');
+		expect(open(ref, 'feature/web-ui').fileUrl(path)).toContain('/blob/feature/web-ui/tasks/');
 	});
 });
 

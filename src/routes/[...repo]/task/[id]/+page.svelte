@@ -102,7 +102,7 @@
 	 */
 	// Absent for a folder on this machine, which is the source saying there is no
 	// page anywhere to link this file to, rather than this view knowing that.
-	const fileUrl = $derived(repo.source?.fileUrl?.(`tasks/${id}/TASK.md`) ?? null);
+	const fileUrl = $derived(repo.fileUrl(`tasks/${id}/TASK.md`));
 
 	const listHref = $derived(resolve('/[...repo]/list', { repo: formatRepoPath(ref) }));
 </script>

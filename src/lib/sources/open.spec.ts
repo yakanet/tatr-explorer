@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
-import { ListingError } from './source.ts';
+import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
+import { ListingError, type Source } from './source.ts';
 import { directory, entryTree } from './local/fake-directory.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
+
+/** `source`, which a spec has just made sure has the capability `is` tests for. */
+function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
+	if (!is(source)) throw new Error(`${source.label} lacks what ${is.name} asks for`);
+	return source;
+}
 
 const refs: RepoRef[] = [
 	parseRepoPath('owner/repo')!,
@@ -45,8 +52,10 @@ describe('openSource', () => {
 		const source = openSource(parseRepoPath('owner/repo')!);
 		expect(source.id).toBe('github');
 		expect(source.label).toBe('owner/repo');
-		expect(source.cacheKey).toBe('github.com/owner/repo@');
-		expect(source.fileUrl?.('tasks/a/TASK.md')).toContain('/blob/HEAD/tasks/a/TASK.md');
+		expect(having(source, isCached).cacheKey).toBe('github.com/owner/repo@');
+		expect(having(source, isLinked).fileUrl('tasks/a/TASK.md')).toContain(
+			'/blob/HEAD/tasks/a/TASK.md'
+		);
 	});
 
 	it('reads a forge at the branch its reference names', () => {
@@ -63,10 +72,10 @@ describe('openSource', () => {
 	it('opens the folder on this machine', () => {
 		const source = openSource(localRef());
 		expect(source.id).toBe('local');
-		// The two members that say what a folder is: nowhere to cache it, and no
-		// page anywhere to link one of its files to.
-		expect(source.cacheKey).toBeNull();
-		expect(source.fileUrl).toBeUndefined();
+		// The two capabilities whose absence says what a folder is: nowhere to
+		// cache it, and no page anywhere to link one of its files to.
+		expect(isCached(source)).toBe(false);
+		expect(isLinked(source)).toBe(false);
 	});
 });
 
@@ -113,12 +122,12 @@ describe('reading through a forge', () => {
 		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
 	});
 
-	it('can be refreshed, having only a request to spend', () => {
+	it('can be refreshed, having only a request to spend', async () => {
 		const source = openSource(ref);
-		expect(source.repeatable).toBe(true);
+		expect(isRereadable(source)).toBe(true);
 		// Nothing for the source to do: a forge's refresh is the loader ignoring
 		// the cache.
-		expect(source.refresh).toBeUndefined();
+		await expect(having(source, isRereadable).reread()).resolves.toBeUndefined();
 	});
 });
 
@@ -149,8 +158,7 @@ describe('reading through a folder', () => {
 		// No handle was kept, so there is no way back to the folder: the view
 		// offers to reopen rather than a Refresh that would do nothing.
 		const source = open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
-		expect(source.repeatable).toBe(false);
-		expect(source.refresh).toBeTypeOf('function');
+		expect(isRereadable(source)).toBe(false);
 	});
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {
@@ -168,7 +176,7 @@ describe('reading through a folder', () => {
 		const revoke = vi.spyOn(URL, 'revokeObjectURL');
 		const before = source.assetUrl('tasks/20260101-000001/shot.png');
 
-		await source.refresh?.();
+		await having(source, isRereadable).reread();
 		expect(source.assetUrl('tasks/20260101-000001/shot.png')).toBe(before);
 		expect(revoke).not.toHaveBeenCalled();
 
@@ -184,10 +192,10 @@ describe('reading through a folder', () => {
 		const entry = entryTree('my-project', tree);
 		openFolder(await fromDirectoryEntry(entry), entry);
 		const source = openSource(localRef());
-		expect(source.repeatable).toBe(true);
+		expect(isRereadable(source)).toBe(true);
 
 		tree['tasks/20260101-000001/TASK.md'] = '# after\n';
-		await source.refresh?.();
+		await having(source, isRereadable).reread();
 		expect(await source.read('tasks/20260101-000001/TASK.md')).toBe('# after\n');
 	});
 });
@@ -235,14 +243,14 @@ describe('following a folder', () => {
 
 	it('is offered only with a way back to the folder, as Refresh is', async () => {
 		openFolder(fromFileList([dropped('tasks/20260101-000001/TASK.md', '# a\n')])!);
-		expect(openSource(localRef()).follow).toBeUndefined();
-		expect((await picked()).follow).toBeTypeOf('function');
+		expect(isFollowable(openSource(localRef()))).toBe(false);
+		expect(isFollowable(await picked())).toBe(true);
 	});
 
 	it('watches `tasks/` alone, where FileSystemObserver exists', async () => {
 		// The rest of a checkout, `.git` and `node_modules`, moves far more often.
 		const { seen } = observer();
-		const stop = (await picked()).follow!(() => {});
+		const stop = having(await picked(), isFollowable).follow(() => {});
 		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
 		expect(seen.recursive).toBe(true);
 
@@ -253,7 +261,7 @@ describe('following a folder', () => {
 	it('reports a burst of writes once it settles, as one save', async () => {
 		const { seen, change } = observer();
 		const changed = vi.fn();
-		(await picked()).follow!(changed);
+		having(await picked(), isFollowable).follow(changed);
 		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
 
 		vi.useFakeTimers();
@@ -270,7 +278,7 @@ describe('following a folder', () => {
 		const entry = entryTree('my-project', task);
 		openFolder(await fromDirectoryEntry(entry), entry);
 		const changed = vi.fn();
-		const stop = openSource(localRef()).follow!(changed);
+		const stop = having(openSource(localRef()), isFollowable).follow(changed);
 
 		window.dispatchEvent(new Event('focus'));
 		expect(changed).toHaveBeenCalledTimes(1);
@@ -283,7 +291,7 @@ describe('following a folder', () => {
 		vi.stubGlobal('window', new EventTarget());
 		observer(true);
 		const changed = vi.fn();
-		(await picked()).follow!(changed);
+		having(await picked(), isFollowable).follow(changed);
 
 		await vi.waitFor(() => {
 			window.dispatchEvent(new Event('focus'));

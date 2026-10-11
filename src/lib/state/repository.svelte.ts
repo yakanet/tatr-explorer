@@ -5,6 +5,7 @@
  * rate-limited, then the task files stream in and are counted. Showing that
  * split is what lets the UI explain a failure instead of just spinning.
  */
+import { isFollowable, isLinked } from '../sources/capabilities.ts';
 import { loadRepository, NoTasksFolderError } from '../sources/load.ts';
 import { openSource } from '../sources/open.ts';
 import {
@@ -233,7 +234,7 @@ export class RepositoryState {
 	 */
 	follow(): (() => void) | undefined {
 		const source = this.source;
-		if (this.phase !== 'ready' || !source?.follow) return undefined;
+		if (this.phase !== 'ready' || !isFollowable(source)) return undefined;
 		return source.follow(() => void this.refresh());
 	}
 
@@ -242,6 +243,16 @@ export class RepositoryState {
 	 * being handed over as a callback.
 	 */
 	readonly assetUrl = (path: string): string | null => this.source?.assetUrl(path) ?? null;
+
+	/**
+	 * The page of one of the reading's files on the forge, or null where the
+	 * source has no page anywhere to link it to.
+	 */
+	fileUrl(path: string): string | null {
+		const source = this.source;
+		if (!isLinked(source)) return null;
+		return source.fileUrl(path);
+	}
 
 	/** What a marked row says on hover: how it moved, and since when. */
 	describeMoves(moves: Movement[]): string {

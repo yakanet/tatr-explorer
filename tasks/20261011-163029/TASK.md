@@ -28,9 +28,9 @@ Three storeys, each with one job:
   `label`.
 - **Capabilities** say what a source does besides, one small interface each,
   with a guard beside it for the views to ask: `Cached` (it spends a budget, so
-  its readings are kept), `Rereadable` (Refresh means something), `Followed`,
+  its readings are kept), `Rereadable` (Refresh means something), `Followable`,
   `Linked` (a page per file, with its history), and later `Writable`. A view
-  asks `canReread(source)`, never which source it holds. `repeatable` and
+  asks `isRereadable(source)`, never which source it holds. `repeatable` and
   `refresh?()` say one thing twice today, and disagree: GitHub is repeatable
   without `refresh`, a folder always has `refresh`, even when it is not
   repeatable.
@@ -56,14 +56,18 @@ GitLab path is the next forge's work, and this one only moves who parses it.
    moves, so that each later step is checked by it.
 2. Capabilities named, with their guards, and the views asking through them.
 3. Sources as classes owning their state, the folder handed to the instance
-   that reads it.
+   that reads it. A source that can be followed only sometimes is two classes:
+   a folder with or without a way back, and the served folder with or without
+   the dev channel.
 4. Test seams in the constructors. `OpenOptions.listers` is GitHub's chain in
    every source's contract, and an injected `fetch` reaches GitHub's reads but
    not its listers.
 5. One error class, whose message the source writes: the failure panel keeps a
    heading per failure, and stops writing GitHub's sentences for every source.
-6. The kind owns its addresses: `ref.ts` stops knowing `local` and `served`,
-   and GitHub claims `github.com` alone.
+6. The kind owns its addresses and its way in: `ref.ts` stops knowing `local`
+   and `served`, GitHub claims `github.com` alone, and the header's Reopen and
+   the failure panel's picker come from the kind, where they are inferred
+   today from `isLocal` or from a source that cannot be read again.
 
 Writing (20261011-152936, 20261010-030543) comes after, as a `Writable`
 capability, and belongs to those tasks.

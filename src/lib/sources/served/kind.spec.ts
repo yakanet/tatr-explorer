@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { localRef, servedRef } from '../../repo/ref.ts';
+import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
 import { ListingError } from '../source.ts';
@@ -36,8 +37,8 @@ describe('the served folder, as a source', () => {
 	it('names itself after the folder, and keeps no cache of it', async () => {
 		const source = await open();
 		expect(source.label).toBe('my-project');
-		expect(source.cacheKey).toBeNull();
-		expect(source.repeatable).toBe(true);
+		expect(isCached(source)).toBe(false);
+		expect(isRereadable(source)).toBe(true);
 	});
 
 	it('lists the folder, with its branch', async () => {
@@ -72,6 +73,6 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('follows nothing outside a dev server, there being no channel to hear from', async () => {
-		expect((await open()).follow).toBeUndefined();
+		expect(isFollowable(await open())).toBe(false);
 	});
 });

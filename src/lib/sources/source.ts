@@ -66,6 +66,12 @@ export class NoSourceError extends Error {
 	}
 }
 
+/**
+ * What every source does: list what it holds, read a file, and point at one.
+ *
+ * What a source may do besides (be cached, be read again, be followed, link a
+ * file to its page) is a capability of its own, in `capabilities.ts`.
+ */
 export interface Source {
 	/** `github`, `local`. The UI picks a mark by it; nothing else may. */
 	readonly id: string;
@@ -81,49 +87,10 @@ export interface Source {
 	 */
 
 	/**
-	 * Where this reading may be cached, or null when it must not be.
-	 *
-	 * The shape is the point: "do not cache this" stops being a branch in the
-	 * loader and becomes something a source declares. The cache exists to
-	 * protect an API budget, and a source that spends none (while pointing at
-	 * files someone is editing) answers null and settles the question.
-	 */
-	readonly cacheKey: string | null;
-
-	/**
 	 * How many reads at once this source likes: politeness to a CDN, and
 	 * nothing at all to a disk.
 	 */
 	readonly concurrency: number;
-
-	/**
-	 * Whether this reading can be taken again on demand.
-	 *
-	 * A forge always can, at the price of a request. A folder can only where
-	 * the browser handed over a way back to keep (a handle, or the entry tree of
-	 * a drop); otherwise the reader has to offer the folder again, and a Refresh
-	 * button would be a lie.
-	 */
-	readonly repeatable: boolean;
-
-	/**
-	 * Made ready to be read again, before a refresh: walk the folder once more.
-	 *
-	 * Absent where there is nothing to do: a forge's refresh is the loader
-	 * ignoring the cache, not the source doing anything.
-	 */
-	refresh?(): Promise<void>;
-
-	/**
-	 * Calls `onChange` whenever what the source holds may have changed, until
-	 * the function it returns is called.
-	 *
-	 * Optional because only a folder kept with a way back to it can tell, and
-	 * only there is reading again free. A forge never follows: every reading
-	 * spends the reader's budget, which is why its cache never refreshes on its
-	 * own either.
-	 */
-	follow?(onChange: () => void): () => void;
 
 	/** Every file it holds, once. Throws {@link ListingError} or {@link NoSourceError}. */
 	list(signal?: AbortSignal): Promise<Listing>;
@@ -136,15 +103,6 @@ export interface Source {
 	 * `blob:` for a file already in memory. Null when there is no such file.
 	 */
 	assetUrl(path: string): string | null;
-
-	/**
-	 * The file's own page on the forge, where its history and blame are.
-	 *
-	 * Optional because its absence is the truth for a folder on the disk: there
-	 * is no page anywhere to link to, and a view can ask rather than test what
-	 * kind of source it holds.
-	 */
-	fileUrl?(path: string): string;
 }
 
 /**

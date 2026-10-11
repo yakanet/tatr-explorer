@@ -10,6 +10,7 @@
  * its chain of listers and its URL shapes: the source itself.
  */
 import { isLocal } from '../../repo/ref.ts';
+import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
 import { NoSourceError, type Source, type SourceKind } from '../source.ts';
 import {
@@ -137,11 +138,11 @@ function unchanged(before: File, after: File): boolean {
  * `kind.ts` is in every source folder: the file that builds the
  * {@link SourceKind} the registry holds.
  *
- * What it does not have is as telling as what it does: no cache key, because
+ * What it cannot do is as telling as what it can: it is not `Cached`, because
  * reading the folder is free and a stored copy of files someone is editing
- * would be wrong before it was written; no `fileUrl`, because there is no page
- * anywhere to link a file to. Both were branches in the loader and in a view
- * before this interface existed.
+ * would be wrong before it was written, and not `Linked`, because there is no
+ * page anywhere to link a file to. Both were branches in the loader and in a
+ * view before a source said so itself.
  */
 export const localKind: SourceKind = {
 	id: 'local',
@@ -152,13 +153,8 @@ export const localKind: SourceKind = {
 		const source: Source = {
 			id: 'local',
 			label: openedFolder()?.name ?? '',
-			cacheKey: null,
 			// A disk has no CDN to be polite to.
 			concurrency: Number.POSITIVE_INFINITY,
-			// Only where a way back was kept: a directory input hands over files and
-			// no way back to the folder they came from.
-			repeatable: canReread(),
-			refresh: reread,
 
 			async list() {
 				const open = openedFolder();
@@ -174,9 +170,12 @@ export const localKind: SourceKind = {
 			read: (path) => readFile(path),
 			assetUrl
 		};
-		// Following needs the same way back as Refresh does.
-		if (canReread()) source.follow = follow;
-		return source;
+		// Read again and followed only by a way back, which a directory input does
+		// not hand over: it gives files, and no way back to the folder they came
+		// from.
+		if (!canReread()) return source;
+		const followed: Source & Followable = { ...source, reread, follow };
+		return followed;
 	}
 };
 

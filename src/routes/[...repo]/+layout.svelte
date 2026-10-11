@@ -9,6 +9,7 @@
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import FolderPicker from '#lib/components/FolderPicker.svelte';
 	import { formatRepoPath, isLocal, isServed } from '#lib/repo/ref.ts';
+	import { isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import { RepositoryState, describeAge, REPOSITORY } from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
 
@@ -46,9 +47,9 @@
 	const local = $derived(isLocal(ref) || isServed(ref));
 
 	/** Whether Refresh means anything here, which only the source of the reading knows. */
-	const repeatable = $derived(repo.source?.repeatable ?? false);
+	const rereadable = $derived(isRereadable(repo.source));
 	/** Whether the reading keeps itself current, so that its age says nothing. */
-	const following = $derived(repo.source?.follow !== undefined);
+	const following = $derived(isFollowable(repo.source));
 
 	// A reading that can follow its source does, for as long as it stands.
 	$effect(() => repo.follow());
@@ -156,7 +157,7 @@
 					</span>
 				{/if}
 			</span>
-			{#if repeatable}
+			{#if rereadable}
 				<!-- The reading stays on screen while the next one is taken, so the
 				     button is what says one is under way. -->
 				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
