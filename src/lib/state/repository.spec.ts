@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { localRef } from '../repo/ref.ts';
-import { entryTree, fileList } from '../../../tests/support/fake-directory.ts';
 import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/kind.ts';
 import { readTask, type Task } from '../tatr/task.ts';

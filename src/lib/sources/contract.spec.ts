@@ -19,13 +19,13 @@
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { afterEach, describe, expect, it } from 'vitest';
+import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
+import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
+import { unreachable } from '#tests/support/network.ts';
 import { localRef, parseRepoPath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { GitHubRepository } from './github/kind.ts';
 import { loadRepository } from './load.ts';
-import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
-import { scratchFolder, serving, writeTree } from '../../../tests/support/disk-tree.ts';
-import { unreachable } from '../../../tests/support/network.ts';
 import {
 	fromDirectoryEntry,
 	fromDirectoryHandle,

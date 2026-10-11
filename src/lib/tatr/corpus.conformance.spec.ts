@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import corpus from '../../../tests/fixtures/corpus-raw.json' with { type: 'json' };
-import cliRows from '../../../tests/fixtures/corpus-ls-output.json' with { type: 'json' };
-import cliCases from '../../../tests/fixtures/corpus-cli-cases.json' with { type: 'json' };
-import cliEdges from '../../../tests/fixtures/corpus-graph-edges.json' with { type: 'json' };
+import corpus from '#tests/fixtures/corpus-raw.json' with { type: 'json' };
+import cliRows from '#tests/fixtures/corpus-ls-output.json' with { type: 'json' };
+import cliCases from '#tests/fixtures/corpus-cli-cases.json' with { type: 'json' };
+import cliEdges from '#tests/fixtures/corpus-graph-edges.json' with { type: 'json' };
 import { compile } from '../tql/query.ts';
 import { buildGraph } from './graph.ts';
 import { isValidHuid } from './huid.ts';

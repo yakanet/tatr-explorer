@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { ListingError, NoSourceError, type Source } from './source.ts';
-import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 

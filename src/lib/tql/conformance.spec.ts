@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import cliCases from '../../../tests/fixtures/tql-cli-cases.json' with { type: 'json' };
-import tasks from '../../../tests/fixtures/tsoding-tatr.json' with { type: 'json' };
+import cliCases from '#tests/fixtures/tql-cli-cases.json' with { type: 'json' };
+import tasks from '#tests/fixtures/tsoding-tatr.json' with { type: 'json' };
 import { compile } from './query.ts';
 
 /**

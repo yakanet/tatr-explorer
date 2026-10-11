@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { unreachable } from '../../../../tests/support/network.ts';
+import { unreachable } from '#tests/support/network.ts';
 import { GitHubRepository, githubKind } from './kind.ts';
 import { ListingError } from '../source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';

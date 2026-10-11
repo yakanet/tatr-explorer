@@ -260,7 +260,8 @@ BASE_PATH=/tatr-explorer pnpm run build   # what CI builds
 Specs sit beside the code they test, as `*.spec.ts` under `src/`, the only
 place the suite looks. What several of them share lives in `tests/`: data
 recorded from the CLI in `tests/fixtures/`, fakes and helpers in
-`tests/support/`. Test code lives in one or the other, never elsewhere.
+`tests/support/`, imported as `#tests/…`, an alias declared beside `#lib` in
+`package.json`. Test code lives in one or the other, never elsewhere.
 
 Deploying is a push to `main`: the workflow type-checks, runs the tests, builds
 with the repository name as `BASE_PATH` and publishes to GitHub Pages.

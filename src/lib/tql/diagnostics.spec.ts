@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import cliErrors from '../../../tests/fixtures/tatr-query-errors.json' with { type: 'json' };
+import cliErrors from '#tests/fixtures/tatr-query-errors.json' with { type: 'json' };
 import { compile, formatDiagnostic, parseWithWarnings, TqlError } from './query.ts';
 
 /**

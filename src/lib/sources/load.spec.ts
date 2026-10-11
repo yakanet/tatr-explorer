@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { fileList } from '../../../tests/support/fake-directory.ts';
+import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import { fileList } from '#tests/support/fake-directory.ts';
 import { localRef, parseRepoPath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { NoTasksFolderError, loadRepository } from './load.ts';

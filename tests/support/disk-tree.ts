@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach } from 'vitest';
-import { answer, locate } from '../../src/lib/sources/served/folder.server.ts';
+import { answer, locate } from '#lib/sources/served/folder.server.ts';
 
 /**
  * A fresh folder for every spec, removed after it. Returns a function, as the

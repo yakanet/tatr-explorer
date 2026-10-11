@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import cliOutput from '../../../tests/fixtures/tatr-ls-output.json' with { type: 'json' };
-import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import cliOutput from '#tests/fixtures/tatr-ls-output.json' with { type: 'json' };
+import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { compareByPriority, readTask } from './task.ts';
 
 /**

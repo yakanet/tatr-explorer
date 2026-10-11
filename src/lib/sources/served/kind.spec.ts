@@ -1,12 +1,12 @@
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
+import { unreachable } from '#tests/support/network.ts';
 import { localRef, servedRef } from '../../repo/ref.ts';
 import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
 import { ListingError } from '../source.ts';
-import { scratchFolder, serving, writeTree } from '../../../../tests/support/disk-tree.ts';
-import { unreachable } from '../../../../tests/support/network.ts';
 import { FollowedServedSource, ServedSource, servedKind } from './kind.ts';
 import { CHANGED } from './protocol.ts';
 
