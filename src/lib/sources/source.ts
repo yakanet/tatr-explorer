@@ -139,8 +139,8 @@ export interface SourceKind {
 	readonly cost: Cost;
 	/**
 	 * The source for `ref`, from the reference alone. What a spec substitutes
-	 * (the network, a chain of listers) goes to a source's own constructor, each
-	 * kind having its own, rather than through every kind's contract.
+	 * (the network, a channel) goes to a source's own constructor, each kind
+	 * having its own, rather than through every kind's contract.
 	 */
 	open(ref: RepoRef): Source;
 }

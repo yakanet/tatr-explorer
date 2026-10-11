@@ -9,9 +9,9 @@ const path = 'tasks/20260304-115038/TASK.md';
 /** Through the kind, which is how the application reaches these. */
 const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
 
-/** GitHub answering every request with what `answer` makes, its mirror included. */
+/** GitHub's CDN answering every read with what `answer` makes. */
 const answering = (answer: () => Response) =>
-	new GitHubRepository(ref, { network: (async () => answer()) as unknown as typeof fetch });
+	new GitHubRepository(ref, (async () => answer()) as unknown as typeof fetch);
 
 describe('reading a file', () => {
 	it('reads it from the CDN', async () => {
@@ -21,7 +21,7 @@ describe('reading a file', () => {
 			return new Response('# a task\n', { status: 200 });
 		}) as unknown as typeof fetch;
 
-		expect(await new GitHubRepository(ref, { network }).read(path)).toBe('# a task\n');
+		expect(await new GitHubRepository(ref, network).read(path)).toBe('# a task\n');
 		expect(asked).toEqual([`https://raw.githubusercontent.com/owner/repo/HEAD/${path}`]);
 	});
 
@@ -32,7 +32,7 @@ describe('reading a file', () => {
 	it('answers null when the network does not answer at all', async () => {
 		// A read that throws would take the whole load down; one task that cannot
 		// be read is listed as skipped instead.
-		expect(await new GitHubRepository(ref, { network: unreachable }).read(path)).toBeNull();
+		expect(await new GitHubRepository(ref, unreachable).read(path)).toBeNull();
 	});
 });
 
@@ -62,36 +62,68 @@ describe('the URL of its page on the forge', () => {
 		);
 	});
 
-	it('uses the host the repository was named with', () => {
-		// The one URL that lives on the forge's own domain rather than on a CDN.
-		const elsewhere = parseRepoInput('example.com/owner/name')!;
-		expect(open(elsewhere).fileUrl(path)).toBe(`https://example.com/owner/name/blob/HEAD/${path}`);
-	});
-
 	it('keeps a branch with slashes, as the raw URL does', () => {
 		expect(open(ref, 'feature/web-ui').fileUrl(path)).toContain('/blob/feature/web-ui/tasks/');
 	});
 });
 
-describe('listing', () => {
-	it('names a missing repository once, in the words of the forge', async () => {
-		await expect(answering(() => new Response(null, { status: 404 })).list()).rejects.toThrow(
+describe('listing, falling back on ungh', () => {
+	/** GitHub's API and ungh each answering as told, and which of them was asked. */
+	const hosts = (answers: Record<'api.github.com' | 'ungh.cc', () => Response>) => {
+		const asked: string[] = [];
+		const network = (async (input: RequestInfo | URL) => {
+			const { hostname } = new URL(String(input));
+			asked.push(hostname);
+			return answers[hostname as keyof typeof answers]();
+		}) as unknown as typeof fetch;
+		return { source: new GitHubRepository(ref, network), asked };
+	};
+
+	const tree = () => Response.json({ tree: [{ path, type: 'blob' }], truncated: false });
+	const files = () => Response.json({ files: [{ path }] });
+	const status = (code: number) => () => new Response(null, { status: code });
+	const spent = () =>
+		new Response(null, { status: 403, headers: { 'x-ratelimit-remaining': '0' } });
+
+	it('asks GitHub first, and nobody else when it answers', async () => {
+		const { source, asked } = hosts({ 'api.github.com': tree, 'ungh.cc': files });
+		expect((await source.list()).entries).toEqual([{ path }]);
+		expect(asked).toEqual(['api.github.com']);
+	});
+
+	it('asks ungh when the budget is spent', async () => {
+		const { source, asked } = hosts({ 'api.github.com': spent, 'ungh.cc': files });
+		expect((await source.list()).entries).toEqual([{ path }]);
+		expect(asked).toEqual(['api.github.com', 'ungh.cc']);
+	});
+
+	it('does not ask ungh about a repository GitHub says is missing', async () => {
+		const { source, asked } = hosts({ 'api.github.com': status(404), 'ungh.cc': files });
+		await expect(source.list()).rejects.toMatchObject({ failure: 'not-found' });
+		expect(asked).toEqual(['api.github.com']);
+	});
+
+	it("says what is missing in GitHub's words, whichever found it missing", async () => {
+		const { source } = hosts({ 'api.github.com': status(500), 'ungh.cc': status(404) });
+		await expect(source.list()).rejects.toThrow(
 			'No repository owner/repo on github.com, or it is private.'
 		);
 	});
 
-	it('calls an answer that is not JSON malformed, rather than quoting the parser', async () => {
-		await expect(answering(() => new Response('<html>')).list()).rejects.toMatchObject({
-			failure: 'malformed'
-		});
+	it('reports a spent budget when neither answered, rather than the last failure', async () => {
+		const { source } = hosts({ 'api.github.com': spent, 'ungh.cc': status(500) });
+		await expect(source.list()).rejects.toMatchObject({ failure: 'rate-limited' });
+	});
+
+	it('reports the last failure when no budget was spent', async () => {
+		const { source } = hosts({ 'api.github.com': status(500), 'ungh.cc': status(502) });
+		await expect(source.list()).rejects.toThrow('ungh answered 502.');
 	});
 
 	it('says the hour is spent only when GitHub says none are left', async () => {
-		const spent = () =>
-			new Response(null, { status: 403, headers: { 'x-ratelimit-remaining': '0' } });
-		await expect(answering(spent).list()).rejects.toThrow(/has used them all/);
-
-		const tooOften = () => new Response(null, { status: 429 });
-		await expect(answering(tooOften).list()).rejects.toThrow(/for asking too often/);
+		const hour = hosts({ 'api.github.com': spent, 'ungh.cc': status(500) });
+		await expect(hour.source.list()).rejects.toThrow(/has used them all/);
+		const tooOften = hosts({ 'api.github.com': status(429), 'ungh.cc': status(500) });
+		await expect(tooOften.source.list()).rejects.toThrow(/for asking too often/);
 	});
 });

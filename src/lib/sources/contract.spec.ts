@@ -220,7 +220,7 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 }
 
 function openGitHubOver(network: typeof fetch): Source {
-	return new GitHubRepository(parseForgePath('owner/repo')!, { network });
+	return new GitHubRepository(parseForgePath('owner/repo')!, network);
 }
 
 /** What a door hands over for a folder: the folder, and a way back to it when it has one. */

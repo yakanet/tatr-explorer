@@ -1,139 +1,84 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { fileList } from '#tests/support/fake-directory.ts';
-import { wordRef, parseForgePath } from '../repo/ref.ts';
+import { wordRef } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { loadRepository } from './load.ts';
-import { GitHubRepository, type Listers, type Seams } from './github/kind.ts';
+import type { Cached, Rereadable } from './capabilities.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { Snapshot } from '../tatr/changes.ts';
-import { SourceError, type Listing } from './source.ts';
+import type { Listing, Source } from './source.ts';
 
 const sources = rawTasks as Record<string, string>;
-const ref = parseForgePath('tsoding/tatr')!;
 
-/** A lister that answers from the embedded fixture. */
-function fakeLister(overrides: Partial<Listing> = {}) {
-	return async (): Promise<Listing> => ({
-		entries: [
-			...Object.keys(sources).map((id) => ({ path: `tasks/${id}/TASK.md`, size: 1 })),
-			{ path: 'tasks/tags' },
-			{ path: 'README.md' }
-		],
-		branch: 'HEAD',
-		...overrides
-	});
+/** The path of a task's file, by its id. */
+const at = (id: string) => `tasks/${id}/TASK.md`;
+
+/** The fixture's 79 tasks and a tags file, as the repository holds them. */
+const TREE: Readonly<Record<string, string>> = {
+	...Object.fromEntries(Object.entries(sources).map(([id, text]) => [at(id), text])),
+	'tasks/tags': 'bug , unintended behavior\nrelease , planned for the next release\n',
+	'README.md': '# tatr\n'
+};
+
+/**
+ * A source over `tree`: what the loader does is the question here, whichever
+ * source it reads, so this is the least a source can be while cached and read
+ * again on demand. It counts its listings, the one call a forge pays for.
+ */
+class Holding implements Source, Cached, Rereadable {
+	readonly id = 'holding';
+	readonly label = 'tsoding/tatr';
+	readonly cacheKey = 'holding/tsoding/tatr';
+	readonly concurrency = 12;
+	listings = 0;
+	readonly #tree: Readonly<Record<string, string>>;
+
+	constructor(tree: Readonly<Record<string, string>> = TREE) {
+		this.#tree = tree;
+	}
+
+	async list(): Promise<Listing> {
+		this.listings += 1;
+		const entries = Object.entries(this.#tree).map(([path, text]) => ({ path, size: text.length }));
+		return { entries, branch: 'HEAD' };
+	}
+
+	async read(path: string): Promise<string | null> {
+		if (!Object.hasOwn(this.#tree, path)) return null;
+		return this.#tree[path];
+	}
+
+	assetUrl(path: string): string {
+		return `https://example.com/${path}`;
+	}
+
+	async reread(): Promise<void> {}
 }
-
-const failing =
-	(name: string, failure: 'rate-limited' | 'network') => async (): Promise<Listing> => {
-		throw new SourceError(failure, `${name}: ${failure}`);
-	};
-
-/** A lister that finds no such repository. */
-const nowhere = async (): Promise<null> => null;
-
-/** Serves task files, and the tags file, from the fixture. */
-const fetchFixture = vi.fn(async (input: RequestInfo | URL) => {
-	const url = String(input);
-	const match = /tasks\/([^/]+)\/TASK\.md$/.exec(url);
-	if (match && sources[match[1]]) {
-		return new Response(sources[match[1]], { status: 200 });
-	}
-	if (url.endsWith('tasks/tags')) {
-		return new Response('bug , unintended behavior\nrelease , planned for the next release\n', {
-			status: 200
-		});
-	}
-	return new Response('not found', { status: 404 });
-}) as unknown as typeof fetch;
-
-/** The forge, opened over substitutes for the network. */
-const github = (seams: Seams) => new GitHubRepository(ref, seams);
-
-/** The fixture's 79 tasks, as the forge serves them, listed by `lister`. */
-const fixture = (lister = fakeLister()) => github({ listers: [lister], network: fetchFixture });
 
 let store = memoryStore();
 
 beforeEach(() => {
 	store = memoryStore();
-	vi.clearAllMocks();
-});
-
-describe('lister fallback', () => {
-	/**
-	 * Through the door the application uses: the chain is the forge's own
-	 * business, reached by opening the source and asking it to list.
-	 */
-	const list = (listers: Listers) => github({ listers }).list();
-
-	// A listing no longer says who produced it, so the question is put to the
-	// listers themselves, which is the stronger form of it anyway: that the
-	// second was asked, rather than that the answer carries its name.
-	it('stops at the first lister that answers', async () => {
-		const first = fakeLister();
-		const second = vi.fn(fakeLister());
-
-		const listing = await list([first, second]);
-
-		expect(listing.entries.length).toBeGreaterThan(0);
-		expect(second).not.toHaveBeenCalled();
-	});
-
-	it('falls through when the budget is spent', async () => {
-		const second = vi.fn(fakeLister());
-
-		const listing = await list([failing('github', 'rate-limited'), second]);
-
-		expect(second).toHaveBeenCalled();
-		expect(listing.entries.length).toBeGreaterThan(0);
-	});
-
-	it('does not ask the others when the repository does not exist', async () => {
-		const second = vi.fn(fakeLister());
-		await expect(list([nowhere, second])).rejects.toMatchObject({ failure: 'not-found' });
-		expect(second).not.toHaveBeenCalled();
-	});
-
-	it("says what is missing in the forge's words, whichever lister found it missing", async () => {
-		await expect(list([failing('github', 'network'), nowhere])).rejects.toThrow(
-			'No repository tsoding/tatr on github.com, or it is private.'
-		);
-	});
-
-	it('reports a spent budget when nobody answered, rather than the last fallback', async () => {
-		// The budget is the cause, and the one thing the reader can wait out; the
-		// mirror being down as well is not news worth the panel.
-		await expect(
-			list([failing('github', 'rate-limited'), failing('ungh', 'network')])
-		).rejects.toMatchObject({ failure: 'rate-limited', message: 'github: rate-limited' });
-	});
-
-	it('reports the last failure when none of them was a spent budget', async () => {
-		await expect(
-			list([failing('github', 'network'), failing('ungh', 'network')])
-		).rejects.toMatchObject({ failure: 'network', message: 'ungh: network' });
-	});
 });
 
 describe('loadRepository', () => {
 	it('reads every task in the repository', async () => {
-		const result = await loadRepository(fixture(), { store });
+		const result = await loadRepository(new Holding(), { store });
 		expect(result.tasks).toHaveLength(79);
 		expect(result.tasks.filter((task) => !task.closed)).toHaveLength(33);
 		expect(result.skipped).toEqual([]);
 	});
 
 	it('reads the tag descriptions when the file is listed', async () => {
-		const result = await loadRepository(fixture(), { store });
+		const result = await loadRepository(new Holding(), { store });
 		expect(result.tags.descriptions.get('release')).toBe('planned for the next release');
 	});
 
 	it('reports progress as files arrive', async () => {
 		const onProgress = vi.fn();
-		await loadRepository(fixture(), {
+		await loadRepository(new Holding(), {
 			store,
 			onProgress
 		});
@@ -144,68 +89,55 @@ describe('loadRepository', () => {
 	it('honours the concurrency limit', async () => {
 		let inFlight = 0;
 		let peak = 0;
-		const counting = (async (input: RequestInfo | URL) => {
-			peak = Math.max(peak, ++inFlight);
-			await new Promise((resolve) => setTimeout(resolve, 1));
-			inFlight -= 1;
-			return fetchFixture(input);
-		}) as unknown as typeof fetch;
+		const slow = new (class extends Holding {
+			override async read(path: string) {
+				peak = Math.max(peak, ++inFlight);
+				await new Promise((resolve) => setTimeout(resolve, 1));
+				inFlight -= 1;
+				return super.read(path);
+			}
+		})();
 
-		await loadRepository(github({ listers: [fakeLister()], network: counting }), {
-			store,
-			concurrency: 4
-		});
+		await loadRepository(slow, { store, concurrency: 4 });
 		expect(peak).toBeLessThanOrEqual(4);
 	});
 
 	it('refuses a repository with no tasks folder', async () => {
-		const bare = async (): Promise<Listing> => ({
-			entries: [{ path: 'README.md' }],
-			branch: 'HEAD'
-		});
-		await expect(loadRepository(fixture(bare), { store })).rejects.toMatchObject({
+		const bare = new Holding({ 'README.md': '# not tasks\n' });
+		await expect(loadRepository(bare, { store })).rejects.toMatchObject({
 			failure: 'no-tasks-folder'
 		});
 	});
 
 	it('lists unreadable tasks instead of dropping them', async () => {
-		const flaky = (async (input: RequestInfo | URL) => {
-			if (String(input).includes('20260826-200847')) return new Response('', { status: 500 });
-			return fetchFixture(input);
-		}) as unknown as typeof fetch;
+		const flaky = new (class extends Holding {
+			override async read(path: string) {
+				if (path === at('20260826-200847')) return null;
+				return super.read(path);
+			}
+		})();
 
-		const result = await loadRepository(github({ listers: [fakeLister()], network: flaky }), {
-			store
-		});
+		const result = await loadRepository(flaky, { store });
 		expect(result.tasks).toHaveLength(78);
 		expect(result.skipped).toEqual([{ id: '20260826-200847', reason: 'Could not be read' }]);
 	});
 
 	it('skips folders whose name is not a task id', async () => {
-		const listed = fakeLister();
-		const withJunk = async (): Promise<Listing> => {
-			const listing = await listed();
-			return { ...listing, entries: [...listing.entries, { path: 'tasks/notes/TASK.md' }] };
-		};
-		const result = await loadRepository(fixture(withJunk), { store });
+		const withJunk = new Holding({ ...TREE, 'tasks/notes/TASK.md': '# notes\n' });
+		const result = await loadRepository(withJunk, { store });
 		expect(result.skipped).toEqual([{ id: 'notes', reason: 'Folder name is not a task id' }]);
 	});
 
 	it('works when the repository has no tags file', async () => {
-		const listed = fakeLister();
-		const noTags = async (): Promise<Listing> => {
-			const listing = await listed();
-			return { ...listing, entries: listing.entries.filter((e) => e.path !== 'tasks/tags') };
-		};
-		const result = await loadRepository(fixture(noTags), { store });
+		const noTags = Object.entries(TREE).filter(([path]) => path !== 'tasks/tags');
+		const result = await loadRepository(new Holding(Object.fromEntries(noTags)), { store });
 		expect(result.tags.descriptions.size).toBe(0);
 	});
 });
 
 describe('caching', () => {
 	it('serves a revisit from store, spending no quota at all', async () => {
-		const lister = vi.fn(fakeLister());
-		const source = fixture(lister);
+		const source = new Holding();
 
 		const first = await loadRepository(source, { store });
 		expect(first.fromCache).toBe(false);
@@ -214,12 +146,11 @@ describe('caching', () => {
 		expect(second.fromCache).toBe(true);
 		expect(second.tasks).toHaveLength(79);
 		// The listing is the only rate-limited call; it must not happen twice.
-		expect(lister).toHaveBeenCalledTimes(1);
+		expect(source.listings).toBe(1);
 	});
 
 	it('refetches when the reader asks for a refresh', async () => {
-		const lister = vi.fn(fakeLister());
-		const source = fixture(lister);
+		const source = new Holding();
 
 		await loadRepository(source, { store });
 		const refreshed = await loadRepository(source, {
@@ -227,34 +158,34 @@ describe('caching', () => {
 			refresh: true
 		});
 		expect(refreshed.fromCache).toBe(false);
-		expect(lister).toHaveBeenCalledTimes(2);
+		expect(source.listings).toBe(2);
 	});
 
 	it('reports when the cached view was fetched, so the UI can show its age', async () => {
-		await loadRepository(fixture(), {
+		await loadRepository(new Holding(), {
 			store,
 			now: () => 1_000
 		});
-		const cached = await loadRepository(fixture(), { store });
+		const cached = await loadRepository(new Holding(), { store });
 		expect(cached.storedAt).toBe(1_000);
 	});
 
 	it('restores dates across the cache, which JSON cannot carry', async () => {
-		await loadRepository(fixture(), { store });
-		const cached = await loadRepository(fixture(), { store });
+		await loadRepository(new Holding(), { store });
+		const cached = await loadRepository(new Holding(), { store });
 		const earliest = cached.tasks.reduce((a, b) => (a.id < b.id ? a : b));
 		expect(earliest.created).toBeInstanceOf(Date);
 		expect(earliest.id).toBe('20251205-071347');
 	});
 
 	it('restores the tag descriptions, which are a Map', async () => {
-		await loadRepository(fixture(), { store });
-		const cached = await loadRepository(fixture(), { store });
+		await loadRepository(new Holding(), { store });
+		const cached = await loadRepository(new Holding(), { store });
 		expect(cached.tags.descriptions.get('release')).toBe('planned for the next release');
 	});
 
 	it('works with no storage at all, as in a private window', async () => {
-		const result = await loadRepository(fixture(), { store: memoryStore() });
+		const result = await loadRepository(new Holding(), { store: memoryStore() });
 		expect(result.tasks).toHaveLength(79);
 		expect(result.fromCache).toBe(false);
 	});
@@ -262,20 +193,20 @@ describe('caching', () => {
 
 describe('what the cache keeps', () => {
 	it('returns the bodies the caller just paid for', async () => {
-		const result = await loadRepository(fixture(), { store });
+		const result = await loadRepository(new Holding(), { store });
 		expect(result.tasks.every((task) => typeof task.description === 'string')).toBe(true);
 	});
 
 	it('stores metadata only, dropping the descriptions', async () => {
-		await loadRepository(fixture(), { store });
-		const cached = await loadRepository(fixture(), { store });
+		await loadRepository(new Holding(), { store });
+		const cached = await loadRepository(new Holding(), { store });
 		expect(cached.fromCache).toBe(true);
 		expect(cached.tasks.every((task) => task.description === undefined)).toBe(true);
 	});
 
 	it('keeps the references, so the graph survives without the prose', async () => {
-		await loadRepository(fixture(), { store });
-		const cached = await loadRepository(fixture(), { store });
+		await loadRepository(new Holding(), { store });
+		const cached = await loadRepository(new Holding(), { store });
 		const hub = cached.tasks.find((task) => task.id === '20260826-200847');
 		expect(hub?.references).toContain('20260826-152351');
 		expect(cached.tasks.filter((task) => task.references.length > 0).length).toBeGreaterThan(10);
@@ -283,33 +214,15 @@ describe('what the cache keeps', () => {
 
 	it('re-reads one body on demand for the detail view', async () => {
 		const { loadTaskDescription } = await import('./load.ts');
-		const body = await loadTaskDescription(fixture(), '20260826-200847');
+		const body = await loadTaskDescription(new Holding(), '20260826-200847');
 		expect(body).toContain('Cephon wanted to kanban');
 	});
 
 	it('returns null when a body cannot be read', async () => {
 		const { loadTaskDescription } = await import('./load.ts');
-		expect(await loadTaskDescription(fixture(), 'nope')).toBeNull();
+		expect(await loadTaskDescription(new Holding(), 'nope')).toBeNull();
 	});
 });
-
-/**
- * A repository of a few task files that can be rewritten between readings,
- * which the 79-task fixture cannot be, being a fixture.
- */
-function mutable(files: Record<string, string>): Seams {
-	const lister = async (): Promise<Listing> => ({
-		entries: Object.keys(files).map((id) => ({ path: `tasks/${id}/TASK.md`, size: 1 })),
-		branch: 'HEAD'
-	});
-	const network = (async (input: RequestInfo | URL) => {
-		const match = /tasks\/([^/]+)\/TASK\.md$/.exec(String(input));
-		return match && files[match[1]]
-			? new Response(files[match[1]], { status: 200 })
-			: new Response('not found', { status: 404 });
-	}) as unknown as typeof fetch;
-	return { listers: [lister], network };
-}
 
 const file = (priority: number, tags: string, status = 'OPEN') =>
 	`# a task\n\n- STATUS: ${status}\n- PRIORITY: ${priority}\n- TAGS: ${tags}\n`;
@@ -328,13 +241,13 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('has nothing to compare with when given nothing, as on a first visit', async () => {
-		const first = await loadRepository(github(mutable({ [a]: file(90, 'ui') })), { store });
+		const first = await loadRepository(new Holding({ [at(a)]: file(90, 'ui') }), { store });
 		expect(first.previous).toBeNull();
 	});
 
 	it('is compared with what was on screen, which moved', async () => {
 		const refreshed = await loadRepository(
-			github(mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') })),
+			new Holding({ [at(a)]: file(90, 'ui', 'CLOSED'), [at(b)]: file(50, '') }),
 			{
 				store,
 				refresh: true,
@@ -351,7 +264,7 @@ describe('the reading a new one replaces', () => {
 		// A followed folder takes many such readings (the focus coming back, an
 		// editor's swap file, a save that only rewrote prose), and each would
 		// otherwise wipe the badges of the last real change.
-		const again = await loadRepository(github(mutable({ [a]: file(110, 'ui') })), {
+		const again = await loadRepository(new Holding({ [at(a)]: file(110, 'ui') }), {
 			store,
 			refresh: true,
 			replaces: { shown: before(110, 2_000), previous: before(90) }
@@ -360,7 +273,7 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('still carries it on the next visit, so the news survives a reload', async () => {
-		const source = github(mutable({ [a]: file(110, 'ui') }));
+		const source = new Holding({ [at(a)]: file(110, 'ui') });
 
 		await loadRepository(source, {
 			store,
@@ -374,11 +287,11 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('does not look for it in the cache, where another tab may have stored one', async () => {
-		const files = { [a]: file(90, 'ui') };
-		const source = github(mutable(files));
+		const tree = { [at(a)]: file(90, 'ui') };
+		const source = new Holding(tree);
 
 		await loadRepository(source, { store });
-		files[a] = file(110, 'ui');
+		tree[at(a)] = file(110, 'ui');
 		const refreshed = await loadRepository(source, { store, refresh: true });
 		expect(refreshed.previous).toBeNull();
 	});
@@ -397,10 +310,7 @@ describe('a folder on this machine', () => {
 	};
 
 	const task = (id: string, priority: number, status = 'OPEN') =>
-		dropped(
-			`tasks/${id}/TASK.md`,
-			`# ${id}\n\n- STATUS: ${status}\n- PRIORITY: ${priority}\n- TAGS: ui\n`
-		);
+		dropped(at(id), `# ${id}\n\n- STATUS: ${status}\n- PRIORITY: ${priority}\n- TAGS: ui\n`);
 
 	afterEach(() => closeFolder());
 

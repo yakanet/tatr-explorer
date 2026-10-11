@@ -1,151 +1,31 @@
 /**
- * GitHub as a source. This folder's entry, as `kind.ts` is in every source
- * folder: the file that builds the {@link SourceKind} the registry holds.
+ * A repository on GitHub, as a source. This folder's entry, as `kind.ts` is in
+ * every source folder: the file that builds the {@link SourceKind} the
+ * registry holds.
  *
- * A forge is what GitHub is, and the rest of this file is what that means: the
- * listers it falls through, its URL shapes, and the reference it reads by
- * default.
- *
- * Both listers are GitHub (its own API, and ungh proxying it), so they are not
- * two sources but one forge's fallback order, which is why they sit in this
- * folder and why the list belongs here rather than inside either of them. A
- * second forge would start with one lister and no fallback.
- *
- * File contents are read from raw.githubusercontent.com, which is a CDN and
- * sends no rate-limit headers at all: 64 files fetched in parallel came back in
- * a fifth of a second when measured. That split (listing is metered, contents
- * are not) is a fact about this forge, not about sources.
+ * Listing a repository spends the reader's budget of 60 API requests an hour;
+ * reading its files does not, as they come from raw.githubusercontent.com, a
+ * CDN with no rate limit at all (64 files in a fifth of a second, measured). So
+ * the listing has a fallback, ungh, and the files need none.
  */
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
 import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
-import { listViaApi } from './api.ts';
-import { listViaUngh } from './ungh.ts';
+import {
+	SourceError,
+	type Listing,
+	type Source,
+	type SourceKind,
+	type TreeEntry
+} from '../source.ts';
+import { listViaGitHubApi } from './github-api.ts';
+import { listViaUnghApi } from './ungh-api.ts';
 
+const HOST = 'github.com';
 const RAW = 'https://raw.githubusercontent.com';
-/** The forge's own id. */
-const NAME = 'github';
 
-/**
- * URL of a file's raw contents. Free of the API budget.
- *
- * The branch is encoded as a path, and for the same reason: a URL carries
- * `feature/web-ui` as two segments, and `feature%2Fweb-ui` is a branch of that
- * literal name, which no repository has.
- */
-function rawUrl(ref: RepoRef, branch: string, path: string): string {
-	return `${RAW}/${ref.owner}/${ref.name}/${encodePath(branch)}/${encodePath(path)}`;
-}
-
-/**
- * A file's page on the forge, where its history and its blame are.
- *
- * This viewer computes no history, and the link is how it gets away with that:
- * the format holds no modification date, and dating tasks through the API costs
- * one request per task against sixty an hour. The forge renders history better
- * than we would anyway, so a reader who wants it is handed over rather than
- * served a guess.
- *
- * `ref.host` rather than a constant, this being the one URL that genuinely
- * lives on the forge's own domain. The path shape is still GitHub's (GitLab
- * spells it `/-/blob/`), which is 20260906-211255's problem, not this one's.
- */
-function blobUrl(ref: RepoRef, branch: string, path: string): string {
-	return `https://${ref.host}/${ref.owner}/${ref.name}/blob/${encodePath(branch)}/${encodePath(path)}`;
-}
-
-/**
- * One way of listing a repository: a function, there being nothing else to a
- * lister. It asks the network it is handed, so that a repository opened over
- * a substitute lists over it too, and answers null where the repository or the
- * branch does not exist, which the forge then words once for all of them.
- */
-export type Lister = (
-	ref: RepoRef,
-	network: typeof fetch,
-	signal?: AbortSignal
-) => Promise<Listing | null>;
-
-/** Listers in fallback order, at least one: with none, nothing would be asked. */
-export type Listers = readonly [Lister, ...Lister[]];
-
-/**
- * The listers this forge falls back through, in order. GitHub first so the
- * normal path depends on nobody else; ungh is a mirror *of GitHub*, which is
- * why it belongs to it rather than standing beside it as a source.
- *
- * jsDelivr was a third, and was dropped: it only ever answered when GitHub and
- * ungh had both failed, and it answered with a cached view (63 of this
- * repository's 64 tasks when measured, missing the newest). Two third parties
- * for that last case was more machinery than a reader of task folders needs.
- */
-const LISTERS: Listers = [listViaApi, listViaUngh];
-
-/**
- * Lists a repository, falling back through the listers in order.
- *
- * Only the listing can be rate-limited, so a spent budget is answered by asking
- * someone else rather than by an error. A missing repository is missing
- * everywhere, so that one is not retried. And when nobody answered, a spent
- * budget is what is reported, rather than whichever fallback failed last: it
- * is the cause, and the one thing the reader can wait out.
- */
-async function listRepository(
-	ref: RepoRef,
-	listers: Listers,
-	network: typeof fetch,
-	signal?: AbortSignal
-): Promise<Listing> {
-	let lastError: unknown;
-	let spent: SourceError | undefined;
-
-	for (const lister of listers) {
-		let listing: Listing | null;
-		try {
-			listing = await lister(ref, network, signal);
-		} catch (error) {
-			if (error instanceof SourceError && error.failure === 'rate-limited') spent = error;
-			lastError = error;
-			continue;
-		}
-		// A missing repository is the same everywhere; do not ask the others.
-		if (!listing) throw new SourceError('not-found', missing(ref));
-		return listing;
-	}
-	throw spent ?? lastError;
-}
-
-/**
- * What a missing repository says. GitHub answers 404 alike for a branch, a
- * repository and a private one, so the three are named together rather than
- * guessed between at the cost of another request.
- */
-function missing(ref: RepoRef): string {
-	const repository = describe(ref);
-	if (ref.branch) {
-		return `No branch ${ref.branch} in ${repository}, or no such repository, or it is private.`;
-	}
-	return `No repository ${repository} on ${ref.host}, or it is private.`;
-}
-
-/** What a spec substitutes in a repository: what it would otherwise ask of GitHub. */
-export interface Seams {
-	/** The network, which the reads and the listers alike go through. */
-	network?: typeof fetch;
-	/** The listers this forge falls back through, in order. */
-	listers?: Listers;
-}
-
-/**
- * A repository on a GitHub-shaped forge, as a source.
- *
- * The reference is `HEAD` unless one was named, which is a fact about this
- * forge rather than about sources: both the trees API and raw accept it, so the
- * request that would resolve a default branch by name is never made.
- */
 export class GitHubRepository implements Source, Cached, Rereadable, Linked {
-	readonly id = NAME;
+	readonly id = 'github';
 	// Polite to the CDN while still finishing in well under a second.
 	readonly concurrency = 12;
 	readonly label: string;
@@ -153,31 +33,58 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	readonly #ref: RepoRef;
 	readonly #branch: string;
 	readonly #network: typeof fetch;
-	readonly #listers: Listers;
 
-	constructor(ref: RepoRef, seams: Seams = {}) {
+	/** `network` is what a spec substitutes for GitHub. */
+	constructor(ref: RepoRef, network: typeof fetch = fetch) {
 		this.#ref = ref;
+		// The trees API and raw both accept `HEAD`, so the request that would
+		// resolve a default branch by name is never made.
 		this.#branch = ref.branch ?? 'HEAD';
-		this.#network = seams.network ?? fetch;
-		this.#listers = seams.listers ?? LISTERS;
+		this.#network = network;
 		this.label = describe(ref);
 		this.cacheKey = repoKey(ref);
 	}
 
-	list(signal?: AbortSignal): Promise<Listing> {
-		return listRepository(this.#ref, this.#listers, this.#network, signal);
+	/**
+	 * Asks GitHub's API, then ungh when GitHub would not answer: ungh is a free
+	 * third party with no uptime promised, so the normal path does not depend on
+	 * it. A repository missing from one is missing from both, so that is not
+	 * asked twice. When neither answered, a spent budget is what is reported,
+	 * rather than the last failure: it is the cause, and the one thing the
+	 * reader can wait out.
+	 */
+	async list(signal?: AbortSignal): Promise<Listing> {
+		const failures: unknown[] = [];
+		for (const lister of [listViaGitHubApi, listViaUnghApi]) {
+			let entries: TreeEntry[] | null;
+			try {
+				entries = await lister(this.#ref, this.#branch, this.#network, signal);
+			} catch (error) {
+				failures.push(error);
+				continue;
+			}
+			if (!entries) throw new SourceError('not-found', this.#missing());
+			return { entries, branch: this.#branch };
+		}
+		throw failures.find(isSpentBudget) ?? failures.at(-1);
 	}
 
 	read(path: string, signal?: AbortSignal): Promise<string | null> {
 		return readText(this.#network, this.assetUrl(path), signal);
 	}
 
+	/** A file's raw contents, from the CDN that costs no budget. */
 	assetUrl(path: string): string {
-		return rawUrl(this.#ref, this.#branch, path);
+		return `${RAW}/${this.#ref.owner}/${this.#ref.name}/${this.#at(path)}`;
 	}
 
+	/**
+	 * A file's page on GitHub, where its history and its blame are. This viewer
+	 * computes no history: the format holds no date, and dating a task through
+	 * the API would cost a request each, against sixty an hour.
+	 */
 	fileUrl(path: string): string {
-		return blobUrl(this.#ref, this.#branch, path);
+		return `https://${HOST}/${this.#ref.owner}/${this.#ref.name}/blob/${this.#at(path)}`;
 	}
 
 	/**
@@ -185,6 +92,30 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	 * for, and with nothing to prepare: the loader ignores the cache.
 	 */
 	async reread(): Promise<void> {}
+
+	/**
+	 * The branch and a path, one segment at a time: a URL carries
+	 * `feature/web-ui` as two segments, and `feature%2Fweb-ui` would be a branch
+	 * of that literal name, which no repository has.
+	 */
+	#at(path: string): string {
+		return `${encodePath(this.#branch)}/${encodePath(path)}`;
+	}
+
+	/**
+	 * GitHub answers 404 alike for a branch, a repository and a private one, so
+	 * the three are named together rather than told apart at another request.
+	 */
+	#missing(): string {
+		if (this.#ref.branch) {
+			return `No branch ${this.#ref.branch} in ${this.label}, or no such repository, or it is private.`;
+		}
+		return `No repository ${this.label} on ${HOST}, or it is private.`;
+	}
+}
+
+function isSpentBudget(error: unknown): boolean {
+	return error instanceof SourceError && error.failure === 'rate-limited';
 }
 
 /** How a repository reads on screen: `owner/name`, its host being github.com. */
@@ -193,11 +124,11 @@ function describe(ref: RepoRef): string {
 }
 
 export const githubKind = {
-	id: NAME,
+	id: 'github',
 
 	// A forge address on any other host parses all the same, and is refused when
 	// opened, as a host nothing reads.
-	address: { hosts: ['github.com'] },
+	address: { hosts: [HOST] },
 
 	describe,
 

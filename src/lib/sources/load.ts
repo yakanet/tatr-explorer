@@ -8,8 +8,10 @@
  *
  * A source that is `Cached` is cached and never expires on its own: quota
  * is only ever spent on a first visit or on an explicit refresh, so the reader
- * decides when to pay for fresh data. {@link LoadResult.storedAt} carries the
- * age so the UI can show it next to that refresh control.
+ * decides when to pay for fresh data. Revalidating is no way around it: a
+ * conditional request answering 304 was measured to spend quota all the same
+ * when unauthenticated. {@link LoadResult.storedAt} carries the age so the UI
+ * can show it next to that refresh control.
  *
  * Only metadata is cached: descriptions are more than half the bytes and cost
  * no quota to read again. What the graph needs from those descriptions, the

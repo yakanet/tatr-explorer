@@ -1,19 +1,13 @@
 /**
- * The GitHub API, as one lister.
+ * GitHub's own API, as a lister.
  *
  * One call to the git trees API returns the entire repository tree, so listing
  * a repository costs exactly one request out of the 60 per hour an
- * unauthenticated IP gets. `HEAD` is accepted as the reference, including on
- * repositories whose default branch is not `main`, which halves that: one
- * request per repository, never two.
- *
- * Measured: a conditional request answering 304 still consumes quota when
- * unauthenticated, so revalidating is not free and the cache is never
- * refreshed behind the reader's back.
+ * unauthenticated IP gets.
  */
 import type { RepoRef } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
-import { SourceError, type Listing } from '../source.ts';
+import { SourceError, type TreeEntry } from '../source.ts';
 
 const API = 'https://api.github.com';
 
@@ -27,8 +21,36 @@ const STILL_FREE =
 	'Only listing a repository counts: reading its tasks does not, and a repository ' +
 	'already read stays here.';
 
-/** The response to `url`, or null when GitHub has no such repository or branch. */
-async function json(
+/**
+ * The files of a repository at `branch`, through the trees API, or null when
+ * GitHub has no such repository or branch.
+ */
+export async function listViaGitHubApi(
+	ref: RepoRef,
+	branch: string,
+	network: typeof fetch,
+	signal?: AbortSignal
+): Promise<TreeEntry[] | null> {
+	const url = `${API}/repos/${ref.owner}/${ref.name}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+	const response = await askGitHub(network, url, signal);
+	if (!response) return null;
+
+	const body = (await readJson(response, 'GitHub')) as TreeResponse;
+	if (!Array.isArray(body.tree)) {
+		throw new SourceError('malformed', 'GitHub answered with no tree in its response.');
+	}
+	if (body.truncated) {
+		throw new SourceError(
+			'malformed',
+			'GitHub truncated the repository tree: it is too large to list in one call.'
+		);
+	}
+	const blobs = body.tree.filter((entry) => entry.type === 'blob');
+	return blobs.map(({ path, size }) => ({ path, size }));
+}
+
+/** GitHub's answer to `url`, or null when it has no such repository or branch. */
+async function askGitHub(
 	network: typeof fetch,
 	url: string,
 	signal?: AbortSignal
@@ -63,39 +85,4 @@ async function json(
 		throw new SourceError('network', `GitHub answered ${response.status}.`);
 	}
 	return response;
-}
-
-/** Lists a repository through the trees API. */
-export async function listViaApi(
-	ref: RepoRef,
-	network: typeof fetch,
-	signal?: AbortSignal
-): Promise<Listing | null> {
-	// `HEAD` avoids a second request to learn the default branch's name.
-	const branch = ref.branch ?? 'HEAD';
-	const response = await json(
-		network,
-		`${API}/repos/${ref.owner}/${ref.name}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-		signal
-	);
-	if (!response) return null;
-	const body = (await readJson(response, 'GitHub')) as TreeResponse;
-	if (!Array.isArray(body.tree)) {
-		throw new SourceError('malformed', 'GitHub answered with no tree in its response.');
-	}
-	if (body.truncated) {
-		throw new SourceError(
-			'malformed',
-			'GitHub truncated the repository tree: it is too large to list in one call.'
-		);
-	}
-
-	return {
-		entries: body.tree
-			.filter((entry) => entry.type === 'blob')
-			.map((entry) =>
-				entry.size === undefined ? { path: entry.path } : { path: entry.path, size: entry.size }
-			),
-		branch
-	};
 }
