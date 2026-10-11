@@ -6,28 +6,39 @@
  * fails when they get it wrong. What only one kind does stays in that kind's
  * own spec.
  *
- * Each kind's folder says how its sources are built, in `subjects.ts`, and the
- * table at the end is keyed like the registry: a kind added to `KINDS` and not
- * here does not compile, where a contract each kind had to remember to call
- * would let a new one go unchecked in silence.
+ * How each kind's sources are built for it is said here too, in a table keyed
+ * like the registry: a kind added to `KINDS` and not here does not compile,
+ * where a contract each kind had to remember to call would let a new one go
+ * unchecked in silence. Here rather than with the fakes the specs share,
+ * because nothing but this contract builds them.
  *
  * Only what every source does is asked. A forge cannot tell a missing file's
  * URL from a present one's without a listing, so what `assetUrl` answers for a
  * file that is not there is left to each kind's own spec, and so is the branch
  * a listing names, which a folder reads out of `.git/HEAD` and a forge does not.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { localRef, parseRepoPath, servedRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
-import { subjects as github } from './github/subjects.ts';
+import { githubKind } from './github/kind.ts';
 import { loadRepository } from './load.ts';
-import { subjects as local } from './local/subjects.ts';
+import { directory, entryTree, fileList } from './local/fake-directory.ts';
+import {
+	fromDirectoryEntry,
+	fromDirectoryHandle,
+	fromFileList,
+	type LocalFolder,
+	type WayBack
+} from './local/folder.ts';
+import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { KINDS } from './open.ts';
-import { subjects as served } from './served/subjects.server.ts';
+import { scratchFolder, serving, writeTree } from './served/disk-tree.server.ts';
+import { servedKind } from './served/kind.ts';
 import { ListingError, NoSourceError, type Listing, type Source } from './source.ts';
 import { memoryStore } from './store.ts';
 
 /** One of a kind's sources, as the contract builds it. */
-export interface Subject {
+interface Subject {
 	/** How the source came to be, which names its tests. */
 	name: string;
 	/**
@@ -162,12 +173,122 @@ function honoursTheContract(subject: Subject): void {
 	});
 }
 
+/** A network that does not answer: no forge, no dev server. */
+const unreachable = (async () => {
+	throw new TypeError('Failed to fetch');
+}) as typeof fetch;
+
+/**
+ * GitHub over `tree`, through both of its doors: the trees API that lists it,
+ * and the CDN that serves each file. Read when asked, so a change to `tree`
+ * is there the next time either door is knocked on. Called with a `this`, it
+ * refuses, as the browser's own `fetch` does with any but the window.
+ */
+function forge(tree: Readonly<Record<string, string>>): typeof fetch {
+	return async function (this: unknown, input: RequestInfo | URL) {
+		if (this !== undefined) throw new TypeError('Illegal invocation');
+		const url = new URL(String(input));
+		if (url.hostname === 'api.github.com') {
+			const blobs = Object.entries(tree).map(([path, text]) => ({
+				path,
+				type: 'blob',
+				size: text.length
+			}));
+			return Response.json({ tree: blobs, truncated: false });
+		}
+		// `/owner/repo/HEAD/tasks/...`: the file's path is what follows the branch.
+		const path = decodeURIComponent(url.pathname.split('/').slice(4).join('/'));
+		if (!Object.hasOwn(tree, path)) return new Response('not found', { status: 404 });
+		return new Response(tree[path]);
+	} as typeof fetch;
+}
+
+/**
+ * The listers reach for the global `fetch` rather than the one a source is
+ * opened with, so the network is substituted in both places.
+ */
+function openGitHubOver(network: typeof fetch): Source {
+	vi.stubGlobal('fetch', network);
+	return githubKind.open(parseRepoPath('owner/repo')!, { fetchImpl: network });
+}
+
+/** What a door hands over for a folder: the folder, and a way back to it when it has one. */
+type Door = (tree: Record<string, string>) => Promise<[LocalFolder, WayBack?]>;
+
+/** A folder handed over through `door`, as a source. */
+function through(name: string, door: Door): Subject {
+	return {
+		name,
+		async holding(tree) {
+			openFolder(...(await door(tree)));
+			return localKind.open(localRef());
+		},
+		broken: forgotten
+	};
+}
+
+/** Nothing open: where every reload leaves a folder, the browser taking its grant back. */
+function forgotten(): Source {
+	closeFolder();
+	return localKind.open(localRef());
+}
+
+function openServedOver(network: typeof fetch): Source {
+	return servedKind('my-project').open(servedRef(), { fetchImpl: network });
+}
+
 /**
  * Every kind's sources, one per way a source of that kind comes to be. Each
- * is built inside its kind's own `describe`, so the hooks a kind needs (a
- * global to restore, a folder to close, a scratch folder) are its own.
+ * entry is called inside its kind's own `describe`, so the hooks a kind needs
+ * (a global to restore, a folder to close, a scratch folder) are its own.
  */
-const SUBJECTS = { github, local, served } satisfies Record<keyof typeof KINDS, () => Subject[]>;
+const SUBJECTS = {
+	github: () => {
+		afterEach(() => vi.unstubAllGlobals());
+		return [
+			{
+				name: 'a repository on GitHub',
+				holding: async (tree) => openGitHubOver(forge(tree)),
+				broken: () => openGitHubOver(unreachable)
+			}
+		];
+	},
+
+	// One per door a browser offers to a folder: they hand over different
+	// things, and each must read as a source.
+	local: () => {
+		afterEach(() => closeFolder());
+		return [
+			through('a folder handed over by a directory input', async (tree) => [
+				fromFileList(fileList('my-project', tree))!
+			]),
+			through('a folder picked, with a handle to it', async (tree) => {
+				const handle = directory('my-project', tree);
+				return [await fromDirectoryHandle(handle), handle];
+			}),
+			through('a folder dropped, with its entry tree', async (tree) => {
+				const entry = entryTree('my-project', tree);
+				return [await fromDirectoryEntry(entry), entry];
+			})
+		];
+	},
+
+	served: () => {
+		const scratch = scratchFolder();
+		return [
+			{
+				name: 'a folder the dev server serves',
+				async holding(tree) {
+					await writeTree(scratch(), tree);
+					return openServedOver(await serving(scratch()));
+				},
+				broken: () => openServedOver(unreachable),
+				// The folder is on the disk, where a change to the tree has to be written.
+				sync: (tree) => writeTree(scratch(), tree)
+			}
+		];
+	}
+} satisfies Record<keyof typeof KINDS, () => Subject[]>;
 
 for (const [kind, subjectsOf] of Object.entries(SUBJECTS)) {
 	describe(kind, () => {

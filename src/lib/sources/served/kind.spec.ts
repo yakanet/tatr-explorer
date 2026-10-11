@@ -5,7 +5,6 @@ import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
 import { ListingError } from '../source.ts';
 import { scratchFolder, serving, writeTree } from './disk-tree.server.ts';
-import { unreachable } from './subjects.server.ts';
 import { servedKind } from './kind.ts';
 
 /**
@@ -61,6 +60,9 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('says the dev server did not answer, rather than that there is nothing', async () => {
+		const unreachable = (async () => {
+			throw new TypeError('Failed to fetch');
+		}) as typeof fetch;
 		const source = servedKind('my-project').open(servedRef(), { fetchImpl: unreachable });
 		await expect(source.list()).rejects.toThrow(ListingError);
 	});
