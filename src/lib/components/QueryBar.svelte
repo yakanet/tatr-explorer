@@ -2,7 +2,8 @@
 	import { tick } from 'svelte';
 	import { formatDiagnostic } from '#lib/tql/query.ts';
 	import { apply, complete, type TagOption } from '#lib/tql/complete.ts';
-	import { STATUSES, type QueryState } from '#lib/state/query.svelte.ts';
+	import { lsEcho, STATUSES } from '#lib/tql/command.ts';
+	import type { QueryState } from '#lib/state/query.svelte.ts';
 
 	let {
 		query,
@@ -32,6 +33,34 @@
 	let active = $state(0);
 
 	const found = $derived(dismissed ? null : complete(query.text, caret, tags));
+
+	/**
+	 * The `tatr ls` that lists what is shown, or why none does.
+	 *
+	 * Only where the status is chosen: a board shows open and closed tasks at
+	 * once, in columns, which is no listing any command produces. And not over
+	 * a query in error, whose diagnostic is the thing to read.
+	 */
+	const echo = $derived.by(() => {
+		if (!chooseStatus || query.error) return null;
+		return lsEcho(query.source, query.node, query.status);
+	});
+
+	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function copy(text: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = true;
+			// Rearmed by every click, so a second one keeps the word up its full time.
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = false), 1500);
+		} catch {
+			// Refused, by an insecure context or a denied permission: the command
+			// is still on screen to be selected by hand.
+		}
+	}
 
 	// The menu is rebuilt on every keystroke, so the highlight has to be clamped
 	// rather than remembered: what was third a moment ago may not exist now.
@@ -195,8 +224,37 @@
 		{@const cut = report.lastIndexOf('\n') + 1}
 		<pre class="diagnostic">{report.slice(0, cut)}<span class="message">{report.slice(cut)}</span
 			></pre>
-	{:else if query.warnings.length > 0}
-		<p class="warning">{query.warnings[0].message}</p>
+	{:else}
+		{#if echo?.kind === 'command'}
+			<!-- The prompt is not part of the command: it stays out of a selection,
+			     and the button copies the command alone. -->
+			<p class="echo">
+				<span class="shell" aria-hidden="true">$</span>
+				<code>{echo.text}</code>
+				<button type="button" class="action copy" onclick={() => copy(echo.text)}>
+					{#if copied}Copied{:else}Copy{/if}
+				</button>
+			</p>
+		{:else if echo?.kind === 'ours'}
+			<!-- Said exactly where a reader might otherwise carry the query to a
+			     terminal and watch it fail. -->
+			<p class="echo">
+				<span>
+					{#if echo.titles.length > 0}
+						Searching titles ({#each echo.titles as term, index (index)}{#if index > 0}{', '}{/if}<code
+								>{term}</code
+							>{/each}) is this viewer's own: no <code>tatr ls</code> can.
+					{/if}
+					{#if echo.both}
+						<code>all</code> is this viewer's own: <code>tatr ls</code> lists the open tasks,
+						<code>tatr ls -c</code> the closed ones.
+					{/if}
+				</span>
+			</p>
+		{/if}
+		{#if query.warnings.length > 0}
+			<p class="warning">{query.warnings[0].message}</p>
+		{/if}
 	{/if}
 </div>
 
@@ -332,6 +390,38 @@
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
+	}
+
+	/* Under the bar, in its voice but quieter: a footnote to the query rather
+	   than a second control. */
+	.echo {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.6rem;
+		margin: 0;
+		padding: 0 1.1rem;
+		font-size: 0.8125rem;
+		color: var(--muted);
+	}
+
+	.echo code {
+		font-family: var(--font-mono);
+		color: var(--ink-2);
+	}
+
+	.shell {
+		font-family: var(--font-mono);
+		user-select: none;
+	}
+
+	/* The site's quiet button, sized down to sit in a line of small text. */
+	.copy {
+		min-height: auto;
+		padding: 0.1rem 0.6rem;
+		font-size: 0.75rem;
+		font-weight: 400;
+		color: var(--ink-2);
 	}
 
 	.diagnostic {

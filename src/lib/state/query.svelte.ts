@@ -6,20 +6,21 @@
  * the counts and the other charts at once. Keeping it in the URL means a
  * filtered view is a link someone can send.
  */
-import { compile, parseWithWarnings, TqlError, type TqlWarning } from '../tql/query.ts';
+import { compile, parseWithWarnings, TqlError, type Node, type TqlWarning } from '../tql/query.ts';
+import { STATUSES, type Status } from '../tql/command.ts';
 import type { Task } from '../tatr/task.ts';
 
 export const QUERY = Symbol('query');
 
-/**
- * Which tasks a query runs over. `open` is `tatr ls` and `closed` is
- * `tatr ls -c`, which lists the closed tasks *only*. `all` is this viewer's
- * own: the CLI has no single command for both, and a reader checking whether
- * something was ever filed, or following the dashboard's "in total", needs one.
- */
-export type Status = 'open' | 'closed' | 'all';
-
-export const STATUSES: readonly Status[] = ['open', 'closed', 'all'];
+/** A query once compiled: what it matches, and what the bar shows about it. */
+interface Compiled {
+	source: string;
+	match: (task: Task) => boolean;
+	error: TqlError | null;
+	warnings: TqlWarning[];
+	/** Its tree, when it compiled; null when it is empty or in error. */
+	node: Node | null;
+}
 
 /**
  * A query as URL parameters. The status is written only when one is given, so
@@ -38,23 +39,15 @@ export class QueryState {
 	/** `tatr ls` hides closed tasks unless asked; so does this. */
 	status = $state<Status>('open');
 
-	readonly #compiled = $derived.by(() => {
+	readonly #compiled = $derived.by((): Compiled => {
 		const source = this.text.trim();
 		if (source === '') {
-			return {
-				source,
-				match: () => true,
-				error: null as TqlError | null,
-				warnings: [] as TqlWarning[]
-			};
+			return { source, match: () => true, error: null, warnings: [], node: null };
 		}
 		try {
-			return {
-				source,
-				match: compile(source),
-				error: null,
-				warnings: parseWithWarnings(source).warnings
-			};
+			const match = compile(source);
+			const { node, warnings } = parseWithWarnings(source);
+			return { source, match, error: null, warnings, node };
 		} catch (error) {
 			// An incomplete or ill-typed query is the normal state while typing, so
 			// it filters nothing rather than emptying the screen under the reader.
@@ -62,7 +55,8 @@ export class QueryState {
 				source,
 				match: () => true,
 				error: error instanceof TqlError ? error : null,
-				warnings: [] as TqlWarning[]
+				warnings: [],
+				node: null
 			};
 		}
 	});
@@ -86,6 +80,11 @@ export class QueryState {
 
 	get warnings(): TqlWarning[] {
 		return this.#compiled.warnings;
+	}
+
+	/** The query's tree, once it compiled; null when it is empty or in error. */
+	get node(): Node | null {
+		return this.#compiled.node;
 	}
 
 	/**

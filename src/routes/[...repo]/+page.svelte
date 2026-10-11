@@ -6,7 +6,8 @@
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
 	import { tagHue } from '#lib/render/tag-hue.ts';
-	import { searchFor, type Status } from '#lib/state/query.svelte.ts';
+	import { searchFor } from '#lib/state/query.svelte.ts';
+	import type { Status } from '#lib/tql/command.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import {
 		byMonth,

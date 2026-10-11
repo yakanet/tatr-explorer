@@ -205,6 +205,12 @@ everything again from the checkout at `../tatr`, and the recordings earn it: the
 last time, they caught an arrow `tatr graph` draws from an id cited only in a
 title, which this viewer had missed.
 
+The list puts the claim where it can be checked rather than trusted: under the
+query, **the `tatr ls` command that lists what is shown**, quoted for a shell and
+ready to copy. Where no command can (a `~` term, the `all` status), the line
+names the part that is this viewer's own instead of printing a command that
+would fail, or list something else, in a terminal.
+
 The same discipline governs what reaches the screen: repository content is shown
 **verbatim**, typos and straight quotes included, because polishing it would
 show a screen the product cannot produce.
