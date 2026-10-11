@@ -16,6 +16,10 @@
 		fields?: TaskFields;
 		/** The repository's tags, which the tags field offers as it is typed. */
 		known?: TagOption[];
+		/** The draft's tags new to the repository, each of which gets a description field. */
+		fresh?: readonly string[];
+		/** What was typed in those fields, by tag. */
+		described?: Record<string, string>;
 		/** Whether Save creates the file, for a new task, rather than rewriting it. */
 		creating?: boolean;
 	}
@@ -24,6 +28,8 @@
 		properties = new Map(),
 		fields = $bindable(),
 		known = [],
+		fresh = [],
+		described = $bindable({}),
 		creating = false
 	}: Props = $props();
 
@@ -102,6 +108,16 @@
 							{/each}
 						</datalist>
 					</span>
+					{#each fresh as tag (tag)}
+						<label class="describe">
+							<span>{tag}</span>
+							<input
+								aria-label="What {tag} means"
+								placeholder="what it means"
+								bind:value={described[tag]}
+							/>
+						</label>
+					{/each}
 				{:else if value}
 					{value}
 				{:else}
@@ -117,6 +133,9 @@
 			Saving rewrites <code>TASK.md</code> as the CLI would, every property in its place.
 		{:else}
 			Any property key is shown, not just these.
+		{/if}
+		{#if fresh.length > 0}
+			A new tag described gets its line in <code>tasks/tags</code>.
 		{/if}
 	{/snippet}
 </SidePanel>
@@ -166,6 +185,23 @@
 
 	.tags input {
 		width: 8rem;
+	}
+
+	/* A new tag's description field sits under the tags, as wide as they are. */
+	.describe {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin-top: 0.4rem;
+	}
+
+	.describe span {
+		color: var(--muted);
+	}
+
+	.describe input {
+		flex: 1;
+		min-width: 0;
 	}
 
 	/* The remove button sits inside the pill, as small as its text. */

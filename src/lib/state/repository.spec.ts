@@ -9,7 +9,7 @@ import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
 import { fieldsOf, NEW_TASK, withFields } from '../tatr/task-fields.ts';
-import { loadTaskFile, withStatus } from '../tatr/task-file.ts';
+import { loadTaskFile, withStatus, withTag } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
 const NOW = 1_000_000_000;
@@ -410,6 +410,45 @@ describe('editing a task', () => {
 		expect(repo.tasks[0].priority).toBe(110);
 	});
 
+	describe('describing the tags new to the repository', () => {
+		const described = { tags: new Map([['fresh', 'a tag no task had']]) };
+		const tagged = withTag('fresh');
+
+		it('creates tasks/tags with the save where the repository has none', async () => {
+			const repo = await editing();
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+			expect(repo.tags.descriptions.get('fresh')).toBe('a tag no task had');
+			expect(repo.notice).toEqual({ text: `${ID}: saved.`, failed: false, undoable: true });
+		});
+
+		it('appends to the tasks/tags there, every line of it kept', async () => {
+			const repo = await editing();
+			disk['tasks/tags'] = 'ui , screens';
+			await repo.edit(ID, tagged, 'saved', described);
+			expect(disk['tasks/tags']).toBe('ui , screens\nfresh , a tag no task had\n');
+		});
+
+		it('describes them even when the task file already says so', async () => {
+			const repo = await editing();
+			disk[TASK] = `${taskAt(90)}- TAGS: fresh\n`;
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+		});
+
+		it('says the save was made but not the description, when tasks/tags cannot be written', async () => {
+			const repo = await editing();
+			disk['tasks/tags/oops'] = 'a folder where the file belongs';
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+
+			expect(repo.notice?.failed).toBe(true);
+			expect(repo.notice?.text).toMatch(
+				new RegExp(`^${ID}: saved\\. The new tags were not described: `)
+			);
+		});
+	});
+
 	describe('creating a task', () => {
 		/** The id the clock gives while these run. */
 		const CREATED = '20261012-083000';
@@ -450,6 +489,13 @@ describe('editing a task', () => {
 
 			expect(await repo.undo()).toBe(false);
 			expect(disk[TASK]).toBe(rewritten(90, 'CLOSED'));
+		});
+
+		it('describes its new tags in tasks/tags', async () => {
+			const repo = await editing();
+			const described = { tags: new Map([['fresh', 'a tag no task had']]) };
+			await repo.create({ ...NEW_TASK, tags: ['fresh'] }, described);
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
 		});
 
 		it('creates nothing once the reader refuses', async () => {

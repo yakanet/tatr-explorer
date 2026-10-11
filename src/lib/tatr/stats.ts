@@ -68,6 +68,19 @@ export function tagOptions(tasks: Task[], descriptions: ReadonlyMap<string, stri
 	}));
 }
 
+/**
+ * The tags of `tags` new to the repository: no task of `tasks` carries them,
+ * and `descriptions`, read from `tasks/tags`, lacks them.
+ */
+export function newTags(
+	tags: readonly string[],
+	tasks: readonly Task[],
+	descriptions: ReadonlyMap<string, string>
+): string[] {
+	const used = new Set(tasks.flatMap((task) => task.tags));
+	return tags.filter((tag) => !used.has(tag) && !descriptions.has(tag));
+}
+
 export interface MonthBucket {
 	/** `YYYY-MM`, in UTC, since HUIDs are UTC. */
 	month: string;

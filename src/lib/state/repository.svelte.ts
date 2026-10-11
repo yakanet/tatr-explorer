@@ -22,10 +22,10 @@ import {
 	type Snapshot
 } from '../tatr/changes.ts';
 import { formatHuid } from '../tatr/huid.ts';
+import { describedTagsFile, TAGS_FILE, type TagDescriptions } from '../tatr/tags-file.ts';
 import { EditRefused, editTaskMd, type Edit } from '../tatr/task-file.ts';
 import { newTaskMd, type TaskFields } from '../tatr/task-fields.ts';
 import { taskPath, type Task } from '../tatr/task.ts';
-import type { TagDescriptions } from '../tatr/tags-file.ts';
 
 /** Context key for the repository state shared by every view of one repository. */
 export const REPOSITORY = Symbol('repository');
@@ -63,6 +63,15 @@ export interface EditNotice {
 	/** True after a write, which Undo can take back while the file still holds it. */
 	undoable: boolean;
 }
+
+/** What a sheet's Save writes besides the task's file. */
+export interface Extras {
+	/** Descriptions of tags that are new to the repository, which `tasks/tags` gains. */
+	tags: ReadonlyMap<string, string>;
+}
+
+/** A save of the task's file alone, as a gesture on the board makes. */
+const NO_EXTRAS: Extras = { tags: new Map() };
 
 /** The notice of an edit that was not made. */
 function failed(text: string): EditNotice {
@@ -260,10 +269,11 @@ export class RepositoryState {
 	 * reading on screen holds it, which may be minutes old, then reads the
 	 * repository again. `what` says what the edit did, for the notice. It never
 	 * throws: a failure leaves the reading as it was, with a sentence saying why.
-	 * Resolves to whether the file now holds the edit.
+	 * Resolves to whether the file now holds the edit. `extras` are written once
+	 * the file is.
 	 */
-	edit(id: string, edit: Edit, what: string): Promise<boolean> {
-		return this.#queue(() => this.#edit(id, edit, what), false);
+	edit(id: string, edit: Edit, what: string, extras = NO_EXTRAS): Promise<boolean> {
+		return this.#queue(() => this.#edit(id, edit, what, extras), false);
 	}
 
 	/** Writes back the text the last edit replaced, unless the file changed since. */
@@ -275,10 +285,10 @@ export class RepositoryState {
 	 * Creates a task holding `fields`, as `tatr new` would and under an id it
 	 * reads from the clock, then reads the repository again. It never throws, as
 	 * `edit` does not. Resolves to the task's id, or to null when nothing was
-	 * created.
+	 * created. `extras` are written once the file is.
 	 */
-	create(fields: TaskFields): Promise<string | null> {
-		return this.#queue(() => this.#create(fields), null);
+	create(fields: TaskFields, extras = NO_EXTRAS): Promise<string | null> {
+		return this.#queue(() => this.#create(fields, extras), null);
 	}
 
 	/**
@@ -302,7 +312,7 @@ export class RepositoryState {
 		return run;
 	}
 
-	async #edit(id: string, edit: Edit, what: string): Promise<boolean> {
+	async #edit(id: string, edit: Edit, what: string, extras: Extras): Promise<boolean> {
 		const source = this.source;
 		if (!isWritable(source) || this.#refused) return false;
 		const path = taskPath(id);
@@ -323,18 +333,20 @@ export class RepositoryState {
 			await this.refresh();
 			return false;
 		}
-		if (after === before) {
+		if (after === before && extras.tags.size === 0) {
 			// The file already says so: the reading on screen is the stale part.
 			this.notice = null;
 			await this.refresh();
 			return true;
 		}
+		// Written even unchanged when there are extras, so that the reader is
+		// asked whether this page may write before anything else is.
 		const answer = await source.write(path, after, before);
-		if (answer === 'written') this.#written = { id, before, after };
-		return this.#settle(answer, id, what);
+		if (answer === 'written' && after !== before) this.#written = { id, before, after };
+		return this.#settle(answer, id, what, extras);
 	}
 
-	async #create(fields: TaskFields): Promise<string | null> {
+	async #create(fields: TaskFields, extras: Extras): Promise<string | null> {
 		const source = this.source;
 		if (!isWritable(source) || this.#refused) return null;
 		const id = formatHuid(new Date());
@@ -344,8 +356,27 @@ export class RepositoryState {
 		if (answer === 'changed') return this.#taken(id);
 		// Undo writes a file back, and has no file to write back here.
 		this.#written = null;
-		if (!(await this.#settle(answer, id, 'created'))) return null;
+		if (!(await this.#settle(answer, id, 'created', extras))) return null;
 		return id;
+	}
+
+	/**
+	 * Appends the descriptions of new tags to `tasks/tags`, which it creates
+	 * where the repository has none. Resolves to the sentence saying why it
+	 * could not, or to null. It follows a write of the task's file, so the
+	 * reader has allowed writing already.
+	 */
+	async #describe(tags: ReadonlyMap<string, string>): Promise<string | null> {
+		const source = this.source;
+		if (tags.size === 0 || !isWritable(source)) return null;
+		try {
+			const before = await source.read(TAGS_FILE);
+			const answer = await source.write(TAGS_FILE, describedTagsFile(before, tags), before);
+			if (answer === 'written') return null;
+			return `The new tags were not described, as ${TAGS_FILE} changed on disk since it was read.`;
+		} catch (error) {
+			return `The new tags were not described: ${messageOf(error)}`;
+		}
 	}
 
 	/** Refuses an id that is taken, in the words of `tatr new`. */
@@ -367,10 +398,15 @@ export class RepositoryState {
 
 	/**
 	 * Says what a write's answer means, and reads again wherever the disk may
-	 * now differ from the screen. `what` says what a write made did. Resolves to
-	 * whether the write was made.
+	 * now differ from the screen. `what` says what a write made did. A write made
+	 * is followed by `extras`. Resolves to whether the write was made.
 	 */
-	async #settle(answer: WriteAnswer, id: string, what: string): Promise<boolean> {
+	async #settle(
+		answer: WriteAnswer,
+		id: string,
+		what: string,
+		extras = NO_EXTRAS
+	): Promise<boolean> {
 		if (answer === 'refused') {
 			this.#refused = true;
 			this.notice = failed(
@@ -383,8 +419,13 @@ export class RepositoryState {
 				`${id} changed on disk since it was read, so it was left as it is and read again.`
 			);
 		} else {
+			const missed = await this.#describe(extras.tags);
 			// Undo is offered while the last write can still be taken back.
-			this.notice = { text: `${id}: ${what}.`, failed: false, undoable: this.#written !== null };
+			this.notice = {
+				text: [`${id}: ${what}.`, missed].filter(Boolean).join(' '),
+				failed: missed !== null,
+				undoable: this.#written !== null
+			};
 		}
 		await this.refresh();
 		return answer === 'written';

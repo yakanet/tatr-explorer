@@ -14,7 +14,7 @@ import { collectAttachments } from '../tatr/attachments.ts';
 import { comparedWith, type Replaced, type Snapshot } from '../tatr/changes.ts';
 import { readTask, taskPath, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
-import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
+import { parseTagsFile, TAGS_FILE, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
 import { isCached, isRereadable } from './capabilities.ts';
 import { SourceError, type Listing, type Source } from './contract.ts';
@@ -196,14 +196,18 @@ async function readTagsFile(
 	listing: Listing,
 	signal?: AbortSignal
 ): Promise<string | null> {
-	if (!listing.entries.some((entry) => entry.path === 'tasks/tags')) return null;
-	return source.read('tasks/tags', signal);
+	if (!listing.entries.some((entry) => entry.path === TAGS_FILE)) {
+		return null;
+	}
+	return source.read(TAGS_FILE, signal);
 }
 
 /** Reads one task's description on demand, for the detail view, as the cache does not keep it. */
 export async function loadTaskDescription(source: Source, id: string): Promise<string | null> {
 	const text = await source.read(taskPath(id));
 	// Only an unreadable file gives null: an empty one has an empty description.
-	if (text === null) return null;
+	if (text === null) {
+		return null;
+	}
 	return parseTaskMd(text).description;
 }

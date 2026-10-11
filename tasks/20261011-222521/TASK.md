@@ -1,8 +1,8 @@
 # Describe a new tag in `tasks/tags`
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 54
-- TAGS: ui,format,scope
+- TAGS: ui,format
 
 The tags field of the editing sheet offers the repository's tags with their
 descriptions. A tag typed there that no task uses and `tasks/tags` does not
@@ -24,3 +24,21 @@ byte.
 
 Done when the tags file read back describes the new tag, with every line that
 was there unchanged.
+
+---
+
+A tag of the draft is new when no task carries it and `tasks/tags` does not
+describe it (`newTags`); each gets a "what it means" field under the tags, on a
+task's page and on the new task's page alike.
+
+Save writes the task's file first, then `describedTagsFile` appends the lines
+to the text read just before, through `write` with that text expected, or
+with null where the repository has none. The task's file comes first because
+that is the write the reader is asked to allow; it is written even unchanged
+when there are tags to describe, so that the question comes before anything
+else. A description that cannot be written does not undo the save: the notice
+says it was saved, then why the tags were not described.
+
+Undo still takes back the task's file alone; a description written stays. Both
+pages now hold a `Sheet`, its draft and these descriptions, which the images of
+20261011-222522 are to join.

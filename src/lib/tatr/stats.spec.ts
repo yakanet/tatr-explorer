@@ -7,6 +7,7 @@ import {
 	byTag,
 	counts,
 	monthName,
+	newTags,
 	summarise,
 	topByPriority
 } from './stats.ts';
@@ -232,5 +233,13 @@ describe('summarise', () => {
 
 	it('says "1 task", not "1 tasks"', () => {
 		expect(summarise([makeTask('20260901-000001', 100, ['bug'])]).lead).toBe('1 task still open');
+	});
+});
+
+describe('newTags', () => {
+	it('keeps the tags no task carries and tasks/tags does not describe', () => {
+		const tasks = [makeTask('20260101-000001', 100, ['ui'])];
+		const descriptions = new Map([['data', 'fetching']]);
+		expect(newTags(['ui', 'data', 'fresh'], tasks, descriptions)).toEqual(['fresh']);
 	});
 });

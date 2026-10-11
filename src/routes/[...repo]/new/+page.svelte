@@ -7,23 +7,20 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { listHref, taskHref, taskLinks } from '#lib/repo/hrefs.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
+	import { Sheet } from '#lib/state/sheet.svelte.ts';
 	import { askBeforeLeaving } from '#lib/state/unsaved.ts';
-	import { tagOptions } from '#lib/tatr/stats.ts';
-	import { differing, NEW_TASK, UNTITLED, type TaskFields } from '#lib/tatr/task-fields.ts';
+	import { NEW_TASK, UNTITLED } from '#lib/tatr/task-fields.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
 
-	let draft = $state<TaskFields>({ ...NEW_TASK, tags: [] });
+	const sheet = new Sheet(NEW_TASK, repo);
 	let saving = $state(false);
 	/** True once the draft is created or given up, so that leaving asks nothing. */
 	let settled = false;
 	/** Where the reader came from, which Cancel goes back to. */
 	let back: string | null = null;
-
-	const dirty = $derived(differing(NEW_TASK, draft).length > 0);
-	const known = $derived(tagOptions(repo.tasks, repo.tags.descriptions));
 
 	// The id is the clock's at Save, so the preview has none to resolve images from.
 	const options = $derived({
@@ -35,7 +32,7 @@
 	async function save() {
 		if (saving) return;
 		saving = true;
-		const id = await repo.create($state.snapshot(draft));
+		const id = await repo.create($state.snapshot(sheet.draft), sheet.extras());
 		saving = false;
 		if (id === null) return;
 		settled = true;
@@ -51,7 +48,7 @@
 		if (from) back = from.url.pathname + from.url.search;
 	});
 
-	askBeforeLeaving(() => dirty && !settled, 'Leave this new task without saving it?');
+	askBeforeLeaving(() => sheet.dirty && !settled, 'Leave this new task without saving it?');
 </script>
 
 <svelte:head>
@@ -72,7 +69,7 @@
 		</section>
 	{:else}
 		<EditSheet
-			bind:fields={draft}
+			bind:fields={sheet.draft}
 			saveable
 			{saving}
 			untitled={UNTITLED}
@@ -81,7 +78,13 @@
 			oncancel={cancel}
 		/>
 		<aside>
-			<Properties {known} bind:fields={draft} creating />
+			<Properties
+				known={sheet.known}
+				fresh={sheet.fresh}
+				bind:fields={sheet.draft}
+				bind:described={sheet.described}
+				creating
+			/>
 		</aside>
 	{/if}
 </main>

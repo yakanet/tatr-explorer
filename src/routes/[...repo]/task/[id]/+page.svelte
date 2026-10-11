@@ -12,9 +12,9 @@
 	import { listHref, taskLinks } from '#lib/repo/hrefs.ts';
 	import { loadTaskDescription } from '#lib/sources/load.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
+	import { Sheet } from '#lib/state/sheet.svelte.ts';
 	import { askBeforeLeaving } from '#lib/state/unsaved.ts';
-	import { differing, fieldsOf, withFields, type TaskFields } from '#lib/tatr/task-fields.ts';
-	import { tagOptions } from '#lib/tatr/stats.ts';
+	import { differing, fieldsOf, withFields } from '#lib/tatr/task-fields.ts';
 	import { taskPath } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
@@ -59,8 +59,8 @@
 		taskUrl: taskLinks(ref, repo.tasks, id)
 	});
 
-	/** The editing sheet: the fields it was opened on, and the draft. Null while the task is read. */
-	let sheet = $state<{ opened: TaskFields; draft: TaskFields } | null>(null);
+	/** The editing sheet, or null while the task is read. */
+	let sheet = $state.raw<Sheet | null>(null);
 	let saving = $state(false);
 
 	/** The fields of the reading on screen, which a sheet opens on. */
@@ -68,7 +68,7 @@
 		if (!task || body === null) return null;
 		return fieldsOf({ title: task.title, properties: task.properties, body });
 	});
-	const dirty = $derived(sheet !== null && differing(sheet.opened, sheet.draft).length > 0);
+	const dirty = $derived(sheet !== null && sheet.dirty);
 	const moved = $derived(
 		sheet !== null && current !== null && differing(sheet.opened, current).length > 0
 	);
@@ -76,21 +76,16 @@
 	/** Opens the editing sheet, or is undefined where the task cannot be edited. */
 	const onedit = $derived.by(() => {
 		if (!task || !repo.canEdit(task) || !current) return undefined;
-		return () => (sheet = { opened: current, draft: { ...current } });
-	});
-
-	/** The repository's tags, which the tags field offers; only a sheet needs them. */
-	const known = $derived.by(() => {
-		if (!sheet) return [];
-		return tagOptions(repo.tasks, repo.tags.descriptions);
+		return () => (sheet = new Sheet(current, repo));
 	});
 
 	async function save() {
 		if (!sheet || saving) return;
 		saving = true;
 		// The draft as it stands now: what is typed during the save is not written.
-		const { opened, draft } = $state.snapshot(sheet);
-		const saved = await repo.edit(id, withFields(opened, draft), 'saved');
+		const draft = $state.snapshot(sheet.draft);
+		const edit = withFields(sheet.opened, draft);
+		const saved = await repo.edit(id, edit, 'saved', sheet.extras());
 		saving = false;
 		if (saved) sheet = null;
 	}
@@ -134,7 +129,13 @@
 
 		<aside>
 			{#if sheet}
-				<Properties properties={task.properties} {known} bind:fields={sheet.draft} />
+				<Properties
+					properties={task.properties}
+					known={sheet.known}
+					fresh={sheet.fresh}
+					bind:fields={sheet.draft}
+					bind:described={sheet.described}
+				/>
 			{:else}
 				<Properties properties={task.properties} />
 			{/if}
