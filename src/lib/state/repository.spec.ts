@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { entryTree, fileList } from '#tests/support/fake-directory.ts';
+import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { parseRepoPath } from '../sources/open.ts';
 import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
-import { readTask, type Task } from '../tatr/task.ts';
+import type { Task } from '../tatr/task.ts';
 
 const NOW = 1_000_000_000;
 const ago = (ms: number) => describeAge(NOW - ms, NOW);
@@ -30,9 +31,6 @@ describe('describeAge', () => {
 	});
 });
 
-const make = (id: string, priority: number, closed = false): Task =>
-	readTask(id, `# t\n\n- STATUS: ${closed ? 'CLOSED' : 'OPEN'}\n- PRIORITY: ${priority}\n`)!;
-
 /** A state holding one reading and, optionally, the one before it. */
 const reading = (tasks: Task[], previous: Task[] | null, when = 1_000) => {
 	const repo = new RepositoryState();
@@ -42,7 +40,7 @@ const reading = (tasks: Task[], previous: Task[] | null, when = 1_000) => {
 };
 
 describe('what moved since the last reading', () => {
-	const open = make('20260101-000001', 90);
+	const open = makeTask('20260101-000001', 90);
 
 	it('is null with nothing behind it, as on a first visit', () => {
 		expect(reading([open], null).changes).toBeNull();
@@ -53,7 +51,7 @@ describe('what moved since the last reading', () => {
 	});
 
 	it('reports what moved, against the time it is comparing with', () => {
-		const changes = reading([make('20260101-000001', 90, true)], [open], 5_000).changes;
+		const changes = reading([makeTask('20260101-000001', 90, [], true)], [open], 5_000).changes;
 		expect(changes?.total).toBe(1);
 		expect(changes?.since).toBe(5_000);
 		expect(changes?.moved.get('20260101-000001')).toEqual(['closed']);
@@ -251,7 +249,7 @@ describe('a refresh that fails', () => {
 	it('leaves the comparison with the reading it belongs to', async () => {
 		const repo = new RepositoryState();
 		await repo.load(await picked());
-		repo.previous = snapshot([make('20260101-000001', 50)], 5_000);
+		repo.previous = snapshot([makeTask('20260101-000001', 50)], 5_000);
 
 		delete disk[TASK];
 		await repo.refresh();

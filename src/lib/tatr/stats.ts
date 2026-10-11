@@ -6,6 +6,7 @@
  * no burndown or cycle time, and the activity series counts creations split by
  * current status.
  */
+import { counted, plural } from '../plural.ts';
 import type { Task } from './task.ts';
 
 export interface Counts {
@@ -64,6 +65,10 @@ export interface MonthBucket {
 	closed: number;
 }
 
+function isDated(task: Task): task is Task & { created: Date } {
+	return task.created !== null;
+}
+
 /**
  * Counts creations per month, from the first month with any to the last,
  * including empty months, because repositories are written in bursts and
@@ -73,7 +78,7 @@ export interface MonthBucket {
  * counted everywhere else.
  */
 export function byMonth(tasks: Task[]): MonthBucket[] {
-	const dated = tasks.flatMap(({ created, closed }) => (created ? [{ created, closed }] : []));
+	const dated = tasks.filter(isDated);
 	if (dated.length === 0) return [];
 
 	const key = (date: Date) =>
@@ -144,6 +149,12 @@ export interface Summary {
 	detail: string | null;
 }
 
+function leadClause(open: number, total: number): string {
+	if (total === 0) return 'No tasks here yet';
+	if (open === 0) return `Nothing left open, out of ${total}`;
+	return `${counted(open, 'task', 'tasks')} still open`;
+}
+
 /**
  * States a repository's condition in one sentence: a lead clause, then the one
  * fact that stands out, if any.
@@ -157,13 +168,7 @@ export interface Summary {
  */
 export function summarise(tasks: Task[], now = new Date()): Summary {
 	const { open, closed, total } = counts(tasks);
-
-	const lead =
-		total === 0
-			? 'No tasks here yet'
-			: open === 0
-				? `Nothing left open, out of ${total}`
-				: `${open} task${open === 1 ? '' : 's'} still open`;
+	const lead = leadClause(open, total);
 
 	if (total === 0) return { lead, leadCount: 0, detail: null };
 
@@ -172,7 +177,7 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 		return {
 			lead,
 			leadCount: open,
-			detail: `${closed} of the ${total} ${closed === 1 ? 'is' : 'are'} already closed`
+			detail: `${closed} of the ${total} ${plural(closed, 'is', 'are')} already closed`
 		};
 	}
 

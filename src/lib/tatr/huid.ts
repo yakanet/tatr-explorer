@@ -29,15 +29,8 @@ export function isValidHuid(id: string): boolean {
 	return HUID.test(id);
 }
 
-/**
- * Parses a task id, or returns `null` when the name is not a HUID. An id whose
- * digits form no real instant, such as `20260231-000000`, has a null `created`.
- */
-export function parseHuid(id: string): Huid | null {
-	const match = HUID.exec(id);
-	if (!match) return null;
-
-	const [, date, time, suffix] = match;
+/** Reads an id's digits as a UTC instant, or returns `null` when they form no real one. */
+function creationInstant(date: string, time: string): Date | null {
 	const year = Number(date.slice(0, 4));
 	const month = Number(date.slice(4, 6));
 	const day = Number(date.slice(6, 8));
@@ -47,9 +40,22 @@ export function parseHuid(id: string): Huid | null {
 
 	const instant = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
 	// Date.UTC rolls invalid components over, so round-trip to tell them apart.
-	const created = formatHuid(instant) === `${date}-${time}` ? instant : null;
+	if (formatHuid(instant) !== `${date}-${time}`) return null;
+	return instant;
+}
 
-	return suffix ? { id, created, suffix } : { id, created };
+/**
+ * Parses a task id, or returns `null` when the name is not a HUID. An id whose
+ * digits form no real instant, such as `20260231-000000`, has a null `created`.
+ */
+export function parseHuid(id: string): Huid | null {
+	const match = HUID.exec(id);
+	if (!match) return null;
+
+	const [, date, time, suffix] = match;
+	const huid: Huid = { id, created: creationInstant(date, time) };
+	if (suffix) huid.suffix = suffix;
+	return huid;
 }
 
 /**
@@ -76,7 +82,8 @@ const AT_CURSOR = /\d{8}-(?:\d{6}(?:-[A-Za-z0-9-]*)?|\d{0,5}$)/y;
  */
 function chopHuid(text: string, start: number): number {
 	AT_CURSOR.lastIndex = start;
-	return AT_CURSOR.test(text) ? AT_CURSOR.lastIndex : -1;
+	if (!AT_CURSOR.test(text)) return -1;
+	return AT_CURSOR.lastIndex;
 }
 
 /** Where an id sits in the text it was read from: `[start, end)`. */
@@ -120,5 +127,6 @@ export function formatHuid(date: Date, suffix?: string): string {
 	const stamp =
 		`${pad(date.getUTCFullYear(), 4)}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
 		`-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`;
-	return suffix ? `${stamp}-${suffix}` : stamp;
+	if (suffix) return `${stamp}-${suffix}`;
+	return stamp;
 }

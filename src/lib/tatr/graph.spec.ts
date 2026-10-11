@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cliEdges from '#tests/fixtures/tatr-graph-edges.json' with { type: 'json' };
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { buildGraph, starCards } from './graph.ts';
+import { buildGraph, starCards, type StarCard } from './graph.ts';
 import { readTask, type Task } from './task.ts';
 
 /**
@@ -129,16 +129,20 @@ describe('buildGraph', () => {
 	});
 });
 
+/** Lists the links a card draws, each as its two ids sorted, a self-citation included. */
+function linksDrawn(card: StarCard): string[] {
+	const links = card.links.map((link) => [card.pivot.id, link.task.id].sort().join(' '));
+	if (card.self) links.push(`${card.pivot.id} ${card.pivot.id}`);
+	return links;
+}
+
 describe('star cards', () => {
 	const graph = buildGraph(all);
 	const cards = starCards(graph);
 	const around = (card: (typeof cards)[number]) => card.links.map((link) => link.task);
 
 	it('draws every link exactly once', () => {
-		const drawn = cards.flatMap((card) => [
-			...around(card).map((other) => [card.pivot.id, other.id].sort().join(' ')),
-			...(card.self ? [`${card.pivot.id} ${card.pivot.id}`] : [])
-		]);
+		const drawn = cards.flatMap(linksDrawn);
 		expect(new Set(drawn).size).toBe(drawn.length);
 		expect(drawn).toHaveLength(graph.clusters.reduce((n, cluster) => n + cluster.edges.length, 0));
 	});

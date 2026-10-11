@@ -28,9 +28,8 @@ describe('conformance with the tatr CLI', () => {
 		'`tatr ls$closedFlag $query` selects the same tasks',
 		({ query, closed, ids }) => {
 			const matches = compile(query);
-			// `tatr ls` shows open tasks unless -c is passed; the query runs on top.
 			const selected = tasks
-				.filter((task) => (closed ? task.status === 'CLOSED' : task.status !== 'CLOSED'))
+				.filter((task) => (task.status === 'CLOSED') === closed)
 				.filter((task) => matches(task))
 				.map((task) => task.id)
 				.sort();

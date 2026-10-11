@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import { makeTask } from '#tests/support/tasks.ts';
 import { byMonth, byPriority, byTag, counts, summarise, topByPriority } from './stats.ts';
-import { readTask, type Task } from './task.ts';
+import { readTask } from './task.ts';
 
 const sources = rawTasks as Record<string, string>;
 const all = Object.entries(sources).map(([id, source]) => readTask(id, source)!);
 const open = all.filter((task) => !task.closed);
-
-const make = (id: string, priority: number, tags: string[], closed = false): Task =>
-	readTask(
-		id,
-		`# t\n\n- STATUS: ${closed ? 'CLOSED' : 'OPEN'}\n- PRIORITY: ${priority}\n- TAGS: ${tags.join(',')}\n`
-	)!;
 
 describe('counts', () => {
 	it('matches the real repository', () => {
@@ -43,7 +38,7 @@ describe('byPriority', () => {
 	});
 
 	it('shows whatever priorities a repository actually uses', () => {
-		expect(byPriority([make('20260101-000001', 7, []), make('20260101-000002', 3, [])])).toEqual([
+		expect(byPriority([makeTask('20260101-000001', 7), makeTask('20260101-000002', 3)])).toEqual([
 			{ priority: 7, count: 1 },
 			{ priority: 3, count: 1 }
 		]);
@@ -66,12 +61,15 @@ describe('byTag', () => {
 	});
 
 	it('breaks ties alphabetically, so the order is stable', () => {
-		const tasks = [make('20260101-000001', 100, ['b']), make('20260101-000002', 100, ['a'])];
+		const tasks = [
+			makeTask('20260101-000001', 100, ['b']),
+			makeTask('20260101-000002', 100, ['a'])
+		];
 		expect(byTag(tasks).map((t) => t.tag)).toEqual(['a', 'b']);
 	});
 
 	it('is empty when nothing is tagged', () => {
-		expect(byTag([make('20260101-000001', 100, [])])).toEqual([]);
+		expect(byTag([makeTask('20260101-000001', 100)])).toEqual([]);
 	});
 });
 
@@ -93,12 +91,12 @@ describe('byMonth', () => {
 	});
 
 	it('keeps empty months rather than skipping them', () => {
-		const months = byMonth([make('20260101-000001', 100, []), make('20260401-000001', 100, [])]);
+		const months = byMonth([makeTask('20260101-000001', 100), makeTask('20260401-000001', 100)]);
 		expect(months.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03', '2026-04']);
 	});
 
 	it('spans a year boundary', () => {
-		const months = byMonth([make('20251201-000001', 100, []), make('20260201-000001', 100, [])]);
+		const months = byMonth([makeTask('20251201-000001', 100), makeTask('20260201-000001', 100)]);
 		expect(months.map((m) => m.month)).toEqual(['2025-12', '2026-01', '2026-02']);
 	});
 
@@ -107,9 +105,9 @@ describe('byMonth', () => {
 	});
 
 	it('leaves out a task whose id is no real instant, and says nothing of it', () => {
-		const months = byMonth([make('20260101-000001', 100, []), make('20260231-000000', 100, [])]);
+		const months = byMonth([makeTask('20260101-000001', 100), makeTask('20260231-000000', 100)]);
 		expect(months).toEqual([{ month: '2026-01', open: 1, closed: 0 }]);
-		expect(byMonth([make('20260231-000000', 100, [])])).toEqual([]);
+		expect(byMonth([makeTask('20260231-000000', 100)])).toEqual([]);
 	});
 
 	it('sums to the number of tasks', () => {
@@ -155,9 +153,9 @@ describe('summarise', () => {
 
 	it('leads with progress once a third is closed, in whole tasks and in agreement', () => {
 		const tasks = [
-			make('20260801-000001', 100, ['bug'], true),
-			make('20260901-000001', 100, ['bug']),
-			make('20260901-000002', 100, ['bug'])
+			makeTask('20260801-000001', 100, ['bug'], true),
+			makeTask('20260901-000001', 100, ['bug']),
+			makeTask('20260901-000002', 100, ['bug'])
 		];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
 			'1 of the 3 is already closed'
@@ -165,7 +163,7 @@ describe('summarise', () => {
 	});
 
 	it('does not repeat the lead when everything is closed', () => {
-		const tasks = [make('20260901-000001', 100, ['bug'], true)];
+		const tasks = [makeTask('20260901-000001', 100, ['bug'], true)];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z'))).toEqual({
 			lead: 'Nothing left open, out of 1',
 			leadCount: 0,
@@ -175,10 +173,10 @@ describe('summarise', () => {
 
 	it('names the month a burst came in', () => {
 		const tasks = [
-			make('20260101-000001', 100, ['bug']),
-			make('20260301-000001', 100, ['bug']),
-			make('20260301-000002', 100, ['bug']),
-			make('20260301-000003', 100, ['bug'])
+			makeTask('20260101-000001', 100, ['bug']),
+			makeTask('20260301-000001', 100, ['bug']),
+			makeTask('20260301-000002', 100, ['bug']),
+			makeTask('20260301-000003', 100, ['bug'])
 		];
 		expect(summarise(tasks, new Date('2026-04-01T00:00:00Z')).detail).toBe(
 			'3 were created in March 2026 alone'
@@ -186,30 +184,39 @@ describe('summarise', () => {
 	});
 
 	it('names no month when two share the most', () => {
-		const tasks = [make('20260101-000001', 100, ['bug']), make('20260301-000001', 100, ['bug'])];
+		const tasks = [
+			makeTask('20260101-000001', 100, ['bug']),
+			makeTask('20260301-000001', 100, ['bug'])
+		];
 		expect(summarise(tasks, new Date('2026-04-01T00:00:00Z')).detail).toBeNull();
 	});
 
 	it('names the month a quiet repository stopped at, not a duration', () => {
-		const tasks = [make('20260101-000001', 100, ['bug']), make('20260201-000001', 100, ['bug'])];
+		const tasks = [
+			makeTask('20260101-000001', 100, ['bug']),
+			makeTask('20260201-000001', 100, ['bug'])
+		];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
 			'the latest arrived in February 2026'
 		);
 	});
 
 	it('says nothing rather than inventing an observation', () => {
-		const tasks = [make('20260801-000001', 100, ['bug']), make('20260901-000001', 100, ['bug'])];
+		const tasks = [
+			makeTask('20260801-000001', 100, ['bug']),
+			makeTask('20260901-000001', 100, ['bug'])
+		];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBeNull();
 	});
 
 	it('handles an empty repository and one with nothing open', () => {
 		expect(summarise([]).lead).toBe('No tasks here yet');
-		expect(summarise([make('20260901-000001', 100, ['bug'], true)]).lead).toBe(
+		expect(summarise([makeTask('20260901-000001', 100, ['bug'], true)]).lead).toBe(
 			'Nothing left open, out of 1'
 		);
 	});
 
 	it('says "1 task", not "1 tasks"', () => {
-		expect(summarise([make('20260901-000001', 100, ['bug'])]).lead).toBe('1 task still open');
+		expect(summarise([makeTask('20260901-000001', 100, ['bug'])]).lead).toBe('1 task still open');
 	});
 });

@@ -20,7 +20,8 @@
 export function folderAccess(): 'picker' | 'input' | 'none' {
 	if (typeof window === 'undefined') return 'none';
 	if (typeof window.showDirectoryPicker === 'function') return 'picker';
-	return 'webkitdirectory' in document.createElement('input') ? 'input' : 'none';
+	if ('webkitdirectory' in document.createElement('input')) return 'input';
+	return 'none';
 }
 
 /**
@@ -95,10 +96,11 @@ export function fromFileList(list: ArrayLike<File>): LocalFolder | null {
 
 	if (!name) return null;
 	// The rest of the viewer expects every task under `tasks/`.
-	const tasks = looksLikeTasksFolder(inside.keys());
+	let prefix = '';
+	if (looksLikeTasksFolder(inside.keys())) prefix = 'tasks/';
 	const files = new Map<string, File>();
 	for (const [path, file] of inside) {
-		const full = tasks ? `tasks/${path}` : path;
+		const full = `${prefix}${path}`;
 		if (isWorthKeeping(full)) files.set(full, file);
 	}
 

@@ -56,9 +56,8 @@ const SIMPLE: Record<string, Action> = {
  */
 export function press(key: string, pending: Pending = NOTHING_PENDING): Pressed {
 	if (pending.sequence === 'g') {
-		return key === 'g'
-			? { action: { kind: 'first' }, pending: NOTHING_PENDING }
-			: { action: null, pending: NOTHING_PENDING };
+		if (key === 'g') return { action: { kind: 'first' }, pending: NOTHING_PENDING };
+		return { action: null, pending: NOTHING_PENDING };
 	}
 
 	if (key === 'g') return { action: null, pending: { sequence: 'g' } };

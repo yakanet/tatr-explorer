@@ -4,7 +4,8 @@
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { renderInline } from '#lib/render/markdown.ts';
-	import { buildGraph, starCards, type StarCard } from '#lib/tatr/graph.ts';
+	import { counted, plural } from '#lib/plural.ts';
+	import { buildGraph, starCards, type StarCard, type StarLink } from '#lib/tatr/graph.ts';
 	import type { Task } from '#lib/tatr/task.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
@@ -18,7 +19,10 @@
 	const cards = $derived(starCards(graph));
 
 	/** The number of links a card holds, counting the pivot citing itself. */
-	const linksOf = (card: StarCard) => card.links.length + (card.self ? 1 : 0);
+	function linksOf(card: StarCard) {
+		if (card.self) return card.links.length + 1;
+		return card.links.length;
+	}
 	/** The link count of each pivot's card, shown on a neighbour that leads to it. */
 	const held = $derived(new Map(cards.map((card) => [card.pivot.id, linksOf(card)])));
 
@@ -67,14 +71,29 @@
 		const ux = dx / length;
 		const uy = dy / length;
 		const forward = head(to, ux, uy);
-		const back = both ? head(from, -ux, -uy) : null;
-		return {
-			x1: back ? back.x : from.x + ux * (from.r + 2),
-			y1: back ? back.y : from.y + uy * (from.r + 2),
+		const line = {
+			x1: from.x + ux * (from.r + 2),
+			y1: from.y + uy * (from.r + 2),
 			x2: forward.x,
 			y2: forward.y,
-			heads: back ? [forward.points, back.points] : [forward.points]
+			heads: [forward.points]
 		};
+		if (!both) return line;
+		const back = head(from, -ux, -uy);
+		return { ...line, x1: back.x, y1: back.y, heads: [...line.heads, back.points] };
+	}
+
+	/** The spoke between the pivot and a neighbour, drawn from the citing task to the cited one. */
+	function spokeOf(pivot: Point, at: Point, kind: StarLink['kind']) {
+		if (kind === 'in') return spoke(at, pivot, false);
+		return spoke(pivot, at, kind === 'both');
+	}
+
+	/** The angle of neighbour `i` of `count` on the ring. */
+	function angleOf(i: number, count: number) {
+		// A lone neighbour sits on the right, where a reader looks next.
+		if (count === 1) return 0;
+		return Math.PI + (i * 2 * Math.PI) / count;
 	}
 
 	/**
@@ -89,14 +108,13 @@
 		const pivot: Point = { x: SIZE / 2, y: SIZE / 2, r: PIVOT_R };
 		const count = card.links.length;
 		const nodes = card.links.map(({ task, kind }, i) => {
-			// A lone neighbour sits on the right, where a reader looks next.
-			const angle = count === 1 ? 0 : Math.PI + (i * 2 * Math.PI) / count;
+			const angle = angleOf(i, count);
 			const at: Point = {
 				x: pivot.x + RING * Math.cos(angle),
 				y: pivot.y + RING * Math.sin(angle),
 				r: NODE_R
 			};
-			const line = kind === 'in' ? spoke(at, pivot, false) : spoke(pivot, at, kind === 'both');
+			const line = spokeOf(pivot, at, kind);
 			return { task, kind, at, line };
 		});
 		return { pivot, nodes };
@@ -121,9 +139,10 @@
 		(lit = { card: card.pivot.id, task: task.id });
 	const unlight = () => (lit = null);
 	/** The lit task in this card, or null. */
-	const litIn = (card: StarCard) => (lit?.card === card.pivot.id ? lit.task : null);
-
-	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+	function litIn(card: StarCard) {
+		if (lit?.card === card.pivot.id) return lit.task;
+		return null;
+	}
 </script>
 
 <svelte:head>
@@ -139,8 +158,8 @@
 				{#if cards.length === 0}
 					<span class="highlight">No task cites another</span>
 				{:else}
-					<span class="highlight">{plural(graph.linkCount, 'citation', 'citations')}</span>
-					around {plural(cards.length, 'task', 'tasks')}.
+					<span class="highlight">{counted(graph.linkCount, 'citation', 'citations')}</span>
+					around {counted(cards.length, 'task', 'tasks')}.
 				{/if}
 			</h1>
 			<!-- Each card shows only one task's links, so the masthead states how
@@ -148,12 +167,13 @@
 			{#if repo.tasks.length > 0}
 				<p class="aside">
 					{#if graph.clusters.length > 0}
-						The linked tasks form {plural(graph.clusters.length, 'group', 'groups')}, the largest of
+						The linked tasks form {counted(graph.clusters.length, 'group', 'groups')}, the largest
+						of
 						{graph.clusters[0].nodes.length}.
 					{/if}
 					{#if graph.isolated.length > 0}
-						{plural(graph.isolated.length, 'task cites', 'tasks cite')} nobody and
-						{graph.isolated.length === 1 ? 'is' : 'are'} cited by nobody.
+						{counted(graph.isolated.length, 'task cites', 'tasks cite')} nobody and
+						{plural(graph.isolated.length, 'is', 'are')} cited by nobody.
 					{/if}
 				</p>
 			{/if}
@@ -211,7 +231,7 @@
 							>
 						</h2>
 						<p class="meta">
-							<code class="id">{card.pivot.id}</code> · {plural(linksOf(card), 'link', 'links')} here
+							<code class="id">{card.pivot.id}</code> · {counted(linksOf(card), 'link', 'links')} here
 						</p>
 						<ol>
 							{#each draw.nodes as node, i (node.task.id)}
@@ -236,7 +256,7 @@
 											<a
 												class="jump"
 												href="#{anchor(node.task.id)}"
-												title="Its own card, with {plural(
+												title="Its own card, with {counted(
 													held.get(node.task.id)!,
 													'link',
 													'links'

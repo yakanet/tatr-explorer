@@ -6,6 +6,7 @@
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { formatRepoPath, parseRepoInput } from '#lib/repo/ref.ts';
+	import { counted } from '#lib/plural.ts';
 	import { toSuggestions, type CachedShape, type Suggestion } from '#lib/repo/recent.ts';
 	import { SERVED } from '#lib/sources/served/enabled.ts';
 	import { SERVED_PATH } from '#lib/sources/served/source.ts';
@@ -31,9 +32,16 @@
 
 	let helping = $state(false);
 
+	/** The step an arrow key takes along the tabs, or 0 for any other key. */
+	function stepOf(key: string) {
+		if (key === 'ArrowRight') return 1;
+		if (key === 'ArrowLeft') return -1;
+		return 0;
+	}
+
 	/** Moves between tabs with the arrow keys, as the ARIA tab pattern expects. */
 	function move(event: KeyboardEvent) {
-		const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+		const step = stepOf(event.key);
 		if (step === 0) return;
 		event.preventDefault();
 		const at = WHERE.findIndex((option) => option.id === where);
@@ -42,6 +50,13 @@
 		// The focus follows the selection, as it does in a tab list.
 		document.getElementById(`tab-${next.id}`)?.focus();
 	}
+
+	/** Puts only the selected tab in the tab order, since the arrow keys move between tabs. */
+	function tabindexOf(id: string) {
+		if (where === id) return 0;
+		return -1;
+	}
+
 	let suggestions = $state<Suggestion[]>([]);
 
 	/**
@@ -79,8 +94,9 @@
 	/** Describes a suggestion, such as "64 tasks, 23 still open", or why the fallback is offered. */
 	function describe(one: Suggestion): string {
 		if (one.storedAt === null) return "This viewer's own backlog";
-		const tasks = `${one.total} ${one.total === 1 ? 'task' : 'tasks'}`;
-		return one.open === 0 ? `${tasks}, all closed` : `${tasks}, ${one.open} still open`;
+		const tasks = counted(one.total, 'task', 'tasks');
+		if (one.open === 0) return `${tasks}, all closed`;
+		return `${tasks}, ${one.open} still open`;
 	}
 </script>
 
@@ -121,7 +137,7 @@
 				id="tab-{option.id}"
 				aria-selected={where === option.id}
 				aria-controls="panel-{option.id}"
-				tabindex={where === option.id ? 0 : -1}
+				tabindex={tabindexOf(option.id)}
 				onclick={() => (where = option.id)}
 				onkeydown={move}
 			>
@@ -222,7 +238,9 @@
 
 	{#if suggestions.length > 0}
 		<section class="recent">
-			<h2>{suggestions[0].storedAt === null ? 'Try it on' : 'Already read'}</h2>
+			<h2>
+				{#if suggestions[0].storedAt === null}Try it on{:else}Already read{/if}
+			</h2>
 			<ul>
 				{#each suggestions as one (one.path)}
 					<li>

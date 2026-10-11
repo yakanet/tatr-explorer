@@ -119,7 +119,10 @@ describe('task ids in a body', () => {
 	const KNOWN = new Set(['20260907-011003', '20260826-200847', '20260907-011003-b']);
 	const linking = {
 		...options,
-		taskUrl: (id: string) => (id !== options.taskId && KNOWN.has(id) ? `/base/t/${id}` : null)
+		taskUrl: (id: string): string | null => {
+			if (id !== options.taskId && KNOWN.has(id)) return `/base/t/${id}`;
+			return null;
+		}
 	};
 	const link = (source: string) => renderMarkdown(source, linking);
 

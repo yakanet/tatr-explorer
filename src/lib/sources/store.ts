@@ -170,7 +170,8 @@ function persistentStore(): RepoStore {
 			const handle = await database();
 			if (!handle) return fallback.read<T>(key);
 			const stored = await transact('readonly', (store) => request<unknown>(store.get(key)));
-			return isStored<T>(stored) ? stored : null;
+			if (isStored<T>(stored)) return stored;
+			return null;
 		},
 
 		async write<T>(key: string, value: T, now = Date.now()) {
@@ -188,11 +189,10 @@ function persistentStore(): RepoStore {
 
 			// `flatMap` rather than a filter and a map, so the guard's narrowing reaches the mapping.
 			return rows
-				.flatMap(({ key, value }) =>
-					isStored<T>(value)
-						? [{ key: String(key), value: value.value, storedAt: value.storedAt }]
-						: []
-				)
+				.flatMap(({ key, value }) => {
+					if (!isStored<T>(value)) return [];
+					return [{ key: String(key), value: value.value, storedAt: value.storedAt }];
+				})
 				.sort(newestFirst);
 		},
 
@@ -206,9 +206,10 @@ function persistentStore(): RepoStore {
 		async clear(key?: string) {
 			const handle = await database();
 			if (!handle) return fallback.clear(key);
-			await transact('readwrite', (store) =>
-				request(key === undefined ? store.clear() : store.delete(key))
-			);
+			await transact('readwrite', (store) => {
+				if (key === undefined) return request(store.clear());
+				return request(store.delete(key));
+			});
 		}
 	};
 }

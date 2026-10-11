@@ -28,6 +28,14 @@ export interface Column {
 	total: number;
 }
 
+function columnOf(task: Task): ColumnKey {
+	// A closed task goes to done even if still tagged `scope`, so each card
+	// lands in exactly one column.
+	if (task.closed) return 'done';
+	if (task.tags.includes(IN_PROGRESS)) return 'progress';
+	return 'backlog';
+}
+
 /**
  * Sorts tasks into the three columns.
  *
@@ -46,13 +54,7 @@ export function toColumns(
 	const totals = { backlog: 0, progress: 0, done: 0 };
 
 	for (const task of tasks) {
-		// A closed task goes to done even if still tagged `scope`, so each card
-		// lands in exactly one column.
-		const key: ColumnKey = task.closed
-			? 'done'
-			: task.tags.includes(IN_PROGRESS)
-				? 'progress'
-				: 'backlog';
+		const key = columnOf(task);
 		totals[key] += 1;
 		if (!matches(task)) continue;
 

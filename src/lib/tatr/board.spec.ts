@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import { makeTask } from '#tests/support/tasks.ts';
 import { IN_PROGRESS, toColumns } from './board.ts';
 import { readTask, type Task } from './task.ts';
 
 const sources = rawTasks as Record<string, string>;
 const all = Object.entries(sources).map(([id, source]) => readTask(id, source)!);
-
-const make = (id: string, priority: number, tags: string[], closed = false): Task =>
-	readTask(
-		id,
-		`# ${id}\n\n- STATUS: ${closed ? 'CLOSED' : 'OPEN'}\n- PRIORITY: ${priority}\n- TAGS: ${tags.join(',')}\n`
-	)!;
 
 const ids = (tasks: Task[]) => tasks.map((task) => task.id);
 
@@ -30,12 +25,14 @@ describe('toColumns', () => {
 	});
 
 	it('puts a task carrying the tag in progress', () => {
-		const [, progress] = toColumns([make('20260101-000001', 90, [IN_PROGRESS, 'ui'])]);
+		const [, progress] = toColumns([makeTask('20260101-000001', 90, [IN_PROGRESS, 'ui'])]);
 		expect(ids(progress.tasks)).toEqual(['20260101-000001']);
 	});
 
 	it('counts a closed task as done even when still tagged', () => {
-		const [backlog, progress, done] = toColumns([make('20260101-000001', 90, [IN_PROGRESS], true)]);
+		const [backlog, progress, done] = toColumns([
+			makeTask('20260101-000001', 90, [IN_PROGRESS], true)
+		]);
 		expect(ids(done.tasks)).toEqual(['20260101-000001']);
 		expect(progress.tasks).toEqual([]);
 		expect(backlog.tasks).toEqual([]);
@@ -43,23 +40,23 @@ describe('toColumns', () => {
 
 	it('orders the open columns by priority, as `tatr ls` does', () => {
 		const [backlog] = toColumns([
-			make('20260101-000001', 50, []),
-			make('20260101-000002', 110, []),
-			make('20260101-000003', 90, [])
+			makeTask('20260101-000001', 50),
+			makeTask('20260101-000002', 110),
+			makeTask('20260101-000003', 90)
 		]);
 		expect(ids(backlog.tasks)).toEqual(['20260101-000002', '20260101-000003', '20260101-000001']);
 	});
 
 	it('breaks a priority tie by id, oldest first', () => {
-		const [backlog] = toColumns([make('20260202-000001', 90, []), make('20260101-000001', 90, [])]);
+		const [backlog] = toColumns([makeTask('20260202-000001', 90), makeTask('20260101-000001', 90)]);
 		expect(ids(backlog.tasks)).toEqual(['20260101-000001', '20260202-000001']);
 	});
 
 	it('orders done newest first, ignoring priority', () => {
 		const [, , done] = toColumns([
-			make('20260101-000001', 110, [], true),
-			make('20260303-000001', 10, [], true),
-			make('20260202-000001', 50, [], true)
+			makeTask('20260101-000001', 110, [], true),
+			makeTask('20260303-000001', 10, [], true),
+			makeTask('20260202-000001', 50, [], true)
 		]);
 		expect(ids(done.tasks)).toEqual(['20260303-000001', '20260202-000001', '20260101-000001']);
 	});
@@ -103,16 +100,16 @@ describe('toColumns under a query', () => {
 
 	it('counts a task in the column it belongs to, matched or not', () => {
 		// The query filters cards; it never moves one to another column.
-		const columns = toColumns([make('20260101-000001', 90, [], true)], () => false);
+		const columns = toColumns([makeTask('20260101-000001', 90, [], true)], () => false);
 		expect(columns.map((column) => column.total)).toEqual([0, 0, 1]);
 	});
 
 	it('sorts what survived, not what was there', () => {
 		const columns = toColumns(
 			[
-				make('20260101-000001', 50, ['ui']),
-				make('20260101-000002', 110, []),
-				make('20260101-000003', 90, ['ui'])
+				makeTask('20260101-000001', 50, ['ui']),
+				makeTask('20260101-000002', 110),
+				makeTask('20260101-000003', 90, ['ui'])
 			],
 			(task) => task.tags.includes('ui')
 		);

@@ -17,7 +17,7 @@ import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
 import { isCached, isRereadable } from './capabilities.ts';
-import { SourceError, type Source } from './contract.ts';
+import { SourceError, type Listing, type Source } from './contract.ts';
 import { openStore, type RepoStore } from './store.ts';
 
 export interface LoadOptions {
@@ -112,7 +112,8 @@ function assemble(
 			continue;
 		}
 		const carried = attachments.get(id);
-		tasks.push(carried ? { ...task, attachments: carried } : task);
+		if (carried) task.attachments = carried;
+		tasks.push(task);
 	}
 
 	return { tasks, skipped };
@@ -168,10 +169,7 @@ export async function loadRepository(
 		}
 	);
 
-	// A repository may have no tags file.
-	const tagsFile = listing.entries.some((entry) => entry.path === 'tasks/tags')
-		? await source.read('tasks/tags', options.signal)
-		: null;
+	const tagsFile = await readTagsFile(source, listing, options.signal);
 
 	const storedAt = options.now?.() ?? Date.now();
 	const assembled = assemble(contents, attachments);
@@ -192,9 +190,20 @@ export async function loadRepository(
 	return { ...payload, fromCache: false, storedAt };
 }
 
+/** Reads `tasks/tags`, or gives null when the repository has none. */
+async function readTagsFile(
+	source: Source,
+	listing: Listing,
+	signal?: AbortSignal
+): Promise<string | null> {
+	if (!listing.entries.some((entry) => entry.path === 'tasks/tags')) return null;
+	return source.read('tasks/tags', signal);
+}
+
 /** Reads one task's description on demand, for the detail view, as the cache does not keep it. */
 export async function loadTaskDescription(source: Source, id: string): Promise<string | null> {
 	const text = await source.read(`tasks/${id}/TASK.md`);
 	// Only an unreadable file gives null: an empty one has an empty description.
-	return text === null ? null : parseTaskMd(text).description;
+	if (text === null) return null;
+	return parseTaskMd(text).description;
 }

@@ -1,18 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { makeTask } from '#tests/support/tasks.ts';
 import { QueryState, searchFor } from './query.svelte.ts';
 import { formatDiagnostic } from '../tql/query.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 
-const make = (id: string, priority: number, tags: string[], closed = false): Task =>
-	readTask(
-		id,
-		`# t\n\n- STATUS: ${closed ? 'CLOSED' : 'OPEN'}\n- PRIORITY: ${priority}\n- TAGS: ${tags.join(',')}\n`
-	)!;
-
 const tasks = [
-	make('20260101-000001', 100, ['bug']),
-	make('20260101-000002', 50, []),
-	make('20260101-000003', 100, ['bug'], true)
+	makeTask('20260101-000001', 100, ['bug']),
+	makeTask('20260101-000002', 50),
+	makeTask('20260101-000003', 100, ['bug'], true)
 ];
 
 const titled = (title: string): Task =>

@@ -64,7 +64,9 @@ function cleanName(name: string): string {
 function build(host: string, owner: string, name: string, branch?: string): ForgeAddress | null {
 	const cleaned = cleanName(name);
 	if (!SEGMENT.test(owner) || !SEGMENT.test(cleaned)) return null;
-	return branch ? { host, owner, name: cleaned, branch } : { host, owner, name: cleaned };
+	const address: ForgeAddress = { host, owner, name: cleaned };
+	if (branch) address.branch = branch;
+	return address;
 }
 
 /**
@@ -77,14 +79,21 @@ export function parseForgePath(path: string): ForgeAddress | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');
 	if (!trimmed) return null;
 
-	const at = trimmed.indexOf('@');
-	const branch = at === -1 ? undefined : trimmed.slice(at + 1) || undefined;
-	const segments = (at === -1 ? trimmed : trimmed.slice(0, at)).split('/').filter(Boolean);
+	const { repository, branch } = splitAtBranch(trimmed);
+	const segments = repository.split('/').filter(Boolean);
 
-	const host = segments.length > 2 && isHost(segments[0]) ? segments.shift()! : DEFAULT_HOST;
+	let host = DEFAULT_HOST;
+	if (segments.length > 2 && isHost(segments[0])) host = segments.shift()!;
 	if (segments.length !== 2) return null;
 
 	return build(host, segments[0], segments[1], branch);
+}
+
+/** Splits a path at its first `@`, into the repository before it and the branch after it. */
+function splitAtBranch(path: string): { repository: string; branch: string | undefined } {
+	const at = path.indexOf('@');
+	if (at === -1) return { repository: path, branch: undefined };
+	return { repository: path.slice(0, at), branch: path.slice(at + 1) };
 }
 
 /**
@@ -120,13 +129,12 @@ function fromHostAndPath(host: string, path: string): ForgeAddress | null {
 		.filter(Boolean);
 	if (segments.length < 2) return null;
 
-	const [owner, name, keyword, ...rest] = segments;
+	const [owner, name, keyword, branch] = segments;
 	// Only GitHub's `/tree/<branch>/<path>` is recognised. Branch and path cannot
 	// be told apart without asking the forge, so a branch containing a slash
 	// keeps only its first segment; `@branch` has no such ambiguity.
-	const branch = keyword === 'tree' && rest.length > 0 ? rest[0] : undefined;
-
-	return build(host, owner, name, branch);
+	if (keyword === 'tree') return build(host, owner, name, branch);
+	return build(host, owner, name);
 }
 
 /**
@@ -152,9 +160,19 @@ export function formatRepoName(address: ForgeAddress): string {
 /** Renders a reference or a forge address as a path of the site's URLs. */
 export function formatRepoPath(ref: ForgeAddress | PathRef): string {
 	if (!isForgeRef(ref)) return ref.path;
-	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;
-	const suffix = ref.branch ? `@${ref.branch}` : '';
-	return `${prefix}${formatRepoName(ref)}${suffix}`;
+	return `${hostPrefix(ref.host)}${formatRepoName(ref)}${branchSuffix(ref.branch)}`;
+}
+
+/** The host as the start of a path, left out for the default host. */
+function hostPrefix(host: string): string {
+	if (host === DEFAULT_HOST) return '';
+	return `${host}/`;
+}
+
+/** The branch as the end of a path, left out for the forge's default branch. */
+function branchSuffix(branch: string | undefined): string {
+	if (!branch) return '';
+	return `@${branch}`;
 }
 
 /** Stable identity for caching, independent of the default-branch lookup. */

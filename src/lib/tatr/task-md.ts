@@ -108,7 +108,8 @@ export function readPriority(properties: Map<string, string>): number {
 	const raw = properties.get('PRIORITY');
 	if (raw === undefined) return UNSET_PRIORITY;
 	const value = Number.parseInt(raw, 10);
-	return Number.isNaN(value) ? 0 : value;
+	if (Number.isNaN(value)) return 0;
+	return value;
 }
 
 /**

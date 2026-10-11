@@ -38,6 +38,11 @@ function sameTags(a: readonly string[], b: readonly string[]): boolean {
 	return a.toSorted().join(',') === b.toSorted().join(',');
 }
 
+function statusMovement(task: Task): Movement {
+	if (task.closed) return 'closed';
+	return 'reopened';
+}
+
 /** Takes the snapshot that a later reading is compared with. */
 export function snapshot(tasks: readonly Task[], at: number): Snapshot {
 	return {
@@ -90,7 +95,7 @@ export function compare(before: Snapshot, after: readonly Task[]): Changes {
 			continue;
 		}
 		missing.delete(task.id);
-		if (was.closed !== task.closed) record(task.id, task.closed ? 'closed' : 'reopened');
+		if (was.closed !== task.closed) record(task.id, statusMovement(task));
 		if (was.priority !== task.priority) record(task.id, 'repriorised');
 		if (!sameTags(was.tags, task.tags)) record(task.id, 'retagged');
 	}

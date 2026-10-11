@@ -79,7 +79,7 @@
 				     for, as the list names `tatr ls`. -->
 				<p class="prompt">
 					$ tatr summary <span class="since"
-						>· {months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}</span
+						>· {#if months.length > 0}since {monthName(months[0].month)}{:else}no dates yet{/if}</span
 					>
 				</p>
 				<h1>

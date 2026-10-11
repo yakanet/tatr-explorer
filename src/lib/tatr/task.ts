@@ -77,7 +77,8 @@ export function readTask(id: string, taskMd: string): Task | null {
 		description: parsed.description,
 		malformed: parsed.malformed
 	};
-	return huid.suffix ? { ...task, suffix: huid.suffix } : task;
+	if (huid.suffix) task.suffix = huid.suffix;
+	return task;
 }
 
 /** Orders by priority, highest first, the default order of `tatr ls`. */
@@ -85,7 +86,14 @@ export function compareByPriority(a: Task, b: Task): number {
 	return b.priority - a.priority;
 }
 
+/** Orders two ids code unit by code unit, as `strcmp` does, never by locale. */
+export function compareIds(a: string, b: string): number {
+	if (a < b) return -1;
+	if (a > b) return 1;
+	return 0;
+}
+
 /** Orders by id, which is chronological, as `tatr ls -id` does. */
 export function compareById(a: Task, b: Task): number {
-	return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+	return compareIds(a.id, b.id);
 }

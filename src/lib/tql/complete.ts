@@ -99,7 +99,8 @@ export function complete(
 	if (token[0] === '~' || insideSearch(text, cursor)) return null;
 
 	const sigil = token[0] === ':' || token[0] === '.';
-	const needle = (sigil ? token.slice(1) : token).toLowerCase();
+	let needle = token.toLowerCase();
+	if (sigil) needle = needle.slice(1);
 
 	const matching = tags
 		.filter((tag) => tag.name.toLowerCase().includes(needle))
@@ -119,18 +120,19 @@ export function complete(
 			kind: 'tag'
 		}));
 
-	const keywords = sigil
-		? []
-		: KEYWORDS.filter((keyword) => keyword.value.startsWith(needle)).map((keyword): Completion => ({
-				...keyword,
-				kind: 'keyword'
-			}));
-
-	const items = [...matching, ...keywords].slice(0, 8);
+	const offers = [...matching];
+	if (!sigil) offers.push(...keywordsMatching(needle));
+	const items = offers.slice(0, 8);
+	if (items.length === 0) return null;
 	// An offer identical to the typed token adds nothing.
 	if (items.length === 1 && items[0].value === token) return null;
+	return { start, end, items };
+}
 
-	return items.length > 0 ? { start, end, items } : null;
+function keywordsMatching(needle: string): Completion[] {
+	return KEYWORDS.filter((keyword) => keyword.value.startsWith(needle)).map(
+		(keyword): Completion => ({ ...keyword, kind: 'keyword' })
+	);
 }
 
 /** Returns the text and caret position after accepting a completion. */
@@ -142,6 +144,12 @@ export function apply(
 	const after = text.slice(range.end);
 	// A trailing space makes the next word a new token and closes the menu,
 	// since the caret then sits on no token. It does not change the parse.
-	const spaced = after.startsWith(' ') ? value : `${value} `;
+	const spaced = withTrailingSpace(value, after);
 	return { text: text.slice(0, range.start) + spaced + after, cursor: range.start + spaced.length };
+}
+
+/** `value` followed by a space, unless the text `after` it already opens with one. */
+function withTrailingSpace(value: string, after: string): string {
+	if (after.startsWith(' ')) return value;
+	return `${value} `;
 }

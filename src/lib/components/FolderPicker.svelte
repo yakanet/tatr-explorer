@@ -79,7 +79,8 @@
 	function left(event: DragEvent) {
 		if (!droppable) return;
 		// No related target means the pointer left the window, not an element.
-		over = event.relatedTarget === null ? 0 : Math.max(0, over - 1);
+		if (event.relatedTarget === null) over = 0;
+		else over = Math.max(0, over - 1);
 	}
 
 	/**
@@ -91,6 +92,20 @@
 		if (droppable && carriesFiles(event)) event.preventDefault();
 	}
 
+	/** Reads each dropped item as a handle where the browser has them, or as an entry. */
+	function handlesOrEntries(items: DataTransferItem[]) {
+		if (items.some((item) => typeof item.getAsFileSystemHandle === 'function')) {
+			return items.map((item) => item.getAsFileSystemHandle!());
+		}
+		return items.map((item) => item.webkitGetAsEntry());
+	}
+
+	/** Whether a dropped handle or entry is a folder. */
+	function isFolder(one: FileSystemHandle | FileSystemEntry) {
+		if ('kind' in one) return one.kind === 'directory';
+		return one.isDirectory;
+	}
+
 	async function dropped(event: DragEvent) {
 		if (!droppable) return;
 		event.preventDefault();
@@ -99,17 +114,13 @@
 		// Read the items before any await, because the browser empties the list
 		// once this handler returns.
 		const items = [...(event.dataTransfer?.items ?? [])];
-		const asHandles = items.some((item) => typeof item.getAsFileSystemHandle === 'function');
-		const pending = asHandles
-			? items.map((item) => item.getAsFileSystemHandle!())
-			: items.map((item) => item.webkitGetAsEntry());
+		const pending = handlesOrEntries(items);
 
 		try {
 			// The spec answers null for an item that is not a file, and Chrome
 			// answers `undefined` for one a script made, so any falsy value is skipped.
 			const folder = (await Promise.all(pending)).find(
-				(one): one is WayBack =>
-					!!one && ('kind' in one ? one.kind === 'directory' : one.isDirectory)
+				(one): one is WayBack => !!one && isFolder(one)
 			);
 			if (!folder) {
 				error = 'Drop a folder, not a file.';

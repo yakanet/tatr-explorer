@@ -105,7 +105,8 @@ export class RepositoryState {
 	readonly changes = $derived.by((): Changes | null => {
 		if (!this.previous) return null;
 		const changes = compare(this.previous, this.tasks);
-		return changes.total > 0 ? changes : null;
+		if (changes.total > 0) return changes;
+		return null;
 	});
 
 	/**

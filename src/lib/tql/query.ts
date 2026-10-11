@@ -233,7 +233,7 @@ export function parseWithWarnings(source: string): ParseResult {
 			const inner = expression();
 			const closing = next();
 			if (!closing || closing.text !== ']') {
-				throw new TqlError('Expected `]`.', closing ? closing.span : eof());
+				throw new TqlError('Expected `]`.', closing?.span ?? eof());
 			}
 			return inner;
 		}
@@ -341,7 +341,8 @@ function evaluateNode(node: Node, task: TqlTask): Value {
 			if (node.op === 'and' || node.op === 'or') {
 				const a = expect(left, 'boolean', node.left.span).value as boolean;
 				const b = expect(right, 'boolean', node.right.span).value as boolean;
-				return { type: 'boolean', value: node.op === 'and' ? a && b : a || b };
+				if (node.op === 'and') return { type: 'boolean', value: a && b };
+				return { type: 'boolean', value: a || b };
 			}
 
 			const a = expect(left, 'integer', node.left.span).value as number;
@@ -410,5 +411,6 @@ export function formatDiagnostic(
 ): string {
 	const caret = `${' '.repeat(error.span.start)}^`;
 	const body = `${source}\n${caret}\n${error.message}`;
-	return error.help ? `${error.help}\n\n${body}` : body;
+	if (error.help) return `${error.help}\n\n${body}`;
+	return body;
 }

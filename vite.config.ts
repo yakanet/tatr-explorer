@@ -17,18 +17,21 @@ function basePath(): '' | `/${string}` {
 	const value = process.env.BASE_PATH?.replace(/\/+$/, '');
 	if (!value) return '';
 
-	return value.startsWith('/') ? (value as `/${string}`) : `/${value}`;
+	if (value.startsWith('/')) return value as `/${string}`;
+	return `/${value}`;
+}
+
+/** Forces runes mode for the project, except for libraries. Can be removed in svelte 6. */
+function runes({ filename }: { filename: string }): boolean | undefined {
+	if (filename.split(/[/\\]/).includes('node_modules')) return undefined;
+	return true;
 }
 
 export default defineConfig({
 	plugins: [
 		tatrServedFolder(),
 		sveltekit({
-			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
-				runes: ({ filename }) =>
-					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
-			},
+			compilerOptions: { runes },
 			// GitHub Pages serves `404.html` for any path without a file, which lets
 			// client-side routing handle every path.
 			adapter: adapter({ fallback: '404.html' }),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cliOutput from '#tests/fixtures/tatr-ls-output.json' with { type: 'json' };
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { compareByPriority, readTask } from './task.ts';
+import { compareByPriority, readTask, type Task } from './task.ts';
 
 /**
  * Compares the parser with the reference implementation over tsoding/tatr.
@@ -22,6 +22,11 @@ interface CliRow {
 
 const rows = cliOutput as CliRow[];
 const sources = rawTasks as Record<string, string>;
+
+function earlier(a: Task, b: Task): Task {
+	if (a.created! < b.created!) return a;
+	return b;
+}
 
 describe('conformance with the tatr parser', () => {
 	it('covers the whole repository', () => {
@@ -71,7 +76,7 @@ describe('conformance with the tatr parser', () => {
 	it('reads a creation date for every task, straight from its id', () => {
 		const tasks = Object.entries(sources).map(([id, source]) => readTask(id, source)!);
 		expect(tasks.filter((task) => task.created === null)).toEqual([]);
-		const earliest = tasks.reduce((a, b) => (a.created! < b.created! ? a : b));
+		const earliest = tasks.reduce(earlier);
 		expect(earliest.id).toBe('20251205-071347');
 	});
 

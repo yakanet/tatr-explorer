@@ -50,22 +50,28 @@
 		};
 	});
 
-	const entries = $derived(body === null ? [] : splitJournal(body));
+	const entries = $derived.by(() => {
+		if (body === null) return [];
+		return splitJournal(body);
+	});
 
 	const taskHref = (other: string) =>
 		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id: other });
 
-	const renderOptions = $derived({
-		assetUrl: repo.assetUrl,
-		taskId: id,
-		// Only ids of other tasks in this repository become links: an unknown id
-		// would lead to `No such task`, and this task's own id to this page. The
-		// References panel uses the same list, so the body links what it lists.
-		taskUrl: (other: string) =>
-			other !== id && repo.tasks.some((candidate) => candidate.id === other)
-				? taskHref(other)
-				: null
-	});
+	/**
+	 * The link for a task id found in the text. Only ids of other tasks in this
+	 * repository become links: an unknown id would lead to `No such task`, and
+	 * this task's own id to this page. The References panel uses the same list,
+	 * so the body links what it lists.
+	 */
+	function taskUrl(other: string) {
+		if (other !== id && repo.tasks.some((candidate) => candidate.id === other)) {
+			return taskHref(other);
+		}
+		return null;
+	}
+
+	const renderOptions = $derived({ assetUrl: repo.assetUrl, taskId: id, taskUrl });
 	const render = (source: string) => renderMarkdown(source, renderOptions);
 	const inline = (source: string) => renderInline(source, renderOptions);
 
@@ -73,8 +79,10 @@
 	const attachments = $derived(task?.attachments ?? []);
 
 	/** The URL of an attached file, or null when its path climbs out of `tasks/`. */
-	const attachmentUrl = (name: string) =>
-		task ? resolveAttachment({ assetUrl: repo.assetUrl, taskId: task.id }, name) : null;
+	function attachmentUrl(name: string) {
+		if (!task) return null;
+		return resolveAttachment({ assetUrl: repo.assetUrl, taskId: task.id }, name);
+	}
 
 	// A task citing itself is left out of both lists, where it would read as
 	// "mutual", and gets a row of its own.
@@ -179,7 +187,9 @@
 									<code class="id">{other.id}</code>
 									<span>{@html inline(other.title)}</span>
 								</a>
-								<span class="direction">{mutual.has(other.id) ? 'mutual' : 'refers to'}</span>
+								<span class="direction"
+									>{#if mutual.has(other.id)}mutual{:else}refers to{/if}</span
+								>
 							</li>
 						{/each}
 						{#each incoming.filter((other) => !task.references.includes(other.id)) as other (other.id)}

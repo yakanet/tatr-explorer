@@ -35,14 +35,20 @@
 	}
 
 	/**
-	 * Opens the branch typed. `HEAD` means the default branch, as in git, which
-	 * refuses it as a branch name.
+	 * The branch a typed name opens, undefined for the default one. `HEAD` means
+	 * the default branch, as in git, which refuses it as a branch name.
 	 */
+	function branchOf(name: string) {
+		if (name === 'HEAD') return undefined;
+		return name;
+	}
+
+	/** Opens the branch typed. */
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
 		const name = input?.value.trim() ?? '';
 		if (name === '') return;
-		const branch = name === 'HEAD' ? undefined : name;
+		const branch = branchOf(name);
 		if (branch !== undefined && !isBranchName(branch)) {
 			input?.setCustomValidity('Git allows no branch of that name.');
 			input?.reportValidity();
@@ -57,6 +63,12 @@
 		if (event.key !== 'Escape' || !open) return;
 		event.preventDefault();
 		close();
+	}
+
+	/** Marks the link to the branch being read, undefined being the default one. */
+	function currentOf(branch: string | undefined): 'page' | undefined {
+		if (branch === ref.branch) return 'page';
+		return undefined;
 	}
 
 	const outside = (target: EventTarget | null) => target instanceof Node && !root?.contains(target);
@@ -120,7 +132,7 @@
 			</form>
 			<ul>
 				<li>
-					<a href={onBranch(ref, undefined)} aria-current={ref.branch ? undefined : 'page'}
+					<a href={onBranch(ref, undefined)} aria-current={currentOf(undefined)}
 						><span class="name">HEAD</span> <span class="detail">the default branch</span></a
 					>
 				</li>
@@ -131,9 +143,7 @@
 					.catch(() => []) then keys}
 					{#each branchesOf(ref, keys) as branch (branch)}
 						<li>
-							<a
-								href={onBranch(ref, branch)}
-								aria-current={branch === ref.branch ? 'page' : undefined}
+							<a href={onBranch(ref, branch)} aria-current={currentOf(branch)}
 								><span class="name">{branch}</span></a
 							>
 						</li>

@@ -8,6 +8,7 @@
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
+	import { counted } from '#lib/plural.ts';
 	import { formatRepoPath, isForgeRef, type ForgeRef } from '#lib/repo/ref.ts';
 	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {
@@ -103,9 +104,10 @@
 		if (helping) helping = false;
 	}
 
-	function folders(count: number): string {
-		if (count === 1) return '1 folder';
-		return `${count} folders`;
+	/** Marks the nav link of the view on screen. */
+	function currentOf(view: { base: string }): 'page' | undefined {
+		if (page.url.pathname === view.base) return 'page';
+		return undefined;
 	}
 </script>
 
@@ -149,10 +151,7 @@
 
 	<nav class="segmented">
 		{#each views as view (view.base)}
-			<a
-				href={view.base + view.search}
-				aria-current={page.url.pathname === view.base ? 'page' : undefined}>{view.name}</a
-			>
+			<a href={view.base + view.search} aria-current={currentOf(view)}>{view.name}</a>
 		{/each}
 	</nav>
 
@@ -162,7 +161,7 @@
 				{#if following}
 					following
 				{:else}
-					{repo.fromCache ? 'cached' : 'read'}
+					{#if repo.fromCache}cached{:else}read{/if}
 					{describeAge(repo.storedAt)}
 				{/if}
 				<!-- A failed refresh keeps the previous reading, so it gets one clause
@@ -179,7 +178,7 @@
 				     needs its reason beside it. The folders and reasons are the detail. -->
 				{#if repo.skipped.length > 0}
 					{@render clause(
-						`${folders(repo.skipped.length)} skipped`,
+						`${counted(repo.skipped.length, 'folder', 'folders')} skipped`,
 						repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')
 					)}
 				{/if}

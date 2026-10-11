@@ -40,10 +40,8 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
 		// A hidden folder hides its contents too, such as `tasks/x/.git/config`.
 		if (name.split('/').some((segment) => segment.startsWith('.'))) continue;
 
-		const attachment: Attachment =
-			entry.size === undefined
-				? { name, path: entry.path }
-				: { name, path: entry.path, size: entry.size };
+		const attachment: Attachment = { name, path: entry.path };
+		if (entry.size !== undefined) attachment.size = entry.size;
 
 		const existing = byTask.get(id);
 		if (existing) existing.push(attachment);
@@ -58,6 +56,12 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
 }
 
 const UNITS = ['B', 'kB', 'MB'] as const;
+
+/** Rounds to one decimal, or to a whole number for bytes and from 100 up. */
+function rounded(value: number, unit: number): number {
+	if (unit === 0 || value >= 100) return Math.round(value);
+	return Math.round(value * 10) / 10;
+}
 
 /**
  * Formats a byte count in the unit that keeps the number small, with at most
@@ -74,6 +78,5 @@ export function formatSize(bytes: number | undefined): string {
 		unit += 1;
 	}
 
-	const rounded = unit === 0 || value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
-	return `${rounded} ${UNITS[unit]}`;
+	return `${rounded(value, unit)} ${UNITS[unit]}`;
 }

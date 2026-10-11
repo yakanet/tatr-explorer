@@ -11,7 +11,7 @@
  * short labels. Here the graph is drawn as stars (`starCards`), each numbered
  * against a list of titles beside it, so a title never has to fit the drawing.
  */
-import type { Task } from './task.ts';
+import { compareById, compareIds, type Task } from './task.ts';
 
 /**
  * A citation between two tasks that both exist, drawn once. `from` and `to` are
@@ -45,7 +45,14 @@ export interface ReferenceGraph {
 	linkCount: number;
 }
 
-const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/**
+ * Builds the edge for one citation. A mutual pair puts the older id first, so
+ * both of its citations give the same edge.
+ */
+function edgeOf(from: string, to: string, mutual: boolean): GraphEdge {
+	if (mutual && to < from) return { from: to, to: from, mutual };
+	return { from, to, mutual };
+}
 
 /**
  * Builds the graph of a whole repository. It works on tasks whose description
@@ -71,8 +78,8 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	for (const [from, cited] of out) {
 		for (const to of cited) {
 			const mutual = from !== to && (out.get(to)?.includes(from) ?? false);
-			const [a, b] = mutual && to < from ? [to, from] : [from, to];
-			edges.set(`${a} ${b}`, { from: a, to: b, mutual });
+			const edge = edgeOf(from, to, mutual);
+			edges.set(`${edge.from} ${edge.to}`, edge);
 		}
 	}
 
@@ -111,20 +118,20 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 		clusters.push({
 			nodes: members
 				.map((member) => ({ task: known.get(member)!, out: out.get(member) ?? [] }))
-				.sort((a, b) => byId(a.task, b.task)),
+				.sort((a, b) => compareById(a.task, b.task)),
 			edges: [...edges.values()]
 				.filter((edge) => inCluster.has(edge.from))
-				.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1))
+				.sort((a, b) => compareIds(a.from, b.from) || compareIds(a.to, b.to))
 		});
 	}
 
 	clusters.sort(
-		(a, b) => b.nodes.length - a.nodes.length || byId(a.nodes[0].task, b.nodes[0].task)
+		(a, b) => b.nodes.length - a.nodes.length || compareById(a.nodes[0].task, b.nodes[0].task)
 	);
 
 	return {
 		clusters,
-		isolated: tasks.filter((task) => !neighbours.has(task.id)).sort(byId),
+		isolated: tasks.filter((task) => !neighbours.has(task.id)).sort(compareById),
 		linkCount
 	};
 }
@@ -149,6 +156,17 @@ export interface StarCard {
 }
 
 const KIND_ORDER: StarLink['kind'][] = ['in', 'both', 'out'];
+
+function neighbourOf(edge: GraphEdge, pivot: string): string {
+	if (edge.from === pivot) return edge.to;
+	return edge.from;
+}
+
+function linkKind(edge: GraphEdge, pivot: string): StarLink['kind'] {
+	if (edge.mutual) return 'both';
+	if (edge.from === pivot) return 'out';
+	return 'in';
+}
 
 /**
  * Splits the graph into star cards, each a pivot with only its own links, so no
@@ -175,7 +193,7 @@ export function starCards(graph: ReferenceGraph): StarCard[] {
 			count.set(edge.from, (count.get(edge.from) ?? 0) + 1);
 			if (edge.to !== edge.from) count.set(edge.to, (count.get(edge.to) ?? 0) + 1);
 		}
-		const [pivot] = [...count].sort(([a, m], [b, n]) => n - m || (a < b ? -1 : 1))[0];
+		const [pivot] = [...count].sort(([a, m], [b, n]) => n - m || compareIds(a, b))[0];
 
 		const links: StarLink[] = [];
 		let self = false;
@@ -186,11 +204,12 @@ export function starCards(graph: ReferenceGraph): StarCard[] {
 				self = true;
 				continue;
 			}
-			const task = tasks.get(edge.from === pivot ? edge.to : edge.from)!;
-			links.push({ task, kind: edge.mutual ? 'both' : edge.from === pivot ? 'out' : 'in' });
+			const task = tasks.get(neighbourOf(edge, pivot))!;
+			links.push({ task, kind: linkKind(edge, pivot) });
 		}
 		links.sort(
-			(a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || byId(a.task, b.task)
+			(a, b) =>
+				KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || compareById(a.task, b.task)
 		);
 		cards.push({ pivot: tasks.get(pivot)!, links, self });
 	}

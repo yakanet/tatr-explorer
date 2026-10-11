@@ -93,17 +93,18 @@ function fakeStore(records: { key: IDBValidKey; value: unknown }[]): IDBObjectSt
 	let at = 0;
 
 	const step = () => {
-		req.result =
-			at < records.length
-				? {
-						key: records[at].key,
-						value: records[at].value,
-						continue: () => {
-							at += 1;
-							step();
-						}
-					}
-				: null;
+		if (at < records.length) {
+			req.result = {
+				key: records[at].key,
+				value: records[at].value,
+				continue: () => {
+					at += 1;
+					step();
+				}
+			};
+		} else {
+			req.result = null;
+		}
 		req.onsuccess?.call(req as IDBRequest, new Event('success'));
 	};
 

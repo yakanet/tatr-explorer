@@ -7,7 +7,10 @@
 
 	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
 
-	const percent = $derived(repo.total === 0 ? 0 : Math.round((repo.done / repo.total) * 100));
+	const percent = $derived.by(() => {
+		if (repo.total === 0) return 0;
+		return Math.round((repo.done / repo.total) * 100);
+	});
 	/** What a reading costs, in the source's words: a request, or nothing. */
 	const cost = $derived(repo.source?.cost);
 	/** The gesture that opens the source again, where trying again cannot. */

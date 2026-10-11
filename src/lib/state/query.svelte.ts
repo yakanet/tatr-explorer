@@ -28,7 +28,13 @@ export function searchFor(text: string, status?: Status): string {
 	if (text.trim()) params.set('q', text.trim());
 	if (status) params.set('status', status);
 	const rendered = params.toString();
-	return rendered ? `?${rendered}` : '';
+	if (rendered) return `?${rendered}`;
+	return '';
+}
+
+function asTqlError(error: unknown): TqlError | null {
+	if (error instanceof TqlError) return error;
+	return null;
 }
 
 export class QueryState {
@@ -51,7 +57,7 @@ export class QueryState {
 			return {
 				source,
 				match: () => true,
-				error: error instanceof TqlError ? error : null,
+				error: asTqlError(error),
 				warnings: [],
 				node: null
 			};
@@ -85,7 +91,8 @@ export class QueryState {
 	 * first would empty it. A query in error matches everything.
 	 */
 	matches(task: Task): boolean {
-		return this.#compiled.error ? true : this.#compiled.match(task);
+		if (this.#compiled.error) return true;
+		return this.#compiled.match(task);
 	}
 
 	/** The tasks the status admits, before the query narrows them. */
@@ -107,7 +114,8 @@ export class QueryState {
 	 * chosen since.
 	 */
 	searchOf(view: 'list' | 'board'): string {
-		return view === 'list' ? searchFor(this.text, this.status) : searchFor(this.text);
+		if (view === 'list') return searchFor(this.text, this.status);
+		return searchFor(this.text);
 	}
 
 	/**
@@ -118,8 +126,8 @@ export class QueryState {
 	 */
 	read(params: Pick<URLSearchParams, 'get' | 'has'>): void {
 		const named = params.get('status');
-		const status =
-			STATUSES.find((one) => one === named) ?? (params.get('closed') === '1' ? 'all' : undefined);
+		let status = STATUSES.find((one) => one === named);
+		if (!status && params.get('closed') === '1') status = 'all';
 		if (status) {
 			this.status = status;
 			this.text = params.get('q') ?? '';
@@ -140,9 +148,11 @@ export class QueryState {
 			return;
 		}
 		const parts = current.split(/\s+and\s+/);
-		this.text = parts.includes(term)
-			? parts.filter((part) => part !== term).join(' and ')
-			: `${current} and ${term}`;
+		if (parts.includes(term)) {
+			this.text = parts.filter((part) => part !== term).join(' and ');
+			return;
+		}
+		this.text = `${current} and ${term}`;
 	}
 
 	has(term: string): boolean {

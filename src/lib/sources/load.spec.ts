@@ -7,6 +7,7 @@ import type { Cached, Rereadable } from './capabilities.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 import type { Snapshot } from '../tatr/changes.ts';
+import { compareById } from '../tatr/task.ts';
 import type { Listing, Source } from './contract.ts';
 
 const sources = rawTasks as Record<string, string>;
@@ -172,7 +173,7 @@ describe('caching', () => {
 	it('restores dates across the cache, which JSON cannot carry', async () => {
 		await loadRepository(new Holding(), { store });
 		const cached = await loadRepository(new Holding(), { store });
-		const earliest = cached.tasks.reduce((a, b) => (a.id < b.id ? a : b));
+		const [earliest] = cached.tasks.toSorted(compareById);
 		expect(earliest.created).toBeInstanceOf(Date);
 		expect(earliest.id).toBe('20251205-071347');
 	});

@@ -53,9 +53,10 @@
 		for (let node = active.parentElement; node; node = node.parentElement) {
 			const marks = node.querySelectorAll<HTMLElement>('[data-key-row]');
 			if (marks.length === 0) continue;
+			if (marks.length === 1) return items.indexOf(marks[0]);
 			// An ancestor holding several marks is the whole list, so the focus is
 			// beside the list rather than in a row.
-			return marks.length === 1 ? items.indexOf(marks[0]) : -1;
+			return -1;
 		}
 		return -1;
 	}
@@ -88,19 +89,17 @@
 		const items = rows();
 		if (items.length === 0) return;
 
-		const at = current(items);
-		// Coming from outside the list, `j` should land on the first row rather
-		// than the second, and `k` on the last.
-		if (at === -1) {
-			focus(step > 0 ? items[0] : items[items.length - 1]);
-			return;
-		}
+		let at = current(items);
+		// Coming from outside the list, `j` lands on the first row (-1 + 1) and
+		// `k` on the last, as if from one past the end.
+		if (at === -1 && step < 0) at = items.length;
 		focus(items[Math.min(items.length - 1, Math.max(0, at + step))]);
 	}
 
 	function jump(to: 'first' | 'last') {
 		const items = rows();
-		focus(to === 'first' ? items[0] : items[items.length - 1]);
+		if (to === 'first') focus(items[0]);
+		else focus(items[items.length - 1]);
 	}
 
 	/**

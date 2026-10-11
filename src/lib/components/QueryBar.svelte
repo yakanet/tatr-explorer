@@ -31,7 +31,10 @@
 	let dismissed = $state(false);
 	let active = $state(0);
 
-	const found = $derived(dismissed ? null : complete(query.text, caret, tags));
+	const found = $derived.by(() => {
+		if (dismissed) return null;
+		return complete(query.text, caret, tags);
+	});
 
 	/**
 	 * The `tatr ls` command that lists what is shown, or why none can. None on
@@ -61,7 +64,16 @@
 
 	// The menu is rebuilt on every keystroke, so the highlight is clamped to the
 	// items that remain.
-	const selected = $derived(found ? Math.min(active, found.items.length - 1) : 0);
+	const selected = $derived.by(() => {
+		if (!found) return 0;
+		return Math.min(active, found.items.length - 1);
+	});
+
+	/** The id of the highlighted completion, which a screen reader announces. */
+	function activeDescendant() {
+		if (!found) return undefined;
+		return `completion-${selected}`;
+	}
 
 	/** Records the caret, which an arrow key or a click moves without changing the text. */
 	function track() {
@@ -108,19 +120,19 @@
 		}
 		if (!found) return;
 
-		const last = found.items.length - 1;
+		const count = found.items.length;
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
-			active = selected === last ? 0 : selected + 1;
+			active = (selected + 1) % count;
 		} else if (event.key === 'ArrowUp') {
 			event.preventDefault();
-			active = selected === 0 ? last : selected - 1;
+			active = (selected + count - 1) % count;
 		} else if (event.key === 'Home') {
 			event.preventDefault();
 			active = 0;
 		} else if (event.key === 'End') {
 			event.preventDefault();
-			active = last;
+			active = count - 1;
 		} else if (event.key === 'Tab' || event.key === 'Enter') {
 			// Otherwise Enter would submit nothing and Tab would leave the field,
 			// both closing the menu.
@@ -152,7 +164,7 @@
 				role="combobox"
 				aria-expanded={found !== null}
 				aria-controls="query-completions"
-				aria-activedescendant={found ? `completion-${selected}` : undefined}
+				aria-activedescendant={activeDescendant()}
 			/>
 
 			{#if found}
