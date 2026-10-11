@@ -17,6 +17,24 @@ In the browser. No server, no backend, no clone.
 
 <div align="center"><sub>Reading <a href="https://github.com/yakanet/tatr-explorer"><code>yakanet/tatr-explorer</code></a>, this repository, which tracks its own work with tatr.</sub></div>
 
+## Try it
+
+Nothing to install: [open it](https://github.broutin.dev/tatr-explorer) and
+paste a repository name. To run it on your machine, with
+[pnpm](https://pnpm.io):
+
+```shell
+git clone https://github.com/yakanet/tatr-explorer.git
+cd tatr-explorer
+pnpm install
+pnpm run dev                              # then open a repository, or a folder
+TATR_FOLDER=../my-project pnpm run dev    # or serve a project's tasks
+```
+
+The second form lets [the dev server serve a folder](#or-let-the-dev-server-serve-it-optional),
+which any browser can then [edit](#and-edit-it-where-it-can-be-written).
+[Run it](#run-it) has the checks and the build.
+
 ## Your tasks already live in git. Now you can see them.
 
 [tatr](https://github.com/tsoding/tatr) keeps every task as a folder
@@ -187,7 +205,9 @@ whether it holds task folders.
 If you run this repository yourself, there is a shorter way: name the folder
 when you start the dev server.
 
-    TATR_FOLDER=../my-project pnpm run dev
+```shell
+TATR_FOLDER=../my-project pnpm run dev
+```
 
 The page opens on `/served`, read from the disk by the dev server: no picker,
 in any browser, still there after a reload, and following the folder as you
@@ -281,12 +301,9 @@ copied here; the viewer is an independent implementation of the same format.
 
 ## Run it
 
-```sh
-pnpm install
-pnpm run dev
-```
+[Try it](#try-it) starts it. Then:
 
-```sh
+```shell
 pnpm run check                            # svelte-check, kept at zero errors
 pnpm test                                 # the full suite
 BASE_PATH=/tatr-explorer pnpm run build   # what CI builds
