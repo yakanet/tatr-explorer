@@ -57,8 +57,8 @@
 
 <style>
 	main {
-		max-width: 40rem;
-		padding: clamp(3rem, 12vh, 7rem) 1.5rem 4rem;
+		--column: 40rem;
+		padding-block: clamp(3rem, 12vh, 7rem) 4rem;
 	}
 
 	.brand {

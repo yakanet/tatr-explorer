@@ -61,7 +61,7 @@
 
 <style>
 	main {
-		max-width: 64rem;
+		--column: 64rem;
 		display: flex;
 		flex-direction: column;
 		gap: var(--card-gap);

@@ -78,7 +78,7 @@
 	}
 
 	.panel {
-		width: min(28rem, 100%);
+		width: min(31.625rem, 100%);
 		padding: 1.5rem 1.75rem 1.25rem;
 		box-shadow: var(--shadow-menu);
 		outline: none;

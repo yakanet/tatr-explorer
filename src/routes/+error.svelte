@@ -11,9 +11,8 @@
 
 <style>
 	main {
-		max-width: 34rem;
-		margin: 0 auto;
-		padding: 4rem 1.5rem;
+		--column: 34rem;
+		padding-block: 4rem;
 	}
 
 	h1 {

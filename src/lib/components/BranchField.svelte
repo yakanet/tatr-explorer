@@ -190,8 +190,9 @@
 	}
 
 	.menu {
-		width: 20rem;
-		max-width: 90vw;
+		width: 20.925rem;
+		/* 90vw for the rows, plus the menu's padding and border. */
+		max-width: calc(90vw + 0.8rem + 2px);
 		white-space: normal;
 		outline: none;
 	}

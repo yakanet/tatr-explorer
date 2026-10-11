@@ -40,7 +40,7 @@
 
 <style>
 	main {
-		max-width: 68rem;
+		--column: 68rem;
 		padding-bottom: 4rem;
 	}
 

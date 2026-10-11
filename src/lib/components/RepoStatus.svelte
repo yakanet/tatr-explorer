@@ -101,8 +101,8 @@
 	}
 
 	.tick {
-		width: 9px;
-		height: 9px;
+		width: 13px;
+		height: 13px;
 		border-radius: 50%;
 		border: 2px solid var(--baseline);
 	}

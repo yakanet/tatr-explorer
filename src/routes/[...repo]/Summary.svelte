@@ -105,7 +105,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		min-width: 5.75rem;
+		min-width: 7.25rem;
 		padding: 0.75rem;
 		font-size: 0.75rem;
 		color: var(--ink-2);

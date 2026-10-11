@@ -275,7 +275,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem 0.75rem;
-		min-height: 3rem;
+		min-height: 3.625rem;
 		padding: 0.25rem 1.1rem;
 	}
 
@@ -294,12 +294,13 @@
 
 	.field input:not([type]) {
 		flex-grow: 1;
-		min-height: 2.25rem;
+		min-height: 2.375rem;
 	}
 
 	.menu {
-		min-width: 24rem;
-		max-width: min(34rem, 90vw);
+		min-width: 24.925rem;
+		/* 90vw for the rows, plus the menu's padding and border. */
+		max-width: min(34.925rem, 90vw + 0.8rem + 2px);
 	}
 
 	li.active button {

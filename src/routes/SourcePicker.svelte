@@ -164,7 +164,7 @@
 
 	.field {
 		position: relative;
-		flex: 1 1 16rem;
+		flex: 1 1 16.125rem;
 		display: flex;
 		align-items: center;
 	}

@@ -137,7 +137,7 @@
 
 <style>
 	main {
-		max-width: 70rem;
+		--column: 70rem;
 	}
 
 	/* The card scrolls sideways rather than the page, because on a phone the
@@ -177,11 +177,11 @@
 	}
 
 	.c-status {
-		width: 1.75rem;
+		width: 3.55rem;
 	}
 
 	.c-prio {
-		width: 3.5rem;
+		width: 5.3rem;
 	}
 
 	/* The moved badge follows the title inline, and the inherited word space is
@@ -191,12 +191,12 @@
 	}
 
 	.c-tags {
-		width: 14rem;
+		width: 15.8rem;
 		line-height: 1.9;
 	}
 
 	.c-id {
-		width: 10.5rem;
+		width: 12.3rem;
 	}
 
 	.icon {

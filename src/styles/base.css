@@ -1,3 +1,11 @@
+/* Every element's width and height include its padding and border, so a box
+   set to `100%` stays inside its parent whatever its padding. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
 body {
 	margin: 0;
 	background: var(--bg);
@@ -40,7 +48,6 @@ kbd {
 	min-width: 1.5rem;
 	height: 1.5rem;
 	padding: 0 0.35rem;
-	box-sizing: border-box;
 	font-size: 0.75rem;
 	font-weight: 600;
 	color: var(--fg);
@@ -68,10 +75,12 @@ h1 {
 	white-space: nowrap;
 }
 
-/* Every view centres one column of its own width. The padding is shared, so
-   switching views does not move what sits under the header; the home and error
-   pages, which have no header, set their own. */
+/* Every view centres one column of its own width, `--column`, between two
+   gutters. The padding is shared, so switching views does not move what sits
+   under the header; the home and error pages, which have no header, set their
+   own above and below. */
 main {
+	max-width: calc(var(--column) + 2 * var(--gutter));
 	margin: 0 auto;
-	padding: 1.75rem 1.5rem 3rem;
+	padding: 1.75rem var(--gutter) 3rem;
 }

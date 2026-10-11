@@ -104,7 +104,7 @@
 
 <style>
 	main {
-		max-width: 84rem;
+		--column: 84rem;
 		padding-bottom: 4rem;
 	}
 
@@ -145,7 +145,7 @@
 		/* Each column scrolls on its own, so a long Done column does not push the
 		   other headers off the page. `j`/`k` rely on it too, since
 		   scrollIntoView scrolls the nearest scroll box. */
-		max-height: calc(100vh - 13rem);
+		max-height: calc(100vh - 11.25rem);
 	}
 
 	.column.progress {
