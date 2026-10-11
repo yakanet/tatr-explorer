@@ -8,7 +8,7 @@ import {
 	looksLikeTasksFolder,
 	readBranch
 } from './folder.ts';
-import { directory } from './fake-directory.ts';
+import { directory, entryTree } from './fake-directory.ts';
 
 /** A file as the directory input reports it, path and all. */
 function entry(relativePath: string, contents = 'x'): File {
@@ -242,74 +242,6 @@ describe('picking the tasks folder itself', () => {
 		expect(await readBranch(folder)).toBeUndefined();
 	});
 });
-
-/**
- * A stand-in for what a dropped folder hands over, callbacks and all. It
- * answers `readEntries` two at a time, because a reader that returns everything
- * at once cannot catch the bug that API is famous for.
- */
-function entryTree(name: string, tree: Record<string, string>, page = 2): FileSystemDirectoryEntry {
-	const build = (dirName: string, prefix: string): FileSystemDirectoryEntry => {
-		const children = new Map<string, FileSystemEntry>();
-		for (const [path, contents] of Object.entries(tree)) {
-			if (prefix && !path.startsWith(`${prefix}/`)) continue;
-			const rest = prefix ? path.slice(prefix.length + 1) : path;
-			const cut = rest.indexOf('/');
-			if (cut === -1) {
-				children.set(rest, {
-					isDirectory: false,
-					isFile: true,
-					name: rest,
-					file: (ok: (file: File) => void) => ok(new File([contents], rest))
-				} as unknown as FileSystemEntry);
-			} else {
-				const child = rest.slice(0, cut);
-				if (!children.has(child)) {
-					children.set(child, build(child, prefix ? `${prefix}/${child}` : child));
-				}
-			}
-		}
-
-		const find = (path: string) => children.get(path.split('/')[0]);
-
-		return {
-			isDirectory: true,
-			isFile: false,
-			name: dirName,
-			createReader: () => {
-				const all = [...children.values()];
-				let at = 0;
-				return {
-					readEntries: (ok: (batch: FileSystemEntry[]) => void) => {
-						const batch = all.slice(at, at + page);
-						at += batch.length;
-						ok(batch);
-					}
-				};
-			},
-			getDirectory: (
-				path: string,
-				_options: unknown,
-				ok: (found: FileSystemEntry) => void,
-				fail: () => void
-			) => {
-				const found = find(path);
-				found?.isDirectory ? ok(found) : fail();
-			},
-			getFile: (
-				path: string,
-				_options: unknown,
-				ok: (found: FileSystemEntry) => void,
-				fail: () => void
-			) => {
-				const found = find(path);
-				found?.isFile ? ok(found) : fail();
-			}
-		} as unknown as FileSystemDirectoryEntry;
-	};
-
-	return build(name, '');
-}
 
 describe('fromDirectoryEntry', () => {
 	it('reads a dropped repository', async () => {

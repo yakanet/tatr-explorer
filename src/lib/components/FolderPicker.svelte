@@ -2,11 +2,12 @@
 	// Opens a folder on the reader's machine, by whichever door the browser has.
 	//
 	// Three of them, and what separates them is what they hand back rather than
-	// what they ask. A dropped folder or `showDirectoryPicker` gives a handle,
-	// which can be walked again, so a refresh is a real reread; the directory
-	// input gives a flat list, once. Dropping is the widest door (the legacy
-	// entry API behind it exists where the picker does not), so a browser without
-	// the picker still has one way to a folder it can reread.
+	// what they ask. `showDirectoryPicker` gives a handle, and a dropped folder a
+	// handle on Chromium or the legacy entry tree elsewhere: all of them can be
+	// walked again, so a refresh is a real reread and the reading can follow the
+	// folder. The directory input gives a flat list, once. Dropping is the widest
+	// door (the entry API behind it exists where the picker does not), so a
+	// browser without the picker still has one way to a folder it can reread.
 	//
 	// Whichever answered, the reader clicked or dropped: they have no interest in
 	// which API it was.
@@ -15,10 +16,11 @@
 	import {
 		canDropFolder,
 		folderAccess,
-		fromDirectoryEntry,
 		fromDirectoryHandle,
 		fromFileList,
-		type LocalFolder
+		fromWayBack,
+		type LocalFolder,
+		type WayBack
 	} from '#lib/sources/local/folder.ts';
 	import { openFolder } from '#lib/sources/local/kind.ts';
 
@@ -43,13 +45,13 @@
 	const hasPicker = folderAccess() === 'picker';
 	const droppable = canDropFolder();
 
-	async function opened(folder: LocalFolder | null, handle?: FileSystemDirectoryHandle) {
+	async function opened(folder: LocalFolder | null, back?: WayBack) {
 		if (!folder) {
 			error = 'That folder could not be read.';
 			return;
 		}
 		error = null;
-		openFolder(folder, handle);
+		openFolder(folder, back);
 		await goto(resolve('/[...repo]', { repo: 'local' }), { refreshAll: true });
 	}
 
@@ -116,7 +118,7 @@
 			// is not a file, and Chrome answers `undefined` for one a script made.
 			// Either way there is no folder in it.
 			const folder = (await Promise.all(pending)).find(
-				(one): one is FileSystemDirectoryHandle | FileSystemDirectoryEntry =>
+				(one): one is WayBack =>
 					!!one && ('kind' in one ? one.kind === 'directory' : one.isDirectory)
 			);
 			if (!folder) {
@@ -124,8 +126,7 @@
 				return;
 			}
 
-			if ('kind' in folder) await opened(await fromDirectoryHandle(folder), folder);
-			else await opened(await fromDirectoryEntry(folder));
+			await opened(await fromWayBack(folder), folder);
 		} catch {
 			// A rejection here is what silence looks like: without this the reader
 			// drops a folder, nothing happens, and nothing says why.

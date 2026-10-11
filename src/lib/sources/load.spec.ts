@@ -303,8 +303,8 @@ const file = (priority: number, tags: string, status = 'OPEN') =>
 describe('the reading a new one replaces', () => {
 	const a = '20260101-000001';
 	const b = '20260202-000002';
-	const before = (priority: number): Snapshot => ({
-		at: 1_000,
+	const before = (priority: number, at = 1_000): Snapshot => ({
+		at,
 		tasks: [{ id: a, closed: false, priority, tags: ['ui'] }]
 	});
 
@@ -314,12 +314,12 @@ describe('the reading a new one replaces', () => {
 		expect(first.previous).toBeNull();
 	});
 
-	it('carries the reading it was given, with its age', async () => {
+	it('is compared with what was on screen, which moved', async () => {
 		const { lister, fetchImpl } = mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') });
 		const refreshed = await loadRepository(github({ listers: [lister], fetchImpl }), {
 			store,
 			refresh: true,
-			previous: before(90),
+			replaces: { shown: before(90), previous: null },
 			now: () => 2_000
 		});
 
@@ -327,11 +327,28 @@ describe('the reading a new one replaces', () => {
 		expect(refreshed.storedAt).toBe(2_000);
 	});
 
+	it('keeps the comparison standing when it moved nothing, rather than announce nothing', async () => {
+		// A followed folder takes many such readings (the focus coming back, an
+		// editor's swap file, a save that only rewrote prose), and each would
+		// otherwise wipe the badges of the last real change.
+		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
+		const again = await loadRepository(github({ listers: [lister], fetchImpl }), {
+			store,
+			refresh: true,
+			replaces: { shown: before(110, 2_000), previous: before(90) }
+		});
+		expect(again.previous).toEqual(before(90));
+	});
+
 	it('still carries it on the next visit, so the news survives a reload', async () => {
 		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
 		const source = github({ listers: [lister], fetchImpl });
 
-		await loadRepository(source, { store, refresh: true, previous: before(90) });
+		await loadRepository(source, {
+			store,
+			refresh: true,
+			replaces: { shown: before(90), previous: null }
+		});
 
 		const revisited = await loadRepository(source, { store });
 		expect(revisited.fromCache).toBe(true);

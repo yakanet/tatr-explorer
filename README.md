@@ -153,15 +153,20 @@ follow. The branch comes from `.git/HEAD`, which is a file like any other; the
 `tasks/` folder is all that is read.
 
 **Or drag the folder onto the page**, which is the widest door of the three: the
-API behind a drop exists in every browser, and on Chromium a dropped folder even
-arrives as a handle, the good kind of source.
+API behind a drop exists in every browser, and what it hands over can be walked
+again, as a handle on Chromium and as an entry tree on Firefox (Safari has the
+same API, untested).
 
-Because that is what separates the three ways in. A handle can be walked again,
-so **Refresh** rereads the folder and a task you closed in your editor shows up
-closed; a handle comes from a drop or from the File System Access API, which is
-Chromium today and which Brave ships turned off. The directory input, everywhere
-else, hands over one snapshot, and refreshing means picking again, which the
-button says instead of pretending.
+Because that is what separates the three ways in. A folder that can be walked
+again is **followed**: save a task in your editor and the board beside it shows
+it, with what your last change moved. On Chromium the browser reports
+the change itself (`FileSystemObserver`, Chrome and Edge 133 and later);
+elsewhere the folder is read again when the page gets the focus back, which is
+the moment you return from the editor. **Refresh** does the same on demand. It
+costs nothing, which is why a folder is followed where a repository on a forge
+never is: there, every reading spends your budget. The directory input hands
+over one snapshot, and refreshing means picking again, which the button says
+instead of pretending.
 
 Two of the three ask your permission, and they ask differently, so the page
 says which one is coming before you click. The picker asks for access to that

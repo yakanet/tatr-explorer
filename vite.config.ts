@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -39,6 +40,17 @@ export default defineConfig({
 			paths: { base: basePath() }
 		})
 	],
+	server: {
+		watch: {
+			// The repository's own tasks are data the viewer reads, never code, and
+			// this very folder is the one opened to try following it. Watched, each
+			// save there reached the dev server as a change it then found no module
+			// for; ignored, a save cannot become a reload, which would take back the
+			// folder the reader opened. Anchored at the root, so a `tasks` folder
+			// under `src/` would still be watched.
+			ignored: [fileURLToPath(new URL('./tasks/**', import.meta.url))]
+		}
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

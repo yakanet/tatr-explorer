@@ -14,7 +14,14 @@ import {
 	type Source
 } from '../sources/source.ts';
 import { describeRef, type RepoRef } from '../repo/ref.ts';
-import { compare, snapshot, type Changes, type Movement, type Snapshot } from '../tatr/changes.ts';
+import {
+	compare,
+	snapshot,
+	type Changes,
+	type Movement,
+	type Replaced,
+	type Snapshot
+} from '../tatr/changes.ts';
 import type { Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
@@ -97,9 +104,9 @@ export class RepositoryState {
 	 * to say: a first visit, or an unchanged repository.
 	 *
 	 * Null rather than an empty result, so a view has one thing to test and
-	 * cannot mark a row for having done nothing. It stands as long as the
-	 * reading does: there is no dismissing it, because the next refresh is a new
-	 * reading and takes the comparison with it.
+	 * cannot mark a row for having done nothing. There is no dismissing it: the
+	 * next reading that moves something replaces it, and one that moves nothing
+	 * leaves it standing.
 	 */
 	readonly changes = $derived.by((): Changes | null => {
 		if (!this.previous) return null;
@@ -117,7 +124,7 @@ export class RepositoryState {
 	 * its loading screen forever.
 	 */
 	load(ref: RepoRef): Promise<void> {
-		return this.#read(ref, { refresh: false, source: null, over: null });
+		return this.#read(ref, { refresh: false, source: null, replaces: null });
 	}
 
 	/**
@@ -131,30 +138,35 @@ export class RepositoryState {
 		const { ref, source } = this;
 		if (!ref) return Promise.resolve();
 		if (this.phase === 'ready' && source) {
-			const over = snapshot(this.tasks, this.storedAt);
-			return this.#read(ref, { refresh: true, source, over });
+			const replaces = { shown: snapshot(this.tasks, this.storedAt), previous: this.previous };
+			return this.#read(ref, { refresh: true, source, replaces });
 		}
 		// Nothing on screen to keep, as after a failure: the loading steps again,
 		// from the source already opened, `load` being the one place that opens.
-		return this.#read(ref, { refresh: true, source, over: null });
+		return this.#read(ref, { refresh: true, source, replaces: null });
 	}
 
 	/**
 	 * Takes a reading of `ref`, from `source` when one was opened already.
 	 *
-	 * `over` is the reading on screen when it stays there meanwhile, for the new
-	 * one to be compared with; null when there is nothing to keep, and the page
-	 * shows the loading steps instead. The two are apart because a source can
-	 * outlive its reading: a failed one leaves the source behind.
+	 * `replaces` is the reading on screen when it stays there meanwhile, with
+	 * what it was compared with, for the new one to be compared in turn; null
+	 * when there is nothing to keep, and the page shows the loading steps
+	 * instead. It is apart from `source` because a source can outlive its
+	 * reading: a failed one leaves the source behind.
 	 */
 	async #read(
 		ref: RepoRef,
-		{ refresh, source, over }: { refresh: boolean; source: Source | null; over: Snapshot | null }
+		{
+			refresh,
+			source,
+			replaces
+		}: { refresh: boolean; source: Source | null; replaces: Replaced | null }
 	): Promise<void> {
 		this.#controller?.abort();
 		const controller = new AbortController();
 		this.#controller = controller;
-		const standing = over !== null;
+		const standing = replaces !== null;
 
 		this.ref = ref;
 		// Before the source is opened, which throws for a reference nothing claims:
@@ -178,7 +190,7 @@ export class RepositoryState {
 			this.source = read;
 			const result = await loadRepository(read, {
 				refresh,
-				previous: over,
+				replaces,
 				signal: controller.signal,
 				onProgress: (done, total) => {
 					// The progress panel is for a page with nothing on it yet.
@@ -211,6 +223,18 @@ export class RepositoryState {
 			this.failure = describe(error);
 			this.phase = 'failed';
 		}
+	}
+
+	/**
+	 * Keeps the reading in step with its source, where the source can tell when
+	 * it changes, through the same refresh a click takes. Returns how to stop,
+	 * for the layout's effect: that runs it again when the source or the phase
+	 * changes, and a refresh moves neither.
+	 */
+	follow(): (() => void) | undefined {
+		const source = this.source;
+		if (this.phase !== 'ready' || !source?.follow) return undefined;
+		return source.follow(() => void this.refresh());
 	}
 
 	/**

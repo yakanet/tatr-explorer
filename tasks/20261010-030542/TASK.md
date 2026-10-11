@@ -1,6 +1,6 @@
 # Follow a local folder as it changes
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 45
 - TAGS: data
 
@@ -63,3 +63,41 @@ To decide: whether following is always on or a toggle in the header (always on
 is the lean: reading costs nothing, and the reason the cache never refreshes on
 its own, the reader's budget, does not exist here), and how the header says it
 (`following` rather than `read 2 minutes ago`).
+
+---
+
+Done, always on, with `following` in the header where the age was. Refresh
+stays beside it, free and sometimes useful: two windows side by side never
+hand the page the focus.
+
+A folder dropped on Firefox keeps its entry tree now, so it gets Refresh and is
+followed, on the focus. That path is covered by the specs over a stand-in entry
+tree, on the strength of the measurement above; it was not run again in a real
+Firefox. Handle or entry, one function walks it again (`fromWayBack`), which
+the drop uses too.
+
+Following is `follow?()` on the source, beside `refresh?()`, present only with a
+way back to the folder. The local source watches `tasks/` with
+`FileSystemObserver` where there is one, and the focus otherwise, or when the
+folder refuses to be observed. Measured in Chrome on the origin's private file
+system, which hands out the same handles: one `modified` record per save,
+delivered 1.5 to 2 seconds after the write. The 150 ms left for a burst to
+settle and the reading itself are lost in that.
+
+Every change is followed, an editor's swap file included. What made that safe
+is a rule beside the comparison (`comparedWith`, which the loader applies before
+it writes the cache) rather than a filter here: a reading that moves no
+metadata keeps the comparison standing instead of replacing it with one that
+announces nothing. Followed folders take many such readings (the focus coming
+back, a swap file, a save that only rewrote a title or prose, which the
+comparison does not see), and each wiped the badges of the last real change.
+It reaches a forge too: a Refresh that finds nothing now leaves the badges, the
+cache storing the same comparison.
+
+Not done as planned: the instance owning its folder. Every new folder arrives
+through a navigation, which gives the state a new source, and the layout's
+effect drops the old subscription through the function `follow` returns; for
+reading, a stale instance corrects itself a moment later. Writing cannot rely
+on that, which 20261010-030543 now states as its first step. Re-rendering every
+row on each reading was not measured: at two seconds from save to screen, it is
+not where the time goes.

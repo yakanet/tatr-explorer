@@ -1,11 +1,11 @@
 /**
  * What moved between two readings of one repository.
  *
- * The cache holds the state the reader last saw and a refresh replaces it, so
- * keeping the old one for the length of a comparison answers the question a
- * reader actually arrives with: what happened since I last looked? It costs no
- * request: both states are already on the machine, which is what the cache
- * never expiring on its own buys back.
+ * The cache holds the state the reader last saw and a reading that moves
+ * something replaces it, so keeping the old one for the length of a comparison
+ * answers the question a reader actually arrives with: what happened since I
+ * last looked? It costs no request: both states are already on the machine,
+ * which is what the cache never expiring on its own buys back.
  *
  * The comparison sees only what the cache keeps, which is metadata. A rewritten
  * title or description is invisible here, and announcing otherwise would be a
@@ -59,6 +59,33 @@ export function snapshot(tasks: readonly Task[], at: number): Snapshot {
 		at,
 		tasks: tasks.map(({ id, closed, priority, tags }) => ({ id, closed, priority, tags }))
 	};
+}
+
+/** A reading being replaced: what was on screen, and what that was compared with. */
+export interface Replaced {
+	shown: Snapshot;
+	previous: Snapshot | null;
+}
+
+/**
+ * What a new reading is compared with: the one it replaces, unless it finds
+ * that one again, metadata for metadata.
+ *
+ * Then the comparison already standing is kept rather than swapped for one that
+ * announces nothing. A reading that moved nothing is common once a folder is
+ * followed (the page regaining focus, an editor's swap file, a save that only
+ * rewrote prose, which the comparison does not see) and each would otherwise
+ * wipe the badges of the last real change. A refresh that finds nothing on a
+ * forge keeps them too, for the same reason: nothing new is not news that the
+ * old news is void.
+ */
+export function comparedWith(
+	replaced: Replaced | null | undefined,
+	tasks: readonly Task[]
+): Snapshot | null {
+	if (!replaced) return null;
+	if (compare(replaced.shown, tasks).total === 0) return replaced.previous;
+	return replaced.shown;
 }
 
 /** What moved from `before` to the tasks as they are now. */

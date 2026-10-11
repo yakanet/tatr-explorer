@@ -11,16 +11,23 @@
  */
 import { isLocal } from '../../repo/ref.ts';
 import { NoSourceError, type Source, type SourceKind } from '../source.ts';
-import { fromDirectoryHandle, listFolder, type LocalFolder, readBranch } from './folder.ts';
+import {
+	fromWayBack,
+	listFolder,
+	type LocalFolder,
+	readBranch,
+	tasksDirectoryOf,
+	type WayBack
+} from './folder.ts';
 
 /**
- * The folder, and the handle it arrived with when it had one.
+ * The folder, and the way back to it when it came with one.
  *
- * Keeping the handle is what lets a refresh reread the folder where the API
- * provides one; without it, refreshing means picking again.
+ * Keeping the way back is what lets a refresh read the folder again, and the
+ * reading follow it; without it, refreshing means picking again.
  */
 let opened: LocalFolder | null = null;
-let openedHandle: FileSystemDirectoryHandle | null = null;
+let openedBack: WayBack | null = null;
 /**
  * One `blob:` per path, so a body rendered twice does not leak two.
  *
@@ -33,10 +40,10 @@ let openedHandle: FileSystemDirectoryHandle | null = null;
  */
 let assets = new Map<string, { file: File; url: string }>();
 
-export function openFolder(folder: LocalFolder, handle?: FileSystemDirectoryHandle): void {
+export function openFolder(folder: LocalFolder, back?: WayBack): void {
 	closeFolder();
 	opened = folder;
-	openedHandle = handle ?? null;
+	openedBack = back ?? null;
 }
 
 function openedFolder(): LocalFolder | null {
@@ -45,20 +52,66 @@ function openedFolder(): LocalFolder | null {
 
 /** Whether a refresh can reread the folder, or has to ask for it again. */
 function canReread(): boolean {
-	return openedHandle !== null;
+	return openedBack !== null;
 }
 
-/** Rereads the folder from its handle, for the refresh control. */
+/** Rereads the folder by the way back to it, for the refresh control. */
 async function reread(): Promise<void> {
 	// The folder alone: closing it would revoke what the reading on screen links to.
-	if (openedHandle) opened = await fromDirectoryHandle(openedHandle);
+	if (openedBack) opened = await fromWayBack(openedBack);
+}
+
+/** How long a burst of changes is left to settle: one save can be several writes. */
+const SETTLE_MS = 150;
+
+/**
+ * Calls `onChange` when the folder may have changed, and returns how to stop.
+ *
+ * The system says so where it can: `FileSystemObserver` reports a change under
+ * a handle, on Chromium. Elsewhere, and should observing fail, the cue is the
+ * page regaining focus, which is the moment the reader comes back from the
+ * editor.
+ */
+function follow(onChange: () => void): () => void {
+	const Observer = globalThis.FileSystemObserver;
+	if (!openedBack || !('kind' in openedBack) || !Observer) return onFocus(onChange);
+
+	// Any change at all, an editor's swap file included: reading again costs a
+	// few milliseconds, and a reading that moves nothing leaves the badges be.
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const observer = new Observer(() => {
+		clearTimeout(timer);
+		timer = setTimeout(onChange, SETTLE_MS);
+	});
+	// Kept, so that an `observe` answering after the stop does not revive it.
+	let stopped = false;
+	let unfocus: (() => void) | undefined;
+	tasksDirectoryOf(openedBack)
+		.then((tasks) => {
+			if (tasks && !stopped) return observer.observe(tasks, { recursive: true });
+		})
+		.catch(() => {
+			if (!stopped) unfocus = onFocus(onChange);
+		});
+
+	return () => {
+		stopped = true;
+		clearTimeout(timer);
+		observer.disconnect();
+		unfocus?.();
+	};
+}
+
+function onFocus(onChange: () => void): () => void {
+	window.addEventListener('focus', onChange);
+	return () => window.removeEventListener('focus', onChange);
 }
 
 export function closeFolder(): void {
 	for (const { url } of assets.values()) URL.revokeObjectURL(url);
 	assets = new Map();
 	opened = null;
-	openedHandle = null;
+	openedBack = null;
 }
 
 /**
@@ -101,13 +154,13 @@ export const localKind: SourceKind = {
 	claims: (ref) => isLocal(ref),
 
 	open(): Source {
-		return {
+		const source: Source = {
 			id: 'local',
 			label: openedFolder()?.name ?? '',
 			cacheKey: null,
 			// A disk has no CDN to be polite to.
 			concurrency: Number.POSITIVE_INFINITY,
-			// Only where a handle was kept: a directory input hands over files and
+			// Only where a way back was kept: a directory input hands over files and
 			// no way back to the folder they came from.
 			repeatable: canReread(),
 			refresh: reread,
@@ -126,6 +179,9 @@ export const localKind: SourceKind = {
 			read: (path) => readFile(path),
 			assetUrl
 		};
+		// Following needs the same way back as Refresh does.
+		if (canReread()) source.follow = follow;
+		return source;
 	}
 };
 

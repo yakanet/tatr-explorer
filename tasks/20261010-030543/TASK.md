@@ -55,7 +55,15 @@ Three pieces that do not know about each other:
 - **Being able to write is the source's business**, an optional capability on
   the source interface the way `refresh?()` already is. The local source has it
   only when the detection above passes; a forge never has it. The detection
-  lives in that one place.
+  lives in that one place. It needs the source instance to own its folder
+  first: today it reads the handle from the module when called, and
+  `openFolder` swaps that handle before the navigation that replaces the
+  source. Harmless for reading (a stale subscription is dropped a moment
+  later, 20261010-030542), not for writing: a write from the old instance in
+  that moment would land in the folder just opened, and two worktrees of one
+  repository share their task ids, so comparing before writing would not
+  catch it. `open()` takes the folder, its way back and its `blob:` URLs over
+  from the module.
 - **The views only ask whether the capability is there.** No component tests
   the browser, and removing the feature would mean removing the capability and
   the controls, nothing in between.

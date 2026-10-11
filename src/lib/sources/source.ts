@@ -100,8 +100,9 @@ export interface Source {
 	 * Whether this reading can be taken again on demand.
 	 *
 	 * A forge always can, at the price of a request. A folder can only where
-	 * the browser handed over a handle to keep; otherwise the reader has to
-	 * offer the folder again, and a Refresh button would be a lie.
+	 * the browser handed over a way back to keep (a handle, or the entry tree of
+	 * a drop); otherwise the reader has to offer the folder again, and a Refresh
+	 * button would be a lie.
 	 */
 	readonly repeatable: boolean;
 
@@ -112,6 +113,17 @@ export interface Source {
 	 * ignoring the cache, not the source doing anything.
 	 */
 	refresh?(): Promise<void>;
+
+	/**
+	 * Calls `onChange` whenever what the source holds may have changed, until
+	 * the function it returns is called.
+	 *
+	 * Optional because only a folder kept with a way back to it can tell, and
+	 * only there is reading again free. A forge never follows: every reading
+	 * spends the reader's budget, which is why its cache never refreshes on its
+	 * own either.
+	 */
+	follow?(onChange: () => void): () => void;
 
 	/** Every file it holds, once. Throws {@link ListingError} or {@link NoSourceError}. */
 	list(signal?: AbortSignal): Promise<Listing>;

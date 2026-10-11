@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { ListingError } from './source.ts';
-import { directory } from './local/fake-directory.ts';
-import { fromDirectoryHandle, fromFileList } from './local/folder.ts';
+import { directory, entryTree } from './local/fake-directory.ts';
+import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
 const refs: RepoRef[] = [
@@ -175,5 +175,119 @@ describe('reading through a folder', () => {
 		closeFolder();
 		expect(revoke).toHaveBeenCalledWith(before);
 		revoke.mockRestore();
+	});
+
+	it('can be refreshed when it was dropped on Firefox, reading what changed on disk', async () => {
+		// The entry tree of a drop walks again on demand, no dialog: measured on
+		// Firefox, and what turns its "Reopen…" into a Refresh.
+		const tree = { 'tasks/20260101-000001/TASK.md': '# before\n' };
+		const entry = entryTree('my-project', tree);
+		openFolder(await fromDirectoryEntry(entry), entry);
+		const source = openSource(localRef());
+		expect(source.repeatable).toBe(true);
+
+		tree['tasks/20260101-000001/TASK.md'] = '# after\n';
+		await source.refresh?.();
+		expect(await source.read('tasks/20260101-000001/TASK.md')).toBe('# after\n');
+	});
+});
+
+describe('following a folder', () => {
+	const task = { 'tasks/20260101-000001/TASK.md': '# a\n', '.git/HEAD': 'ref: refs/heads/main\n' };
+
+	/** What `FileSystemObserver` would be asked, and a way to report a change. */
+	const observer = (fails = false) => {
+		const seen = { observed: '', recursive: false, disconnected: false };
+		let report: (records: FileSystemChangeRecord[]) => void = () => {};
+		vi.stubGlobal(
+			'FileSystemObserver',
+			class {
+				constructor(callback: typeof report) {
+					report = callback;
+				}
+				async observe(handle: FileSystemHandle, options?: { recursive?: boolean }) {
+					if (fails) throw new DOMException('refused', 'NotAllowedError');
+					seen.observed = handle.name;
+					seen.recursive = options?.recursive ?? false;
+				}
+				disconnect() {
+					seen.disconnected = true;
+				}
+			}
+		);
+		// Any record will do: every change is followed, whatever it touched.
+		const change = () =>
+			report([{ type: 'modified', relativePathComponents: ['20260101-000001', 'TASK.md'] }]);
+		return { seen, change };
+	};
+
+	const picked = async () => {
+		const handle = directory('my-project', task);
+		openFolder(await fromDirectoryHandle(handle), handle);
+		return openSource(localRef());
+	};
+
+	afterEach(() => {
+		closeFolder();
+		vi.unstubAllGlobals();
+		vi.useRealTimers();
+	});
+
+	it('is offered only with a way back to the folder, as Refresh is', async () => {
+		openFolder(fromFileList([dropped('tasks/20260101-000001/TASK.md', '# a\n')])!);
+		expect(openSource(localRef()).follow).toBeUndefined();
+		expect((await picked()).follow).toBeTypeOf('function');
+	});
+
+	it('watches `tasks/` alone, where FileSystemObserver exists', async () => {
+		// The rest of a checkout, `.git` and `node_modules`, moves far more often.
+		const { seen } = observer();
+		const stop = (await picked()).follow!(() => {});
+		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
+		expect(seen.recursive).toBe(true);
+
+		stop();
+		expect(seen.disconnected).toBe(true);
+	});
+
+	it('reports a burst of writes once it settles, as one save', async () => {
+		const { seen, change } = observer();
+		const changed = vi.fn();
+		(await picked()).follow!(changed);
+		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
+
+		vi.useFakeTimers();
+		change();
+		change();
+		change();
+		expect(changed).not.toHaveBeenCalled();
+		vi.runAllTimers();
+		expect(changed).toHaveBeenCalledTimes(1);
+	});
+
+	it('follows the focus where nothing observes the folder, as on Firefox', async () => {
+		vi.stubGlobal('window', new EventTarget());
+		const entry = entryTree('my-project', task);
+		openFolder(await fromDirectoryEntry(entry), entry);
+		const changed = vi.fn();
+		const stop = openSource(localRef()).follow!(changed);
+
+		window.dispatchEvent(new Event('focus'));
+		expect(changed).toHaveBeenCalledTimes(1);
+		stop();
+		window.dispatchEvent(new Event('focus'));
+		expect(changed).toHaveBeenCalledTimes(1);
+	});
+
+	it('falls back on the focus when the folder refuses to be observed', async () => {
+		vi.stubGlobal('window', new EventTarget());
+		observer(true);
+		const changed = vi.fn();
+		(await picked()).follow!(changed);
+
+		await vi.waitFor(() => {
+			window.dispatchEvent(new Event('focus'));
+			expect(changed).toHaveBeenCalled();
+		});
 	});
 });

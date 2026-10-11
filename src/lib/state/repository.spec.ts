@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { localRef } from '../repo/ref.ts';
-import { fromFileList } from '../sources/local/folder.ts';
+import { entryTree } from '../sources/local/fake-directory.ts';
+import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/kind.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 
@@ -130,6 +131,17 @@ describe('a refresh', () => {
 		expect(repo.previous?.tasks[0].priority).toBe(100);
 	});
 
+	it('leaves the badges of the last change when the next reading moves nothing', async () => {
+		const repo = new RepositoryState();
+		const ref = opened(90);
+		await repo.load(ref);
+		opened(110);
+		await repo.refresh();
+		await repo.refresh();
+
+		expect(repo.changes?.moved.get('20260101-000001')).toEqual(['repriorised']);
+	});
+
 	it('announces nothing when nothing moved', async () => {
 		const repo = new RepositoryState();
 		const ref = opened();
@@ -152,6 +164,45 @@ describe('a refresh', () => {
 		await repo.load(ref);
 		expect(repo.source).not.toBe(first);
 		expect(repo.changes).toBeNull();
+	});
+});
+
+describe('following', () => {
+	afterEach(() => {
+		closeFolder();
+		vi.unstubAllGlobals();
+	});
+
+	it('reads a folder again as it changes, and says what moved', async () => {
+		// The focus is the cue where nothing observes the folder, which is how a
+		// folder dropped on Firefox is followed.
+		vi.stubGlobal('window', new EventTarget());
+		const tree = {
+			'tasks/20260101-000001/TASK.md': '# a\n\n- STATUS: OPEN\n- PRIORITY: 90\n'
+		};
+		const entry = entryTree('my-project', tree);
+		openFolder(await fromDirectoryEntry(entry), entry);
+		const repo = new RepositoryState();
+		await repo.load(localRef());
+		const stop = repo.follow();
+
+		tree['tasks/20260101-000001/TASK.md'] = '# a\n\n- STATUS: CLOSED\n- PRIORITY: 90\n';
+		window.dispatchEvent(new Event('focus'));
+
+		await vi.waitFor(() => expect(repo.changes?.moved.get('20260101-000001')).toEqual(['closed']));
+		expect(repo.phase).toBe('ready');
+		stop?.();
+	});
+
+	it('does not follow a folder with no way back to it', async () => {
+		const repo = new RepositoryState();
+		await repo.load(opened());
+		expect(repo.phase).toBe('ready');
+		expect(repo.follow()).toBeUndefined();
+	});
+
+	it('does not follow before there is a reading', () => {
+		expect(new RepositoryState().follow()).toBeUndefined();
 	});
 });
 

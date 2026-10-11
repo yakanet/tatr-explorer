@@ -11,7 +11,8 @@
  * - `showDirectoryPicker()` is Chromium only and hands over a handle, which can
  *   be walked again, so a refresh is a genuine reread.
  * - a dropped folder gives a handle on Chromium and the legacy entry tree
- *   elsewhere, which makes it the widest door of the three.
+ *   elsewhere, both of which can be walked again, which makes it the widest
+ *   door of the three.
  *
  * All three are built, because the first is the floor and the others are worth
  * having where they exist. And all three produce the same thing: a name and a
@@ -42,14 +43,27 @@ export function folderAccess(): 'picker' | 'input' | 'none' {
  * Whether a folder can be dropped on the page.
  *
  * A door of its own, and the widest one: the legacy entry API that carries a
- * drop is in every browser, unlike the picker, and on Chromium a drop hands
- * back a handle, so dropping is the only way a browser without the picker gets
- * a folder it can reread.
+ * drop is in every browser, unlike the picker, and what a drop hands back can
+ * be walked again (a handle on Chromium, the entry tree elsewhere), so dropping
+ * is the only way a browser without the picker gets a folder it can reread.
  */
 export function canDropFolder(): boolean {
 	if (typeof DataTransferItem === 'undefined') return false;
 	const item = DataTransferItem.prototype;
 	return 'getAsFileSystemHandle' in item || 'webkitGetAsEntry' in item;
+}
+
+/**
+ * A way back to a folder already read: the handle the picker or a drop hands
+ * over on Chromium, or the entry tree of a drop elsewhere. Either can be walked
+ * again, which the directory input's flat list of files cannot.
+ */
+export type WayBack = FileSystemDirectoryHandle | FileSystemDirectoryEntry;
+
+/** Walks a folder again by its way back, in whichever dialect it came. */
+export function fromWayBack(back: WayBack): Promise<LocalFolder> {
+	if ('kind' in back) return fromDirectoryHandle(back);
+	return fromDirectoryEntry(back);
 }
 
 /** A repository read from the disk, as much of it as this viewer looks at. */
@@ -152,22 +166,39 @@ export async function fromDirectoryHandle(handle: FileSystemDirectoryHandle): Pr
 		}
 	}
 
-	// A repository holds its tasks in `tasks/`; a folder that *is* that one holds
-	// them at its root. Either way they end up under `tasks/`, where the rest of
-	// this viewer looks for them.
-	const inside = await directoryOrNull(handle, 'tasks');
-	// And a folder that is neither is left alone. Without this the walk descended
-	// the whole selection under a `tasks/` prefix (`node_modules` included), and
-	// the loader, seeing paths that begin with `tasks/`, could not say there was
-	// no tasks folder: the reader waited, then read "0 tasks".
-	if (inside || (await holdsTaskFolders(handle))) await walk(inside ?? handle, 'tasks');
+	// Either way the tasks end up under `tasks/`, where the rest of this viewer
+	// looks for them.
+	const tasks = await tasksDirectoryOf(handle);
+	if (tasks) await walk(tasks, 'tasks');
 
-	if (inside) {
+	// Only a repository has a `.git` beside its tasks; a tasks folder has none.
+	if (tasks && tasks !== handle) {
 		const head = await fileOrNull(await directoryOrNull(handle, '.git'), 'HEAD');
 		if (head) files.set('.git/HEAD', head);
 	}
 
 	return { name: handle.name, files };
+}
+
+/**
+ * The directory holding the task folders: `tasks/` in a repository, or the
+ * folder itself when it *is* that one. Null for a folder that is neither.
+ *
+ * What the walk descends, and what a watch on the folder looks at: the rest of
+ * a checkout (`.git`, `node_modules`) changes far more often than its tasks.
+ *
+ * And a folder that is neither is left alone. Without this the walk descended
+ * the whole selection under a `tasks/` prefix (`node_modules` included), and
+ * the loader, seeing paths that begin with `tasks/`, could not say there was no
+ * tasks folder: the reader waited, then read "0 tasks".
+ */
+export async function tasksDirectoryOf(
+	handle: FileSystemDirectoryHandle
+): Promise<FileSystemDirectoryHandle | null> {
+	const inside = await directoryOrNull(handle, 'tasks');
+	if (inside) return inside;
+	if (await holdsTaskFolders(handle)) return handle;
+	return null;
 }
 
 /**

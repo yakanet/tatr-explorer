@@ -47,6 +47,11 @@
 
 	/** Whether Refresh means anything here, which only the source of the reading knows. */
 	const repeatable = $derived(repo.source?.repeatable ?? false);
+	/** Whether the reading keeps itself current, so that its age says nothing. */
+	const following = $derived(repo.source?.follow !== undefined);
+
+	// A reading that can follow its source does, for as long as it stands.
+	$effect(() => repo.follow());
 
 	let helping = $state(false);
 
@@ -125,8 +130,12 @@
 	<div class="reading">
 		{#if repo.phase === 'ready'}
 			<span class="age">
-				{repo.fromCache ? 'cached' : 'read'}
-				{describeAge(repo.storedAt)}
+				{#if following}
+					following
+				{:else}
+					{repo.fromCache ? 'cached' : 'read'}
+					{describeAge(repo.storedAt)}
+				{/if}
 				<!-- The reading stayed; only renewing it failed, which is worth one
 				     clause rather than a panel over tasks that are still true. -->
 				{#if repo.refreshFailure}

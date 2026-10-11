@@ -17,7 +17,7 @@
  * prose costs no feature.
  */
 import { collectAttachments } from '../tatr/attachments.ts';
-import type { Snapshot } from '../tatr/changes.ts';
+import { comparedWith, type Replaced, type Snapshot } from '../tatr/changes.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
@@ -34,13 +34,15 @@ export interface LoadOptions {
 	/** Ignore any cached copy and fetch again. This is what the refresh control does. */
 	refresh?: boolean;
 	/**
-	 * The reading this one replaces, for the result to be compared with.
+	 * The reading this one replaces: what was on screen, and what that was
+	 * compared with. The result is compared with the first, or keeps the second
+	 * when it moved nothing (see `comparedWith`).
 	 *
 	 * Given by the caller, who has it on screen, rather than looked up in the
 	 * cache: a folder has no cache and changes all the same, and what the reader
 	 * last saw is what is in front of them, not what another tab last stored.
 	 */
-	previous?: Snapshot | null;
+	replaces?: Replaced | null;
 	/** Where to cache; defaults to IndexedDB, falling back to memory. */
 	store?: RepoStore;
 	now?: () => number;
@@ -57,9 +59,8 @@ export interface LoadResult {
 	branch: string;
 	/**
 	 * The state the reader last saw, when this reading replaced one, so a
-	 * refresh can say what moved. Null on a first visit, and replaced rather
-	 * than cleared: a comparison lasts exactly as long as the reading it came
-	 * with.
+	 * refresh can say what moved. Null on a first visit, replaced by a reading
+	 * that moved something and kept by one that moved nothing.
 	 */
 	previous: Snapshot | null;
 	/**
@@ -201,12 +202,13 @@ export async function loadRepository(
 		: null;
 
 	const storedAt = options.now?.() ?? Date.now();
+	const assembled = assemble(contents, attachments);
 	const payload: CachedLoad = {
-		...assemble(contents, attachments),
+		...assembled,
 		tags: parseTagsFile(tagsFile ?? ''),
 		branch: listing.branch,
 		// Stored with the reading, so the news it brought survives a reload.
-		previous: options.previous ?? null
+		previous: comparedWith(options.replaces, assembled.tasks)
 	};
 
 	if (key) {
