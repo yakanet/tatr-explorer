@@ -7,9 +7,16 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
-	import FolderPicker from '#lib/components/FolderPicker.svelte';
-	import { formatRepoPath, isLocal, isServed } from '#lib/repo/ref.ts';
-	import { RepositoryState, describeAge, REPOSITORY } from '#lib/state/repository.svelte.ts';
+	import { reopenerOf } from '#lib/components/kinds.ts';
+	import { formatRepoPath } from '#lib/repo/ref.ts';
+	import { kindOf } from '#lib/sources/open.ts';
+	import { isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
+	import {
+		FAILURE_HEADINGS,
+		RepositoryState,
+		describeAge,
+		REPOSITORY
+	} from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
 
 	let { data, children } = $props();
@@ -42,13 +49,20 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** A folder on this machine, opened or served, which has no branch to choose. */
-	const local = $derived(isLocal(ref) || isServed(ref));
+	/** Whether the reading has branches to choose from, which its kind says. */
+	const branched = $derived(kindOf(ref)?.branches ?? false);
+	/** What the branch shortcut does: open the menu, where there are branches. */
+	const openBranches = $derived.by(() => {
+		if (!branched) return undefined;
+		return () => (branching = true);
+	});
+	/** The gesture that opens the source again, where asking it again is not enough. */
+	const reopener = $derived(reopenerOf(ref));
 
 	/** Whether Refresh means anything here, which only the source of the reading knows. */
-	const repeatable = $derived(repo.source?.repeatable ?? false);
+	const rereadable = $derived(isRereadable(repo.source));
 	/** Whether the reading keeps itself current, so that its age says nothing. */
-	const following = $derived(repo.source?.follow !== undefined);
+	const following = $derived(isFollowable(repo.source));
 
 	// A reading that can follow its source does, for as long as it stands.
 	$effect(() => repo.follow());
@@ -88,11 +102,25 @@
 	function dismiss() {
 		if (helping) helping = false;
 	}
+
+	function folders(count: number): string {
+		if (count === 1) return '1 folder';
+		return `${count} folders`;
+	}
 </script>
+
+<!-- A clause of the reading's line, its detail hovered on screen and read out
+     after it: too long for a line that should not move for a rare case. -->
+{#snippet clause(text: string, detail: string)}
+	<span class="stale" title={detail}>
+		· {text}
+		<span class="sr">{detail}</span>
+	</span>
+{/snippet}
 
 <Shortcuts
 	onview={switchTo}
-	onbranch={local ? undefined : () => (branching = true)}
+	onbranch={openBranches}
 	onhelp={() => (helping = !helping)}
 	ondismiss={dismiss}
 	modal={helping}
@@ -101,7 +129,7 @@
 {#if helping}
 	<KeyHelp
 		views={views.map((view) => view.name)}
-		branch={!local}
+		branch={branched}
 		onclose={() => (helping = false)}
 	/>
 {/if}
@@ -111,10 +139,10 @@
 <header>
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
-		{#if local}
-			<span class="repo">{repo.name}</span>
-		{:else}
+		{#if branched}
 			<BranchField {ref} bind:open={branching} />
+		{:else}
+			<span class="repo">{repo.name}</span>
 		{/if}
 	</div>
 
@@ -137,36 +165,36 @@
 					{describeAge(repo.storedAt)}
 				{/if}
 				<!-- The reading stayed; only renewing it failed, which is worth one
-				     clause rather than a panel over tasks that are still true. -->
+				     clause rather than a panel over tasks that are still true. The
+				     source's own sentence is the detail. -->
 				{#if repo.refreshFailure}
-					<span class="stale">· not refreshed: {repo.refreshFailure.message}</span>
+					{@render clause(
+						`not refreshed: ${FAILURE_HEADINGS[repo.refreshFailure.kind]}`,
+						repo.refreshFailure.message
+					)}
 				{/if}
 				<!-- What the reading could not use. Said here because it is a fact about
 				     the reading rather than about a view, and because a count that does
 				     not match `tatr ls` is worse than a count with a reason beside it.
-				     The folders and the reasons are in the tooltip: naming them on the
-				     header would push the whole line around for a case that is rare. -->
+				     The folders and the reasons are the detail. -->
 				{#if repo.skipped.length > 0}
-					<span
-						class="stale"
-						title={repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')}
-					>
-						· {repo.skipped.length}
-						{repo.skipped.length === 1 ? 'folder' : 'folders'} skipped
-					</span>
+					{@render clause(
+						`${folders(repo.skipped.length)} skipped`,
+						repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')
+					)}
 				{/if}
 			</span>
-			{#if repeatable}
+			{#if rereadable}
 				<!-- The reading stays on screen while the next one is taken, so the
 				     button is what says one is under way. -->
 				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
 					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
 				</button>
-			{:else}
+			{:else if reopener}
 				<!-- A reading that cannot be taken again: a directory input hands over
 				     files and no way back to the folder they came from, so refreshing
 				     means asking for it again rather than pretending. -->
-				<FolderPicker label="Reopen…" />
+				<reopener.control label="Reopen…" />
 			{/if}
 		{/if}
 	</div>

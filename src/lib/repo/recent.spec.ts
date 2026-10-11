@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatRepoPath } from './ref.ts';
-import { branchesOf, parseKey, FALLBACK, toSuggestions, type CachedShape } from './recent.ts';
+import { branchesOf, FALLBACK, toSuggestions, type CachedShape } from './recent.ts';
 
 const row = (key: string, closed: number, open: number, storedAt = 1) => ({
 	key,
@@ -14,35 +14,6 @@ const row = (key: string, closed: number, open: number, storedAt = 1) => ({
 });
 
 const suggest = (rows: ReturnType<typeof row>[]) => toSuggestions(rows, formatRepoPath);
-
-describe('parseKey', () => {
-	it('reads back what repoKey writes', () => {
-		expect(parseKey('github.com/owner/repo@')).toEqual({
-			host: 'github.com',
-			owner: 'owner',
-			name: 'repo'
-		});
-	});
-
-	it('keeps a branch', () => {
-		expect(parseKey('github.com/owner/repo@dev')).toEqual({
-			host: 'github.com',
-			owner: 'owner',
-			name: 'repo',
-			branch: 'dev'
-		});
-	});
-
-	it('keeps a branch containing slashes', () => {
-		// Splitting on the last segment would have lost half of this.
-		expect(parseKey('github.com/owner/repo@feature/web-ui')?.branch).toBe('feature/web-ui');
-	});
-
-	it('gives up on a key it cannot read', () => {
-		expect(parseKey('nonsense')).toBeNull();
-		expect(parseKey('')).toBeNull();
-	});
-});
 
 describe('toSuggestions', () => {
 	it('counts what each cached repository holds', () => {

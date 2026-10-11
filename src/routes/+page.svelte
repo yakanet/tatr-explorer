@@ -5,9 +5,10 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
-	import { formatRepoPath, parseRepoInput, servedRef } from '#lib/repo/ref.ts';
+	import { formatRepoPath, parseRepoInput } from '#lib/repo/ref.ts';
 	import { toSuggestions, type CachedShape, type Suggestion } from '#lib/repo/recent.ts';
-	import { SERVED } from '#lib/served.ts';
+	import { SERVED } from '#lib/sources/served/enabled.ts';
+	import { SERVED_WORD } from '#lib/sources/served/kind.ts';
 	import { folderAccess } from '#lib/sources/local/folder.ts';
 	import { openStore } from '#lib/sources/store.ts';
 	import { describeAge } from '#lib/state/repository.svelte.ts';
@@ -205,7 +206,7 @@
 			<h2>Served by this dev server</h2>
 			<ul>
 				<li>
-					<a href={resolve('/[...repo]', { repo: formatRepoPath(servedRef()) })} data-key-row>
+					<a href={resolve('/[...repo]', { repo: SERVED_WORD })} data-key-row>
 						<span class="path mono">{SERVED}</span>
 						<span class="about">Read from the disk, and followed as it changes</span>
 						<span class="arrow" aria-hidden="true">→</span>

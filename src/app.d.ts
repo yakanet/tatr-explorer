@@ -34,7 +34,7 @@ declare global {
 	/**
 	 * The name of the folder the dev server serves, or false: replaced at compile
 	 * time by the plugin in `src/lib/sources/served/folder.server.ts`, and read in
-	 * `src/lib/served.ts` alone.
+	 * `src/lib/sources/served/enabled.ts` alone.
 	 */
 	const __TATR_SERVED__: string | false;
 

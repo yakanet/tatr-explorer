@@ -11,16 +11,81 @@
  * server, not in a grant the browser takes back on a reload. So it survives
  * one, follows the folder in every browser, and needs no picker.
  */
-import { isServed } from '../../repo/ref.ts';
-import { encodePath, readText } from '../http.ts';
-import { ListingError, type Listing, type Source, type SourceKind } from '../source.ts';
+import type { ViteHotContext } from 'vite/types/hot.d.ts';
+import type { Followable, Rereadable } from '../capabilities.ts';
+import { encodePath, readJson, readText } from '../http.ts';
+import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { CHANGED, ROUTES } from './protocol.ts';
 
-/** The kind's id, which its failures name too, where a forge's name its lister. */
-const NAME = 'served';
+/** The kind's id, and the word that is its address. */
+export const SERVED_WORD = 'served';
 
 /** A route of the dev server, which is always at the root. */
 const route = (path: string) => `/${ROUTES}/${path}`;
+
+/** Where the dev server answers one file of the folder. */
+const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
+
+/**
+ * The folder the dev server serves, read over its routes.
+ *
+ * Not `Cached`: reading it is free, and a stored copy of files someone is
+ * editing would be wrong before it was written.
+ */
+export class ServedSource implements Source, Rereadable {
+	readonly id = SERVED_WORD;
+	// The dev server is this machine.
+	readonly concurrency = Number.POSITIVE_INFINITY;
+	readonly label: string;
+	readonly #network: typeof fetch;
+
+	/** `network` is what a spec substitutes for the dev server. */
+	constructor(label: string, network: typeof fetch = fetch) {
+		this.label = label;
+		this.#network = network;
+	}
+
+	async list(signal?: AbortSignal): Promise<Listing> {
+		// Called unbound: the browser's own `fetch` refuses any `this` but the window.
+		const network = this.#network;
+		let response: Response;
+		try {
+			response = await network(route('listing'), { signal });
+		} catch {
+			throw new SourceError('network', 'The dev server did not answer.');
+		}
+		if (!response.ok) {
+			throw new SourceError('network', `The dev server answered ${response.status}.`);
+		}
+		return (await readJson(response, 'The dev server')) as Listing;
+	}
+
+	read(path: string, signal?: AbortSignal): Promise<string | null> {
+		return readText(this.#network, fileRoute(path), signal);
+	}
+
+	assetUrl(path: string): string {
+		return fileRoute(path);
+	}
+
+	/** Every listing is a fresh one, so there is nothing to make ready. */
+	async reread(): Promise<void> {}
+}
+
+/** The same folder, followed as it changes: the dev server pushes word of it. */
+export class FollowedServedSource extends ServedSource implements Followable {
+	readonly #channel: ViteHotContext;
+
+	constructor(label: string, channel: ViteHotContext, network: typeof fetch = fetch) {
+		super(label, network);
+		this.#channel = channel;
+	}
+
+	follow(onChange: () => void): () => void {
+		this.#channel.on(CHANGED, onChange);
+		return () => this.#channel.off(CHANGED, onChange);
+	}
+}
 
 /**
  * The kind, for the folder of that name: the dev server knows it when it
@@ -28,53 +93,27 @@ const route = (path: string) => `/${ROUTES}/${path}`;
  */
 export function servedKind(name: string): SourceKind {
 	return {
-		id: NAME,
+		id: SERVED_WORD,
 
-		claims: (ref) => isServed(ref),
+		// A word, as for a folder opened in the browser: no URL anyone else follows
+		// reaches it, though it survives a reload.
+		address: { word: SERVED_WORD },
 
-		open(_ref, options = {}): Source {
-			const doFetch = options.fetchImpl ?? fetch;
-			const fileUrl = (path: string) => route(`files/${encodePath(path)}`);
+		describe: () => 'the folder the dev server serves',
 
-			const source: Source = {
-				id: NAME,
-				label: name,
-				// Reading it is free, and a stored copy of files someone is editing
-				// would be wrong before it was written.
-				cacheKey: null,
-				// The dev server is this machine.
-				concurrency: Number.POSITIVE_INFINITY,
-				// Every listing is a fresh one, so there is nothing to make ready.
-				repeatable: true,
+		branches: false,
 
-				async list(signal) {
-					let response: Response;
-					try {
-						response = await doFetch(route('listing'), { signal });
-					} catch {
-						throw new ListingError('network', NAME, 'The dev server did not answer.');
-					}
-					if (!response.ok) {
-						throw new ListingError('network', NAME, `The dev server answered ${response.status}.`);
-					}
-					return (await response.json()) as Listing;
-				},
+		cost: {
+			listing: 'from the dev server',
+			files: 'The dev server reads the folder from the disk, and says when it changes.'
+		},
 
-				read: (path, signal) => readText(doFetch, fileUrl(path), signal),
-
-				assetUrl: fileUrl
-			};
-
-			// The dev channel, which exists in the dev server only: and so does this
-			// source.
-			const hot = import.meta.hot;
-			if (hot) {
-				source.follow = (onChange) => {
-					hot.on(CHANGED, onChange);
-					return () => hot.off(CHANGED, onChange);
-				};
-			}
-			return source;
+		open(): Source {
+			// The dev channel is there whenever the dev server is, which is the only
+			// place this kind is registered; the specs open it without one.
+			const channel = import.meta.hot;
+			if (!channel) return new ServedSource(name);
+			return new FollowedServedSource(name, channel);
 		}
 	};
 }

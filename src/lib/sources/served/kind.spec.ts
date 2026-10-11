@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { localRef, servedRef } from '../../repo/ref.ts';
+import type { ViteHotContext } from 'vite/types/hot.d.ts';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
+import { unreachable } from '#tests/support/network.ts';
+import { wordRef } from '../../repo/ref.ts';
+import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
-import { ListingError } from '../source.ts';
-import { scratchFolder, writeTree } from './disk-tree.server.ts';
-import { answer, locate } from './folder.server.ts';
-import { servedKind } from './kind.ts';
+import { SourceError } from '../source.ts';
+import { FollowedServedSource, ServedSource, servedKind } from './kind.ts';
+import { CHANGED } from './protocol.ts';
 
 /**
  * The page half against the server half, with nothing between them but the
@@ -23,29 +26,14 @@ beforeEach(async () => {
 	});
 });
 
-/** A fetch answered by the dev server's half itself. */
-async function server(): Promise<typeof fetch> {
-	const served = await locate(scratch());
-	return (async (input: RequestInfo | URL) => {
-		const request = new Request(new URL(String(input), 'http://localhost'));
-		return (await answer(served, request)) ?? new Response('not ours', { status: 404 });
-	}) as typeof fetch;
-}
-
-const open = async () => servedKind('my-project').open(servedRef(), { fetchImpl: await server() });
+const open = async () => new ServedSource('my-project', await serving(scratch()));
 
 describe('the served folder, as a source', () => {
-	it('claims the served marker and nothing else', () => {
-		const kind = servedKind('my-project');
-		expect(kind.claims(servedRef())).toBe(true);
-		expect(kind.claims(localRef())).toBe(false);
-	});
-
 	it('names itself after the folder, and keeps no cache of it', async () => {
 		const source = await open();
 		expect(source.label).toBe('my-project');
-		expect(source.cacheKey).toBeNull();
-		expect(source.repeatable).toBe(true);
+		expect(isCached(source)).toBe(false);
+		expect(isRereadable(source)).toBe(true);
 	});
 
 	it('lists the folder, with its branch', async () => {
@@ -68,11 +56,8 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('says the dev server did not answer, rather than that there is nothing', async () => {
-		const unreachable = (async () => {
-			throw new TypeError('Failed to fetch');
-		}) as unknown as typeof fetch;
-		const source = servedKind('my-project').open(servedRef(), { fetchImpl: unreachable });
-		await expect(source.list()).rejects.toThrow(ListingError);
+		const source = new ServedSource('my-project', unreachable);
+		await expect(source.list()).rejects.toThrow(SourceError);
 	});
 
 	it('loads as a repository like any other', async () => {
@@ -82,7 +67,23 @@ describe('the served folder, as a source', () => {
 		expect(result.label).toBe('my-project');
 	});
 
+	it('follows the folder over the dev channel, until told to stop', () => {
+		const heard = new Map<string, () => void>();
+		const channel = {
+			on: (event: string, handler: () => void) => heard.set(event, handler),
+			off: (event: string) => heard.delete(event)
+		} as unknown as ViteHotContext;
+		const changed = vi.fn();
+
+		const stop = new FollowedServedSource('my-project', channel).follow(changed);
+		heard.get(CHANGED)?.();
+		expect(changed).toHaveBeenCalledTimes(1);
+
+		stop();
+		expect(heard.has(CHANGED)).toBe(false);
+	});
+
 	it('follows nothing outside a dev server, there being no channel to hear from', async () => {
-		expect((await open()).follow).toBeUndefined();
+		expect(isFollowable(servedKind('my-project').open(wordRef('served')))).toBe(false);
 	});
 });

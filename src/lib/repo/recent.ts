@@ -10,7 +10,7 @@
  * Kept apart from the page so that turning cache rows into cards can be
  * asserted: the parsing of a key, the counting, the fallback and the order.
  */
-import { parseRepoPath, repoKey, type RepoRef } from './ref.ts';
+import { parseForgePath, repoKey, type RepoRef } from './ref.ts';
 
 /** Whatever the cache holds that a card needs. Deliberately narrow. */
 export interface CachedShape {
@@ -29,20 +29,6 @@ export interface Suggestion {
 
 /** This project's own repository, offered when the cache is empty. */
 export const FALLBACK: RepoRef = { host: 'github.com', owner: 'yakanet', name: 'tatr-explorer' };
-
-/**
- * A cache key back into a reference.
- *
- * `repoKey` writes `host/owner/name@branch`, with the branch left empty when
- * there is none, and a branch may itself contain slashes, so the split has to
- * come off the first `@` rather than the last segment.
- */
-export function parseKey(key: string): RepoRef | null {
-	const at = key.indexOf('@');
-	const path = at === -1 ? key : key.slice(0, at);
-	const branch = at === -1 ? '' : key.slice(at + 1);
-	return parseRepoPath(branch ? `${path}@${branch}` : path);
-}
 
 /**
  * The named branches of one repository already in the cache, for the header's
@@ -68,8 +54,10 @@ export function toSuggestions(
 	format: (ref: RepoRef) => string
 ): Suggestion[] {
 	const found = rows.flatMap((row) => {
-		const ref = parseKey(row.key);
-		// A key we cannot read back is a row from a scheme we no longer write.
+		// `repoKey` writes a forge path, so that reading turns a key back into a
+		// reference. A key we cannot read back is a row from a scheme we no longer
+		// write.
+		const ref = parseForgePath(row.key);
 		// Skipping it beats showing a card that leads nowhere.
 		if (!ref) return [];
 		return [

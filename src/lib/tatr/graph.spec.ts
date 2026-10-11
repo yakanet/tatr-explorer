@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import cliEdges from '../../../tests/fixtures/tatr-graph-edges.json' with { type: 'json' };
-import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import cliEdges from '#tests/fixtures/tatr-graph-edges.json' with { type: 'json' };
+import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { buildGraph, starCards } from './graph.ts';
 import { readTask, type Task } from './task.ts';
 

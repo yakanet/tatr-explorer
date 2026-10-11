@@ -1,8 +1,8 @@
 import { symlink } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { scratchFolder, writeTree } from './disk-tree.server.ts';
-import { answer, diskPath, listing, locate, servedFolder } from './folder.server.ts';
+import { scratchFolder, writeTree } from '#tests/support/disk-tree.ts';
+import { answer, diskPath, listing, locate, tatrServedFolder } from './folder.server.ts';
 
 /**
  * Real folders on the disk, because what is worth pinning here is what the disk
@@ -150,7 +150,7 @@ describe('what the dev server answers', () => {
 
 describe('the plugin', () => {
 	const define = (folder: string | undefined, command: 'serve' | 'build') => {
-		const config = servedFolder(folder).config as (
+		const config = tatrServedFolder(folder).config as (
 			config: unknown,
 			env: { command: 'serve' | 'build' }
 		) => { define: Record<string, string> };

@@ -10,36 +10,38 @@
  * depend on someone else's goodwill.
  */
 import type { RepoRef } from '../../repo/ref.ts';
-import { ListingError, type Listing } from '../source.ts';
+import { readJson } from '../http.ts';
+import { SourceError, type Listing } from '../source.ts';
 
 const API = 'https://ungh.cc';
-const NAME = 'ungh';
 
 interface UnghResponse {
 	files?: { path: string; size?: number }[];
 }
 
 /** Lists a repository through ungh, which proxies the same API. */
-export async function listViaUngh(ref: RepoRef, signal?: AbortSignal): Promise<Listing> {
+export async function listViaUngh(
+	ref: RepoRef,
+	network: typeof fetch,
+	signal?: AbortSignal
+): Promise<Listing | null> {
 	const branch = ref.branch ?? 'HEAD';
 	const url = `${API}/repos/${ref.owner}/${ref.name}/files/${encodeURIComponent(branch)}`;
 
 	let response: Response;
 	try {
-		response = await fetch(url, { signal });
+		response = await network(url, { signal });
 	} catch {
-		throw new ListingError('network', NAME, `Could not reach ${url}`);
+		throw new SourceError('network', `Could not reach ${url}.`);
 	}
-	if (response.status === 404) {
-		throw new ListingError('not-found', NAME, 'Repository or branch not found');
-	}
+	if (response.status === 404) return null;
 	if (!response.ok) {
-		throw new ListingError('network', NAME, `ungh answered ${response.status}`);
+		throw new SourceError('network', `ungh answered ${response.status}.`);
 	}
 
-	const body = (await response.json()) as UnghResponse;
+	const body = (await readJson(response, 'ungh')) as UnghResponse;
 	if (!Array.isArray(body.files)) {
-		throw new ListingError('malformed', NAME, 'No files in the response');
+		throw new SourceError('malformed', 'ungh answered with no files in its response.');
 	}
 
 	return {

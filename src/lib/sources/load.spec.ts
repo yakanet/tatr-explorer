@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { localRef, parseRepoPath } from '../repo/ref.ts';
+import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import { fileList } from '#tests/support/fake-directory.ts';
+import { wordRef, parseForgePath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
-import { NoTasksFolderError, loadRepository } from './load.ts';
-import { githubKind } from './github/kind.ts';
+import { loadRepository } from './load.ts';
+import { GitHubRepository, type Listers, type Seams } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { Snapshot } from '../tatr/changes.ts';
-import { ListingError, NoSourceError, type Listing, type OpenOptions } from './source.ts';
+import { SourceError, type Listing } from './source.ts';
 
 const sources = rawTasks as Record<string, string>;
-const ref = parseRepoPath('tsoding/tatr')!;
+const ref = parseForgePath('tsoding/tatr')!;
 
 /** A lister that answers from the embedded fixture. */
 function fakeLister(overrides: Partial<Listing> = {}) {
@@ -26,10 +27,12 @@ function fakeLister(overrides: Partial<Listing> = {}) {
 }
 
 const failing =
-	(name: string, failure: 'rate-limited' | 'not-found' | 'network') =>
-	async (): Promise<Listing> => {
-		throw new ListingError(failure, name, failure);
+	(name: string, failure: 'rate-limited' | 'network') => async (): Promise<Listing> => {
+		throw new SourceError(failure, `${name}: ${failure}`);
 	};
+
+/** A lister that finds no such repository. */
+const nowhere = async (): Promise<null> => null;
 
 /** Serves task files, and the tags file, from the fixture. */
 const fetchFixture = vi.fn(async (input: RequestInfo | URL) => {
@@ -47,10 +50,10 @@ const fetchFixture = vi.fn(async (input: RequestInfo | URL) => {
 }) as unknown as typeof fetch;
 
 /** The forge, opened over substitutes for the network. */
-const github = (options: OpenOptions) => githubKind.open(ref, options);
+const github = (seams: Seams) => new GitHubRepository(ref, seams);
 
 /** The fixture's 79 tasks, as the forge serves them, listed by `lister`. */
-const fixture = (lister = fakeLister()) => github({ listers: [lister], fetchImpl: fetchFixture });
+const fixture = (lister = fakeLister()) => github({ listers: [lister], network: fetchFixture });
 
 let store = memoryStore();
 
@@ -64,7 +67,7 @@ describe('lister fallback', () => {
 	 * Through the door the application uses: the chain is the forge's own
 	 * business, reached by opening the source and asking it to list.
 	 */
-	const list = (listers: OpenOptions['listers']) => github({ listers }).list();
+	const list = (listers: Listers) => github({ listers }).list();
 
 	// A listing no longer says who produced it, so the question is put to the
 	// listers themselves, which is the stronger form of it anyway: that the
@@ -90,14 +93,28 @@ describe('lister fallback', () => {
 
 	it('does not ask the others when the repository does not exist', async () => {
 		const second = vi.fn(fakeLister());
-		await expect(list([failing('github', 'not-found'), second])).rejects.toThrow(ListingError);
+		await expect(list([nowhere, second])).rejects.toMatchObject({ failure: 'not-found' });
 		expect(second).not.toHaveBeenCalled();
 	});
 
-	it('rethrows when every lister fails', async () => {
+	it("says what is missing in the forge's words, whichever lister found it missing", async () => {
+		await expect(list([failing('github', 'network'), nowhere])).rejects.toThrow(
+			'No repository tsoding/tatr on github.com, or it is private.'
+		);
+	});
+
+	it('reports a spent budget when nobody answered, rather than the last fallback', async () => {
+		// The budget is the cause, and the one thing the reader can wait out; the
+		// mirror being down as well is not news worth the panel.
 		await expect(
 			list([failing('github', 'rate-limited'), failing('ungh', 'network')])
-		).rejects.toThrow(ListingError);
+		).rejects.toMatchObject({ failure: 'rate-limited', message: 'github: rate-limited' });
+	});
+
+	it('reports the last failure when none of them was a spent budget', async () => {
+		await expect(
+			list([failing('github', 'network'), failing('ungh', 'network')])
+		).rejects.toMatchObject({ failure: 'network', message: 'ungh: network' });
 	});
 });
 
@@ -134,7 +151,7 @@ describe('loadRepository', () => {
 			return fetchFixture(input);
 		}) as unknown as typeof fetch;
 
-		await loadRepository(github({ listers: [fakeLister()], fetchImpl: counting }), {
+		await loadRepository(github({ listers: [fakeLister()], network: counting }), {
 			store,
 			concurrency: 4
 		});
@@ -146,7 +163,9 @@ describe('loadRepository', () => {
 			entries: [{ path: 'README.md' }],
 			branch: 'HEAD'
 		});
-		await expect(loadRepository(fixture(bare), { store })).rejects.toThrow(NoTasksFolderError);
+		await expect(loadRepository(fixture(bare), { store })).rejects.toMatchObject({
+			failure: 'no-tasks-folder'
+		});
 	});
 
 	it('lists unreadable tasks instead of dropping them', async () => {
@@ -155,7 +174,7 @@ describe('loadRepository', () => {
 			return fetchFixture(input);
 		}) as unknown as typeof fetch;
 
-		const result = await loadRepository(github({ listers: [fakeLister()], fetchImpl: flaky }), {
+		const result = await loadRepository(github({ listers: [fakeLister()], network: flaky }), {
 			store
 		});
 		expect(result.tasks).toHaveLength(78);
@@ -278,18 +297,18 @@ describe('what the cache keeps', () => {
  * A repository of a few task files that can be rewritten between readings,
  * which the 79-task fixture cannot be, being a fixture.
  */
-function mutable(files: Record<string, string>) {
+function mutable(files: Record<string, string>): Seams {
 	const lister = async (): Promise<Listing> => ({
 		entries: Object.keys(files).map((id) => ({ path: `tasks/${id}/TASK.md`, size: 1 })),
 		branch: 'HEAD'
 	});
-	const fetchImpl = (async (input: RequestInfo | URL) => {
+	const network = (async (input: RequestInfo | URL) => {
 		const match = /tasks\/([^/]+)\/TASK\.md$/.exec(String(input));
 		return match && files[match[1]]
 			? new Response(files[match[1]], { status: 200 })
 			: new Response('not found', { status: 404 });
 	}) as unknown as typeof fetch;
-	return { lister, fetchImpl };
+	return { listers: [lister], network };
 }
 
 const file = (priority: number, tags: string, status = 'OPEN') =>
@@ -309,19 +328,20 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('has nothing to compare with when given nothing, as on a first visit', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(90, 'ui') });
-		const first = await loadRepository(github({ listers: [lister], fetchImpl }), { store });
+		const first = await loadRepository(github(mutable({ [a]: file(90, 'ui') })), { store });
 		expect(first.previous).toBeNull();
 	});
 
 	it('is compared with what was on screen, which moved', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') });
-		const refreshed = await loadRepository(github({ listers: [lister], fetchImpl }), {
-			store,
-			refresh: true,
-			replaces: { shown: before(90), previous: null },
-			now: () => 2_000
-		});
+		const refreshed = await loadRepository(
+			github(mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') })),
+			{
+				store,
+				refresh: true,
+				replaces: { shown: before(90), previous: null },
+				now: () => 2_000
+			}
+		);
 
 		expect(refreshed.previous).toEqual(before(90));
 		expect(refreshed.storedAt).toBe(2_000);
@@ -331,8 +351,7 @@ describe('the reading a new one replaces', () => {
 		// A followed folder takes many such readings (the focus coming back, an
 		// editor's swap file, a save that only rewrote prose), and each would
 		// otherwise wipe the badges of the last real change.
-		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
-		const again = await loadRepository(github({ listers: [lister], fetchImpl }), {
+		const again = await loadRepository(github(mutable({ [a]: file(110, 'ui') })), {
 			store,
 			refresh: true,
 			replaces: { shown: before(110, 2_000), previous: before(90) }
@@ -341,8 +360,7 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('still carries it on the next visit, so the news survives a reload', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
-		const source = github({ listers: [lister], fetchImpl });
+		const source = github(mutable({ [a]: file(110, 'ui') }));
 
 		await loadRepository(source, {
 			store,
@@ -357,8 +375,7 @@ describe('the reading a new one replaces', () => {
 
 	it('does not look for it in the cache, where another tab may have stored one', async () => {
 		const files = { [a]: file(90, 'ui') };
-		const { lister, fetchImpl } = mutable(files);
-		const source = github({ listers: [lister], fetchImpl });
+		const source = github(mutable(files));
 
 		await loadRepository(source, { store });
 		files[a] = file(110, 'ui');
@@ -369,16 +386,14 @@ describe('the reading a new one replaces', () => {
 
 /** A file as the directory input reports it. */
 function dropped(path: string, text: string): File {
-	const file = new File([text], path.split('/').pop()!);
-	Object.defineProperty(file, 'webkitRelativePath', { value: `my-project/${path}` });
-	return file;
+	return fileList('my-project', { [path]: text })[0];
 }
 
 describe('a folder on this machine', () => {
 	const open = (files: File[]) => {
 		const folder = fromFileList(files);
 		if (folder) openFolder(folder);
-		return localKind.open(localRef());
+		return localKind.open(wordRef('local'));
 	};
 
 	const task = (id: string, priority: number, status = 'OPEN') =>
@@ -404,8 +419,7 @@ describe('a folder on this machine', () => {
 		expect(first.fromCache).toBe(false);
 		expect(await store.list()).toEqual([]);
 
-		openFolder(fromFileList([task('20260101-000001', 110)])!);
-		const second = await loadRepository(source, { store });
+		const second = await loadRepository(open([task('20260101-000001', 110)]), { store });
 		expect(second.fromCache).toBe(false);
 		expect(second.tasks[0].priority).toBe(110);
 	});
@@ -442,13 +456,17 @@ describe('a folder on this machine', () => {
 		// It was opened; it simply holds no tasks, which is what the reader has to
 		// be told: the same thing a repository without the folder is told.
 		const source = open([dropped('src/app.css', 'body{}'), dropped('README.md', '# a project\n')]);
-		await expect(loadRepository(source, { store })).rejects.toThrow(NoTasksFolderError);
+		await expect(loadRepository(source, { store })).rejects.toMatchObject({
+			failure: 'no-tasks-folder'
+		});
 	});
 
 	it('says so when there is no folder open at all, as after a reload', async () => {
 		closeFolder();
-		await expect(loadRepository(localKind.open(localRef()), { store })).rejects.toThrow(
-			NoSourceError
+		await expect(loadRepository(localKind.open(wordRef('local')), { store })).rejects.toMatchObject(
+			{
+				failure: 'no-source'
+			}
 		);
 	});
 });

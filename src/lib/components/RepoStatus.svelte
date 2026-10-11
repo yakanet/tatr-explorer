@@ -1,20 +1,26 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import FolderPicker from '#lib/components/FolderPicker.svelte';
+	import { reopenerOf } from '#lib/components/kinds.ts';
 	import { onBranch } from '#lib/repo/branch.ts';
-	import { describeRef, formatRepoPath, isLocal, type RepoRef } from '#lib/repo/ref.ts';
-	import type { RepositoryState } from '#lib/state/repository.svelte.ts';
+	import type { RepoRef } from '#lib/repo/ref.ts';
+	import { kindOf } from '#lib/sources/open.ts';
+	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
 	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
 
 	const percent = $derived(repo.total === 0 ? 0 : Math.round((repo.done / repo.total) * 100));
+	/** What reading costs, which the kind says: a request, or nothing at all. */
+	const cost = $derived(kindOf(ref)?.cost);
+	/** The gesture that opens the source again, where trying again cannot. */
+	const reopener = $derived(reopenerOf(ref));
 </script>
 
 {#if repo.phase === 'listing' || repo.phase === 'reading'}
 	<section class="panel">
 		<p class="step">
 			<span class="tick" class:done={repo.phase === 'reading'}></span>
-			Listing the repository <span class="hint">one request</span>
+			Listing the repository
+			{#if cost}<span class="hint">{cost.listing}</span>{/if}
 		</p>
 		<p class="step">
 			<span class="tick" class:active={repo.phase === 'reading'}></span>
@@ -24,58 +30,24 @@
 		{#if repo.total > 0}
 			<div class="bar"><div class="fill" style:width="{percent}%"></div></div>
 		{/if}
-		<p class="note">Task files are read from a CDN and cost no rate limit.</p>
+		{#if cost}<p class="note">{cost.files}</p>{/if}
 	</section>
 {:else if repo.phase === 'failed' && repo.failure}
+	<!-- The heading is the page's name for the failure; the sentence is the
+	     source's, which alone knows its budget, its fallbacks, or that a reload
+	     took its folder back. -->
 	<section class="panel" class:warn={repo.failure.kind === 'rate-limited'}>
-		{#if repo.failure.kind === 'rate-limited'}
-			<h2>Rate limit reached</h2>
-			<p>
-				GitHub allows 60 unauthenticated requests per hour per IP address, and this address has used
-				all of them. Every fallback was tried too.
-			</p>
-			<p class="note">
-				Only the initial listing costs quota: reading task files never does. A repository loaded
-				once stays available without spending any.
-			</p>
-		{:else if repo.failure.kind === 'not-found'}
-			<h2>Not found</h2>
-			{#if ref.branch}
-				<!-- The listing answers 404 alike for a branch, a repository and a
-				     private one, so the three are named together rather than guessed
-				     between at the cost of another request. -->
-				<p>
-					No branch <code>{ref.branch}</code> in <code>{describeRef(ref)}</code>, or no such
-					repository, or it is private.
-				</p>
-			{:else}
-				<p>No repository at <code>{formatRepoPath(ref)}</code>, or it is private.</p>
-			{/if}
-		{:else if repo.failure.kind === 'no-source'}
-			<h2>No folder open</h2>
-			<p>
-				A folder is read where it sits, so the browser only grants access while you are here: a
-				reload takes it back. Choose or drop it again to carry on.
-			</p>
-		{:else if repo.failure.kind === 'no-tasks-folder'}
-			<h2>No tasks folder</h2>
-			<p>
-				<code>{describeRef(ref)}</code> was read, but it has no <code>tasks/</code> directory at its root.
-			</p>
+		<h2>{FAILURE_HEADINGS[repo.failure.kind]}</h2>
+		<p>{repo.failure.message}</p>
+		{#if repo.failure.kind === 'no-tasks-folder'}
 			<p class="note">
 				This viewer expects the tatr layout: one folder per task, each holding a
 				<code>TASK.md</code>.
 			</p>
-		{:else if repo.failure.kind === 'unsupported-host'}
-			<h2>Not supported yet</h2>
-			<p>Only <code>github.com</code> is implemented so far.</p>
-		{:else}
-			<h2>Could not load</h2>
-			<p>{repo.failure.message}</p>
 		{/if}
 		<div class="actions">
-			{#if isLocal(ref)}
-				<FolderPicker label="Choose a folder…" />
+			{#if reopener}
+				<reopener.control label={reopener.label} />
 			{:else}
 				<button class="action" onclick={() => repo.refresh()}>Try again</button>
 				{#if ref.branch}
@@ -99,6 +71,11 @@
 	h2 {
 		margin: 0 0 0.6rem;
 		font-size: 1rem;
+	}
+
+	/* The headings are written as the clause the header uses, in lower case. */
+	h2::first-letter {
+		text-transform: uppercase;
 	}
 
 	p {

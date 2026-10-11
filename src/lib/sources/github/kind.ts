@@ -17,37 +17,15 @@
  * are not) is a fact about this forge, not about sources.
  */
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
+import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import {
-	ListingError,
-	type Listing,
-	type OpenOptions,
-	type Source,
-	type SourceKind
-} from '../source.ts';
+import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { listViaApi } from './api.ts';
 import { listViaUngh } from './ungh.ts';
 
 const RAW = 'https://raw.githubusercontent.com';
-/** The forge's own id, which its primary lister happens to answer to as well. */
+/** The forge's own id. */
 const NAME = 'github';
-
-/**
- * Refuses a reference this forge does not serve.
- *
- * Asked once, at the entrance of the fallback chain, rather than by each lister
- * in it: all three read GitHub (its API, a proxy of it, a cache of it), so the
- * host is the forge's business and asking three times said so three times.
- */
-function assertHost(ref: RepoRef): void {
-	if (ref.host !== 'github.com') {
-		throw new ListingError(
-			'unsupported-host',
-			NAME,
-			`${ref.host} is not supported yet: only github.com is`
-		);
-	}
-}
 
 /**
  * URL of a file's raw contents. Free of the API budget.
@@ -78,6 +56,21 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
 }
 
 /**
+ * One way of listing a repository: a function, there being nothing else to a
+ * lister. It asks the network it is handed, so that a repository opened over
+ * a substitute lists over it too, and answers null where the repository or the
+ * branch does not exist, which the forge then words once for all of them.
+ */
+export type Lister = (
+	ref: RepoRef,
+	network: typeof fetch,
+	signal?: AbortSignal
+) => Promise<Listing | null>;
+
+/** Listers in fallback order, at least one: with none, nothing would be asked. */
+export type Listers = readonly [Lister, ...Lister[]];
+
+/**
  * The listers this forge falls back through, in order. GitHub first so the
  * normal path depends on nobody else; ungh is a mirror *of GitHub*, which is
  * why it belongs to it rather than standing beside it as a source.
@@ -87,40 +80,61 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
  * repository's 64 tasks when measured, missing the newest). Two third parties
  * for that last case was more machinery than a reader of task folders needs.
  */
-/**
- * One way of listing a repository: a function, there being nothing else to a
- * lister. The name it answers to lives in the failures it throws, which is
- * where provenance is read.
- */
-type Lister = (ref: RepoRef, signal?: AbortSignal) => Promise<Listing>;
-
-const LISTERS: Lister[] = [listViaApi, listViaUngh];
+const LISTERS: Listers = [listViaApi, listViaUngh];
 
 /**
  * Lists a repository, falling back through the listers in order.
  *
  * Only the listing can be rate-limited, so a spent budget is answered by asking
  * someone else rather than by an error. A missing repository is missing
- * everywhere, so that one is not retried.
+ * everywhere, so that one is not retried. And when nobody answered, a spent
+ * budget is what is reported, rather than whichever fallback failed last: it
+ * is the cause, and the one thing the reader can wait out.
  */
 async function listRepository(
 	ref: RepoRef,
-	options: { listers?: readonly Lister[]; signal?: AbortSignal } = {}
+	listers: Listers,
+	network: typeof fetch,
+	signal?: AbortSignal
 ): Promise<Listing> {
-	assertHost(ref);
-	const listers = options.listers ?? LISTERS;
 	let lastError: unknown;
+	let spent: SourceError | undefined;
 
 	for (const lister of listers) {
+		let listing: Listing | null;
 		try {
-			return await lister(ref, options.signal);
+			listing = await lister(ref, network, signal);
 		} catch (error) {
-			// A missing repository is the same everywhere; do not ask the others.
-			if (error instanceof ListingError && error.failure === 'not-found') throw error;
+			if (error instanceof SourceError && error.failure === 'rate-limited') spent = error;
 			lastError = error;
+			continue;
 		}
+		// A missing repository is the same everywhere; do not ask the others.
+		if (!listing) throw new SourceError('not-found', missing(ref));
+		return listing;
 	}
-	throw lastError ?? new Error('No lister could list the repository');
+	throw spent ?? lastError;
+}
+
+/**
+ * What a missing repository says. GitHub answers 404 alike for a branch, a
+ * repository and a private one, so the three are named together rather than
+ * guessed between at the cost of another request.
+ */
+function missing(ref: RepoRef): string {
+	const repository = describe(ref);
+	if (ref.branch) {
+		return `No branch ${ref.branch} in ${repository}, or no such repository, or it is private.`;
+	}
+	return `No repository ${repository} on ${ref.host}, or it is private.`;
+}
+
+/** What a spec substitutes in a repository: what it would otherwise ask of GitHub. */
+export interface Seams {
+	/** The network, which the reads and the listers alike go through. */
+	network?: typeof fetch;
+	/** The listers this forge falls back through, in order. */
+	listers?: Listers;
 }
 
 /**
@@ -130,33 +144,69 @@ async function listRepository(
  * forge rather than about sources: both the trees API and raw accept it, so the
  * request that would resolve a default branch by name is never made.
  */
-export const githubKind: SourceKind = {
+export class GitHubRepository implements Source, Cached, Rereadable, Linked {
+	readonly id = NAME;
+	// Polite to the CDN while still finishing in well under a second.
+	readonly concurrency = 12;
+	readonly label: string;
+	readonly cacheKey: string;
+	readonly #ref: RepoRef;
+	readonly #branch: string;
+	readonly #network: typeof fetch;
+	readonly #listers: Listers;
+
+	constructor(ref: RepoRef, seams: Seams = {}) {
+		this.#ref = ref;
+		this.#branch = ref.branch ?? 'HEAD';
+		this.#network = seams.network ?? fetch;
+		this.#listers = seams.listers ?? LISTERS;
+		this.label = describe(ref);
+		this.cacheKey = repoKey(ref);
+	}
+
+	list(signal?: AbortSignal): Promise<Listing> {
+		return listRepository(this.#ref, this.#listers, this.#network, signal);
+	}
+
+	read(path: string, signal?: AbortSignal): Promise<string | null> {
+		return readText(this.#network, this.assetUrl(path), signal);
+	}
+
+	assetUrl(path: string): string {
+		return rawUrl(this.#ref, this.#branch, path);
+	}
+
+	fileUrl(path: string): string {
+		return blobUrl(this.#ref, this.#branch, path);
+	}
+
+	/**
+	 * Read again at the price of one request, which is what the reader is asking
+	 * for, and with nothing to prepare: the loader ignores the cache.
+	 */
+	async reread(): Promise<void> {}
+}
+
+/** How a repository reads on screen: `owner/name`, its host being github.com. */
+function describe(ref: RepoRef): string {
+	return `${ref.owner}/${ref.name}`;
+}
+
+export const githubKind = {
 	id: NAME,
 
-	// Any domain for now, which is every host but the local marker: `assertHost`
-	// is what actually refuses the others, and refusing them here becomes this
-	// method's job once a second forge claims some.
-	claims: (ref) => ref.host.includes('.'),
+	// A forge address on any other host parses all the same, and is refused when
+	// opened, as a host nothing reads.
+	address: { hosts: ['github.com'] },
 
-	open(ref: RepoRef, options: OpenOptions = {}): Source {
-		const branch = ref.branch ?? 'HEAD';
-		const doFetch = options.fetchImpl ?? fetch;
+	describe,
 
-		return {
-			id: NAME,
-			label: `${ref.owner}/${ref.name}`,
-			cacheKey: repoKey(ref),
-			// Polite to the CDN while still finishing in well under a second.
-			concurrency: 12,
-			// At the price of one request, which is what the reader is asking for.
-			repeatable: true,
+	branches: true,
 
-			list: (signal) => listRepository(ref, { listers: options.listers, signal }),
+	cost: {
+		listing: 'one request',
+		files: 'Task files are read from a CDN and cost no rate limit.'
+	},
 
-			read: (path, signal) => readText(doFetch, rawUrl(ref, branch, path), signal),
-
-			assetUrl: (path) => rawUrl(ref, branch, path),
-			fileUrl: (path) => blobUrl(ref, branch, path)
-		};
-	}
-};
+	open: (ref) => new GitHubRepository(ref)
+} satisfies SourceKind;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import rawTasks from '../../../tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
+import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { IN_PROGRESS, toColumns } from './board.ts';
 import { readTask, type Task } from './task.ts';
 

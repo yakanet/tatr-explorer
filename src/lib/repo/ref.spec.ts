@@ -1,20 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-	describeRef,
 	formatRepoPath,
 	isBranchName,
-	isLocal,
-	isServed,
-	localRef,
+	parseForgePath,
 	parseRepoInput,
-	parseRepoPath,
 	repoKey,
-	servedRef
+	wordRef
 } from './ref.ts';
 
-describe('parseRepoPath', () => {
+describe('parseForgePath', () => {
 	it('defaults the host to github.com', () => {
-		expect(parseRepoPath('owner/repo')).toEqual({
+		expect(parseForgePath('owner/repo')).toEqual({
 			host: 'github.com',
 			owner: 'owner',
 			name: 'repo'
@@ -22,7 +18,7 @@ describe('parseRepoPath', () => {
 	});
 
 	it('accepts an explicit forge host', () => {
-		expect(parseRepoPath('gitlab.com/owner/repo')).toEqual({
+		expect(parseForgePath('gitlab.com/owner/repo')).toEqual({
 			host: 'gitlab.com',
 			owner: 'owner',
 			name: 'repo'
@@ -30,7 +26,7 @@ describe('parseRepoPath', () => {
 	});
 
 	it('reads a branch from the @ suffix', () => {
-		expect(parseRepoPath('owner/repo@dev')).toEqual({
+		expect(parseForgePath('owner/repo@dev')).toEqual({
 			host: 'github.com',
 			owner: 'owner',
 			name: 'repo',
@@ -39,15 +35,15 @@ describe('parseRepoPath', () => {
 	});
 
 	it('keeps slashes inside branch names', () => {
-		expect(parseRepoPath('owner/repo@feature/web-ui')?.branch).toBe('feature/web-ui');
+		expect(parseForgePath('owner/repo@feature/web-ui')?.branch).toBe('feature/web-ui');
 	});
 
 	it('tolerates surrounding slashes', () => {
-		expect(parseRepoPath('/owner/repo/')?.name).toBe('repo');
+		expect(parseForgePath('/owner/repo/')?.name).toBe('repo');
 	});
 
 	it('allows dots in repository names, which are not hosts', () => {
-		expect(parseRepoPath('sveltejs/svelte.dev')).toEqual({
+		expect(parseForgePath('sveltejs/svelte.dev')).toEqual({
 			host: 'github.com',
 			owner: 'sveltejs',
 			name: 'svelte.dev'
@@ -55,7 +51,7 @@ describe('parseRepoPath', () => {
 	});
 
 	it.each(['', '/', 'owner', 'a/b/c', 'owner/', 'owner/re po'])('rejects %o', (input) => {
-		expect(parseRepoPath(input)).toBeNull();
+		expect(parseForgePath(input)).toBeNull();
 	});
 });
 
@@ -107,7 +103,7 @@ describe('formatRepoPath', () => {
 		['gitlab.com/owner/repo'],
 		['gitlab.com/owner/repo@feature/web-ui']
 	])('round-trips %o', (path) => {
-		const ref = parseRepoPath(path);
+		const ref = parseForgePath(path);
 		expect(ref).not.toBeNull();
 		expect(formatRepoPath(ref!)).toBe(path);
 	});
@@ -158,55 +154,36 @@ describe('isBranchName', () => {
 
 describe('repoKey', () => {
 	it('separates the default branch from a named one', () => {
-		const implicit = repoKey(parseRepoPath('owner/repo')!);
-		const explicit = repoKey(parseRepoPath('owner/repo@main')!);
+		const implicit = repoKey(parseForgePath('owner/repo')!);
+		const explicit = repoKey(parseForgePath('owner/repo@main')!);
 		expect(implicit).not.toBe(explicit);
+	});
+
+	it('reads back as the forge path it is, branch and all', () => {
+		// The recent repositories are cached under these keys, and listed from them.
+		for (const path of ['owner/repo', 'owner/repo@dev', 'owner/repo@feature/web-ui']) {
+			const ref = parseForgePath(path)!;
+			expect(parseForgePath(repoKey(ref))).toEqual(ref);
+		}
+	});
+
+	it('gives up on a key it cannot read', () => {
+		expect(parseForgePath('nonsense')).toBeNull();
+		expect(parseForgePath('')).toBeNull();
 	});
 });
 
-describe('a folder on this machine', () => {
-	it('is what the one reserved segment means', () => {
-		expect(parseRepoPath('local')).toEqual({ host: 'local', owner: '', name: '' });
-		expect(isLocal(parseRepoPath('local')!)).toBe(true);
-	});
-
-	it('cannot be confused with a repository, which needs an owner too', () => {
-		expect(parseRepoPath('local/repo')).toEqual({
+describe('a word for an address', () => {
+	it('is never a forge address, which needs an owner too', () => {
+		expect(parseForgePath('local')).toBeNull();
+		expect(parseForgePath('local/repo')).toEqual({
 			host: 'github.com',
 			owner: 'local',
 			name: 'repo'
 		});
-		expect(isLocal(parseRepoPath('local/repo')!)).toBe(false);
 	});
 
-	it('keeps the folder name out of the URL, which nobody else could follow', () => {
-		expect(formatRepoPath(localRef('my-project'))).toBe('local');
-	});
-
-	it('reads on screen as the folder name, having no owner to qualify it', () => {
-		expect(describeRef(localRef('my-project'))).toBe('my-project');
-		expect(describeRef(localRef())).toBe('a folder on this machine');
-		expect(describeRef(parseRepoPath('owner/repo')!)).toBe('owner/repo');
-	});
-});
-
-describe('the folder the dev server serves', () => {
-	it('has an address of its own', () => {
-		expect(isServed(servedRef())).toBe(true);
-		expect(formatRepoPath(servedRef())).toBe('served');
-	});
-
-	it('is no address where no folder is served, as here and in a build', () => {
-		// The dev server defines which folder it serves; these specs run with none.
-		expect(parseRepoPath('served')).toBeNull();
-	});
-
-	it('is not the local folder, nor the local folder it', () => {
-		expect(isLocal(servedRef())).toBe(false);
-		expect(isServed(localRef())).toBe(false);
-	});
-
-	it('cannot be confused with a repository either', () => {
-		expect(isServed(parseRepoPath('served/repo')!)).toBe(false);
+	it('is the whole of the URL, a name in it reading as an address nobody can follow', () => {
+		expect(formatRepoPath({ ...wordRef('local'), name: 'my-project' })).toBe('local');
 	});
 });

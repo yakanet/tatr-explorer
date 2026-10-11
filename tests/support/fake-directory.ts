@@ -1,11 +1,11 @@
 /**
- * Stand-ins for what the browser hands over for a folder, for the specs:
- * nothing in the application imports this file, so it never reaches a build.
- * Its own file because two specs walk them, the folder's and the source's that
- * reads a folder again.
+ * Stand-ins for what the browser hands over for a folder, one per door it
+ * offers to a folder; Node, where the specs run, has none of them.
  *
- * Both read their tree when asked rather than when built, so a spec can change
- * the tree between two readings, as an editor changes a folder on the disk.
+ * The two with a way back read their tree when asked rather than when built,
+ * so a spec can change the tree between two readings, as an editor changes a
+ * folder on the disk. The file list is built once, a snapshot, as the input's
+ * is.
  */
 
 /** One entry directly under a directory: a file and what it holds, or a directory. */
@@ -144,4 +144,16 @@ export function entryTree(
 	};
 
 	return build(name, '');
+}
+
+/**
+ * What `<input type="file" webkitdirectory>` hands over for a folder of that
+ * name: a flat list, each file carrying its path from the folder chosen.
+ */
+export function fileList(name: string, tree: Readonly<Record<string, string>>): File[] {
+	return Object.entries(tree).map(([path, contents]) => {
+		const file = new File([contents], path.split('/').pop()!);
+		Object.defineProperty(file, 'webkitRelativePath', { value: `${name}/${path}` });
+		return file;
+	});
 }

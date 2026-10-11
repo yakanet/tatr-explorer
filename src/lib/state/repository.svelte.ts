@@ -5,15 +5,11 @@
  * rate-limited, then the task files stream in and are counted. Showing that
  * split is what lets the UI explain a failure instead of just spinning.
  */
-import { loadRepository, NoTasksFolderError } from '../sources/load.ts';
-import { openSource } from '../sources/open.ts';
-import {
-	ListingError,
-	NoSourceError,
-	type ListingFailure,
-	type Source
-} from '../sources/source.ts';
-import { describeRef, type RepoRef } from '../repo/ref.ts';
+import { isFollowable, isLinked } from '../sources/capabilities.ts';
+import { loadRepository } from '../sources/load.ts';
+import { describeRef, openSource } from '../sources/open.ts';
+import { SourceError, type Source, type SourceFailure } from '../sources/source.ts';
+import type { RepoRef } from '../repo/ref.ts';
 import {
 	compare,
 	snapshot,
@@ -31,9 +27,27 @@ export const REPOSITORY = Symbol('repository');
 export type Phase = 'idle' | 'listing' | 'reading' | 'ready' | 'failed';
 
 export interface Failure {
-	kind: ListingFailure | 'no-tasks-folder' | 'no-source' | 'unknown';
+	kind: SourceFailure | 'unknown';
+	/** The source's own sentence, under the heading the kind is given. */
 	message: string;
 }
+
+/**
+ * What the page calls each failure: the panel's heading, and the clause the
+ * header adds when only a refresh failed. The sentence beneath is the
+ * source's. Keyed by every kind of failure, so a new one does not compile
+ * without a name.
+ */
+export const FAILURE_HEADINGS = {
+	'rate-limited': 'rate limit reached',
+	'not-found': 'not found',
+	network: 'unavailable',
+	'unsupported-host': 'not supported yet',
+	malformed: 'not understood',
+	'no-source': 'nothing to read',
+	'no-tasks-folder': 'not a tatr repository',
+	unknown: 'could not be read'
+} satisfies Record<Failure['kind'], string>;
 
 export class RepositoryState {
 	phase = $state<Phase>('idle');
@@ -73,8 +87,9 @@ export class RepositoryState {
 	 * Held rather than reopened from the reference wherever it is needed, so a
 	 * question about the reading (can it be taken again, where does one of its
 	 * files live) goes to the instance that produced it, and a source holding
-	 * something of its own holds it once. Raw: an object of closures, which
-	 * there is nothing to gain by proxying.
+	 * something of its own holds it once. Raw: a class instance keeps its state
+	 * in private fields, which a proxy cannot reach, and nothing in it is read
+	 * reactively anyway.
 	 */
 	source = $state.raw<Source | null>(null);
 	/**
@@ -169,7 +184,7 @@ export class RepositoryState {
 		const standing = replaces !== null;
 
 		this.ref = ref;
-		// Before the source is opened, which throws for a reference nothing claims:
+		// Before the source is opened, which throws for a reference no kind reads:
 		// the last reference's source must not stay behind for this one.
 		this.source = source;
 		this.refreshFailure = null;
@@ -233,7 +248,7 @@ export class RepositoryState {
 	 */
 	follow(): (() => void) | undefined {
 		const source = this.source;
-		if (this.phase !== 'ready' || !source?.follow) return undefined;
+		if (this.phase !== 'ready' || !isFollowable(source)) return undefined;
 		return source.follow(() => void this.refresh());
 	}
 
@@ -242,6 +257,16 @@ export class RepositoryState {
 	 * being handed over as a callback.
 	 */
 	readonly assetUrl = (path: string): string | null => this.source?.assetUrl(path) ?? null;
+
+	/**
+	 * The page of one of the reading's files on the forge, or null where the
+	 * source has no page anywhere to link it to.
+	 */
+	fileUrl(path: string): string | null {
+		const source = this.source;
+		if (!isLinked(source)) return null;
+		return source.fileUrl(path);
+	}
 
 	/** What a marked row says on hover: how it moved, and since when. */
 	describeMoves(moves: Movement[]): string {
@@ -255,21 +280,13 @@ export class RepositoryState {
 }
 
 function describe(error: unknown): Failure {
-	if (error instanceof NoSourceError) {
-		// A source with nothing behind it yet: today only a folder can be in that
-		// state, the browser having taken its grant back on the reload.
-		return { kind: 'no-source', message: error.message };
-	}
-	if (error instanceof NoTasksFolderError) {
-		return { kind: 'no-tasks-folder', message: error.message };
-	}
-	if (error instanceof ListingError) {
-		return { kind: error.failure, message: error.message };
-	}
-	return {
-		kind: 'unknown',
-		message: error instanceof Error ? error.message : 'Something went wrong'
-	};
+	if (error instanceof SourceError) return { kind: error.failure, message: error.message };
+	return { kind: 'unknown', message: messageOf(error) };
+}
+
+function messageOf(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return 'Something went wrong.';
 }
 
 /**

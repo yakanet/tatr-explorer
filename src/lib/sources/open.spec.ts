@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { KINDS, openSource } from './open.ts';
-import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
-import { ListingError } from './source.ts';
-import { directory, entryTree } from './local/fake-directory.ts';
+import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
+import { describeRef, KINDS, kindOf, openSource, parseRepoPath } from './open.ts';
+import { parseForgePath, wordRef } from '../repo/ref.ts';
+import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
+import { SourceError, type Source } from './source.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
-const refs: RepoRef[] = [
-	parseRepoPath('owner/repo')!,
-	parseRepoPath('owner/repo@main')!,
-	parseRepoPath('gitlab.com/group/project')!,
-	localRef('my-project')
-];
+/** `source`, which a spec has just made sure has the capability `is` tests for. */
+function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
+	if (!is(source)) throw new Error(`${source.label} lacks what ${is.name} asks for`);
+	return source;
+}
 
 describe('the registry', () => {
 	it('keys every kind by its own id', () => {
@@ -30,102 +30,102 @@ describe('the registry', () => {
 		}).toThrow();
 	});
 
-	it('claims nothing twice', () => {
-		// The property a record depends on: with disjoint claims there is no
+	it('gives no word and no host to two kinds', () => {
+		// The property a record depends on: with disjoint addresses there is no
 		// precedence to encode, so nothing rests on the order of the keys.
-		for (const ref of refs) {
-			const claimants = Object.values(KINDS).filter((kind) => kind.claims(ref));
-			expect(claimants.map((kind) => kind.id)).toHaveLength(1);
-		}
+		const addresses = Object.values(KINDS).flatMap((kind) => {
+			if ('word' in kind.address) return [kind.address.word];
+			return [...kind.address.hosts];
+		});
+		expect(new Set(addresses).size).toBe(addresses.length);
+	});
+});
+
+describe('our own addresses', () => {
+	it('read a forge address on any host, a host nothing reads included', () => {
+		// So that a link to one opens a page that says so, rather than a 404.
+		expect(parseRepoPath('owner/repo')).toEqual(parseForgePath('owner/repo'));
+		expect(parseRepoPath('gitlab.com/group/project')?.host).toBe('gitlab.com');
+		expect(kindOf(parseRepoPath('gitlab.com/group/project')!)).toBeUndefined();
+	});
+
+	it("read a kind's word as its address, and nothing else as one", () => {
+		expect(parseRepoPath('local')).toEqual(wordRef('local'));
+		expect(kindOf(wordRef('local'))?.id).toBe('local');
+		expect(parseRepoPath('nothing')).toBeNull();
+	});
+
+	it('leave the served folder out where none is served, as here and in a build', () => {
+		// The dev server defines which folder it serves; these specs run with none.
+		expect(parseRepoPath('served')).toBeNull();
+	});
+
+	it('name a reference as its kind says, or as owner/name where nothing reads it', () => {
+		expect(describeRef(parseRepoPath('owner/repo')!)).toBe('owner/repo');
+		expect(describeRef(wordRef('local'))).toBe('a folder on this machine');
+		expect(describeRef(parseRepoPath('gitlab.com/group/project')!)).toBe('group/project');
 	});
 });
 
 describe('openSource', () => {
 	it('opens a repository on a forge', () => {
-		const source = openSource(parseRepoPath('owner/repo')!);
+		const source = openSource(parseForgePath('owner/repo')!);
 		expect(source.id).toBe('github');
 		expect(source.label).toBe('owner/repo');
-		expect(source.cacheKey).toBe('github.com/owner/repo@');
-		expect(source.fileUrl?.('tasks/a/TASK.md')).toContain('/blob/HEAD/tasks/a/TASK.md');
+		expect(having(source, isCached).cacheKey).toBe('github.com/owner/repo@');
+		expect(having(source, isLinked).fileUrl('tasks/a/TASK.md')).toContain(
+			'/blob/HEAD/tasks/a/TASK.md'
+		);
 	});
 
 	it('reads a forge at the branch its reference names', () => {
-		const source = openSource(parseRepoPath('owner/repo@dev')!);
+		const source = openSource(parseForgePath('owner/repo@dev')!);
 		expect(source.assetUrl('tasks/a/shot.png')).toContain('/repo/dev/tasks/a/shot.png');
 	});
 
-	it('refuses a reference no kind claims, as a host it cannot serve', () => {
-		const ref: RepoRef = { host: 'intranet', owner: 'team', name: 'tasks' };
-		expect(() => openSource(ref)).toThrow(ListingError);
-		expect(() => openSource(ref)).toThrow('intranet is not served');
+	it('refuses a host nothing reads, saying which ones are', () => {
+		const ref = parseRepoPath('gitlab.com/group/project')!;
+		expect(() => openSource(ref)).toThrow(SourceError);
+		expect(() => openSource(ref)).toThrow(
+			'Nothing reads gitlab.com yet: the hosts read are github.com.'
+		);
 	});
 
 	it('opens the folder on this machine', () => {
-		const source = openSource(localRef());
+		const source = openSource(wordRef('local'));
 		expect(source.id).toBe('local');
-		// The two members that say what a folder is: nowhere to cache it, and no
-		// page anywhere to link one of its files to.
-		expect(source.cacheKey).toBeNull();
-		expect(source.fileUrl).toBeUndefined();
+		// The two capabilities whose absence says what a folder is: nowhere to
+		// cache it, and no page anywhere to link one of its files to.
+		expect(isCached(source)).toBe(false);
+		expect(isLinked(source)).toBe(false);
 	});
 });
 
 /** A file as the directory input reports it. */
 function dropped(path: string, text: string): File {
-	const file = new File([text], path.split('/').pop()!);
-	Object.defineProperty(file, 'webkitRelativePath', { value: `my-project/${path}` });
-	return file;
+	return fileList('my-project', { [path]: text })[0];
 }
 
 /**
- * What each source does when asked, rather than what it says about itself.
- *
- * The loader's tests cover the reading; these cover the seam it now reads
- * through, which nothing else touches directly.
+ * What each source does when asked, rather than what it says about itself,
+ * through `openSource`, the one way the application opens a source.
  */
 describe('reading through a forge', () => {
-	const ref = parseRepoPath('owner/repo')!;
+	const ref = parseForgePath('owner/repo')!;
 
-	it('reads a file from the CDN', async () => {
-		const asked: string[] = [];
-		const fetchImpl = (async (url: RequestInfo | URL) => {
-			asked.push(String(url));
-			return new Response('# a task\n', { status: 200 });
-		}) as unknown as typeof fetch;
-
-		const source = openSource(ref, { fetchImpl });
-		expect(await source.read('tasks/a/TASK.md')).toBe('# a task\n');
-		expect(asked).toEqual(['https://raw.githubusercontent.com/owner/repo/HEAD/tasks/a/TASK.md']);
-	});
-
-	it('answers null for a file the CDN refuses, rather than throwing', async () => {
-		const fetchImpl = (async () =>
-			new Response('nope', { status: 404 })) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
-	});
-
-	it('answers null when the network does not answer at all', async () => {
-		// A read that throws would take the whole load down; one task that cannot
-		// be read is listed as skipped instead.
-		const fetchImpl = (async () => {
-			throw new TypeError('Failed to fetch');
-		}) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
-	});
-
-	it('can be refreshed, having only a request to spend', () => {
+	it('can be refreshed, having only a request to spend', async () => {
 		const source = openSource(ref);
-		expect(source.repeatable).toBe(true);
+		expect(isRereadable(source)).toBe(true);
 		// Nothing for the source to do: a forge's refresh is the loader ignoring
 		// the cache.
-		expect(source.refresh).toBeUndefined();
+		await expect(having(source, isRereadable).reread()).resolves.toBeUndefined();
 	});
 });
 
 describe('reading through a folder', () => {
 	const open = (files: File[]) => {
 		openFolder(fromFileList(files)!);
-		return openSource(localRef());
+		return openSource(wordRef('local'));
 	};
 
 	afterEach(() => closeFolder());
@@ -149,13 +149,30 @@ describe('reading through a folder', () => {
 		// No handle was kept, so there is no way back to the folder: the view
 		// offers to reopen rather than a Refresh that would do nothing.
 		const source = open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
-		expect(source.repeatable).toBe(false);
-		expect(source.refresh).toBeTypeOf('function');
+		expect(isRereadable(source)).toBe(false);
+	});
+
+	it('is one source for every reading of the folder, until another is picked', async () => {
+		// Coming back to the folder finds it as it was last read, and the URLs it
+		// handed out still good.
+		open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
+		expect(openSource(wordRef('local'))).toBe(openSource(wordRef('local')));
+	});
+
+	it('lets go of its folder when another is picked, rather than reading that one', async () => {
+		// A source is the folder it was opened on, never whichever is open now:
+		// a write from the reading being replaced would otherwise land in the
+		// folder just picked, which may be another worktree with the same task ids.
+		const before = open([dropped('tasks/20260101-000001/TASK.md', '# before\n')]);
+		open([dropped('tasks/20260101-000001/TASK.md', '# after\n')]);
+
+		expect(await before.read('tasks/20260101-000001/TASK.md')).toBeNull();
+		await expect(before.list()).rejects.toMatchObject({ failure: 'no-source' });
 	});
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {
 		closeFolder();
-		await expect(openSource(localRef()).list()).rejects.toThrow(/No folder is open/);
+		await expect(openSource(wordRef('local')).list()).rejects.toThrow(/a reload takes it back/);
 	});
 
 	it('keeps the URL of an unchanged file through a refresh, until the folder goes', async () => {
@@ -164,11 +181,11 @@ describe('reading through a folder', () => {
 		// one that is comes out as the same HTML.
 		const handle = directory('my-project', { 'tasks/20260101-000001/shot.png': 'png' });
 		openFolder(await fromDirectoryHandle(handle), handle);
-		const source = openSource(localRef());
+		const source = openSource(wordRef('local'));
 		const revoke = vi.spyOn(URL, 'revokeObjectURL');
 		const before = source.assetUrl('tasks/20260101-000001/shot.png');
 
-		await source.refresh?.();
+		await having(source, isRereadable).reread();
 		expect(source.assetUrl('tasks/20260101-000001/shot.png')).toBe(before);
 		expect(revoke).not.toHaveBeenCalled();
 
@@ -183,12 +200,44 @@ describe('reading through a folder', () => {
 		const tree = { 'tasks/20260101-000001/TASK.md': '# before\n' };
 		const entry = entryTree('my-project', tree);
 		openFolder(await fromDirectoryEntry(entry), entry);
-		const source = openSource(localRef());
-		expect(source.repeatable).toBe(true);
+		const source = openSource(wordRef('local'));
+		expect(isRereadable(source)).toBe(true);
 
 		tree['tasks/20260101-000001/TASK.md'] = '# after\n';
-		await source.refresh?.();
+		await having(source, isRereadable).reread();
 		expect(await source.read('tasks/20260101-000001/TASK.md')).toBe('# after\n');
+	});
+
+	it('keeps the later of two overlapping refreshes, whichever finishes last', async () => {
+		// A change followed and a click overlap; the walk started first, holding
+		// the older tree, may well be the last one done. The later reading aborts
+		// the earlier one's signal, as the page does.
+		const path = 'tasks/20260101-000001/TASK.md';
+		const older = directory('my-project', { [path]: '# older\n' });
+		const newer = directory('my-project', { [path]: '# newer\n' });
+		const { promise: held, resolve: release } = Promise.withResolvers<void>();
+		let holding = true;
+		// The walk starts at `tasks/`, which the first one reaches late and old.
+		const handle = {
+			...newer,
+			async getDirectoryHandle(name: string) {
+				if (!holding) return newer.getDirectoryHandle(name);
+				holding = false;
+				await held;
+				return older.getDirectoryHandle(name);
+			}
+		} as FileSystemDirectoryHandle;
+		openFolder(await fromDirectoryHandle(newer), handle);
+		const source = having(openSource(wordRef('local')), isRereadable);
+
+		const earlier = new AbortController();
+		const first = source.reread(earlier.signal);
+		earlier.abort();
+		await source.reread();
+		release();
+
+		await expect(first).rejects.toThrow();
+		expect(await source.read(path)).toBe('# newer\n');
 	});
 });
 
@@ -224,7 +273,7 @@ describe('following a folder', () => {
 	const picked = async () => {
 		const handle = directory('my-project', task);
 		openFolder(await fromDirectoryHandle(handle), handle);
-		return openSource(localRef());
+		return openSource(wordRef('local'));
 	};
 
 	afterEach(() => {
@@ -235,14 +284,14 @@ describe('following a folder', () => {
 
 	it('is offered only with a way back to the folder, as Refresh is', async () => {
 		openFolder(fromFileList([dropped('tasks/20260101-000001/TASK.md', '# a\n')])!);
-		expect(openSource(localRef()).follow).toBeUndefined();
-		expect((await picked()).follow).toBeTypeOf('function');
+		expect(isFollowable(openSource(wordRef('local')))).toBe(false);
+		expect(isFollowable(await picked())).toBe(true);
 	});
 
 	it('watches `tasks/` alone, where FileSystemObserver exists', async () => {
 		// The rest of a checkout, `.git` and `node_modules`, moves far more often.
 		const { seen } = observer();
-		const stop = (await picked()).follow!(() => {});
+		const stop = having(await picked(), isFollowable).follow(() => {});
 		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
 		expect(seen.recursive).toBe(true);
 
@@ -253,7 +302,7 @@ describe('following a folder', () => {
 	it('reports a burst of writes once it settles, as one save', async () => {
 		const { seen, change } = observer();
 		const changed = vi.fn();
-		(await picked()).follow!(changed);
+		having(await picked(), isFollowable).follow(changed);
 		await vi.waitFor(() => expect(seen.observed).toBe('tasks'));
 
 		vi.useFakeTimers();
@@ -270,7 +319,7 @@ describe('following a folder', () => {
 		const entry = entryTree('my-project', task);
 		openFolder(await fromDirectoryEntry(entry), entry);
 		const changed = vi.fn();
-		const stop = openSource(localRef()).follow!(changed);
+		const stop = having(openSource(wordRef('local')), isFollowable).follow(changed);
 
 		window.dispatchEvent(new Event('focus'));
 		expect(changed).toHaveBeenCalledTimes(1);
@@ -283,7 +332,7 @@ describe('following a folder', () => {
 		vi.stubGlobal('window', new EventTarget());
 		observer(true);
 		const changed = vi.fn();
-		(await picked()).follow!(changed);
+		having(await picked(), isFollowable).follow(changed);
 
 		await vi.waitFor(() => {
 			window.dispatchEvent(new Event('focus'));

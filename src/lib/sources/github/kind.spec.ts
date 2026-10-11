@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { githubKind } from './kind.ts';
-import { ListingError } from '../source.ts';
+import { unreachable } from '#tests/support/network.ts';
+import { GitHubRepository, githubKind } from './kind.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
 const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
-/** Through the contract, which is the only way the application reaches these. */
+/** Through the kind, which is how the application reaches these. */
 const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
+
+/** GitHub answering every request with what `answer` makes, its mirror included. */
+const answering = (answer: () => Response) =>
+	new GitHubRepository(ref, { network: (async () => answer()) as unknown as typeof fetch });
+
+describe('reading a file', () => {
+	it('reads it from the CDN', async () => {
+		const asked: string[] = [];
+		const network = (async (url: RequestInfo | URL) => {
+			asked.push(String(url));
+			return new Response('# a task\n', { status: 200 });
+		}) as unknown as typeof fetch;
+
+		expect(await new GitHubRepository(ref, { network }).read(path)).toBe('# a task\n');
+		expect(asked).toEqual([`https://raw.githubusercontent.com/owner/repo/HEAD/${path}`]);
+	});
+
+	it('answers null for a file the CDN refuses, rather than throwing', async () => {
+		expect(await answering(() => new Response('nope', { status: 404 })).read(path)).toBeNull();
+	});
+
+	it('answers null when the network does not answer at all', async () => {
+		// A read that throws would take the whole load down; one task that cannot
+		// be read is listed as skipped instead.
+		expect(await new GitHubRepository(ref, { network: unreachable }).read(path)).toBeNull();
+	});
+});
 
 describe('the URL of a file', () => {
 	it('reads it from the CDN that costs no budget', () => {
@@ -30,7 +57,7 @@ describe('the URL of a file', () => {
 
 describe('the URL of its page on the forge', () => {
 	it('points at the file, where its history is', () => {
-		expect(open().fileUrl?.(path)).toBe(
+		expect(open().fileUrl(path)).toBe(
 			'https://github.com/owner/repo/blob/HEAD/tasks/20260304-115038/TASK.md'
 		);
 	});
@@ -38,37 +65,33 @@ describe('the URL of its page on the forge', () => {
 	it('uses the host the repository was named with', () => {
 		// The one URL that lives on the forge's own domain rather than on a CDN.
 		const elsewhere = parseRepoInput('example.com/owner/name')!;
-		expect(open(elsewhere).fileUrl?.(path)).toBe(
-			`https://example.com/owner/name/blob/HEAD/${path}`
-		);
+		expect(open(elsewhere).fileUrl(path)).toBe(`https://example.com/owner/name/blob/HEAD/${path}`);
 	});
 
 	it('keeps a branch with slashes, as the raw URL does', () => {
-		expect(open(ref, 'feature/web-ui').fileUrl?.(path)).toContain('/blob/feature/web-ui/tasks/');
+		expect(open(ref, 'feature/web-ui').fileUrl(path)).toContain('/blob/feature/web-ui/tasks/');
 	});
 });
 
-describe('a host this forge does not serve', () => {
-	// Asked once now, at the entrance of the fallback chain, so it is refused
-	// before any lister is tried rather than by all three in turn.
-	const elsewhere = parseRepoInput('gitlab.com/group/project')!;
+describe('listing', () => {
+	it('names a missing repository once, in the words of the forge', async () => {
+		await expect(answering(() => new Response(null, { status: 404 })).list()).rejects.toThrow(
+			'No repository owner/repo on github.com, or it is private.'
+		);
+	});
 
-	it('is refused as unsupported, without asking anybody', async () => {
-		let asked = 0;
-		const counting = async () => {
-			asked += 1;
-			throw new Error('should not be reached');
-		};
+	it('calls an answer that is not JSON malformed, rather than quoting the parser', async () => {
+		await expect(answering(() => new Response('<html>')).list()).rejects.toMatchObject({
+			failure: 'malformed'
+		});
+	});
 
-		const failure = await githubKind
-			.open(elsewhere, { listers: [counting] })
-			.list()
-			.catch((error: unknown) => error);
+	it('says the hour is spent only when GitHub says none are left', async () => {
+		const spent = () =>
+			new Response(null, { status: 403, headers: { 'x-ratelimit-remaining': '0' } });
+		await expect(answering(spent).list()).rejects.toThrow(/has used them all/);
 
-		expect(failure).toBeInstanceOf(ListingError);
-		expect((failure as ListingError).failure).toBe('unsupported-host');
-		// The forge refusing, not whichever lister was asked last.
-		expect((failure as ListingError).source).toBe('github');
-		expect(asked).toBe(0);
+		const tooOften = () => new Response(null, { status: 429 });
+		await expect(answering(tooOften).list()).rejects.toThrow(/for asking too often/);
 	});
 });
