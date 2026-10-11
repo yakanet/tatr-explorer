@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import {
 		renderInline,
@@ -112,7 +113,10 @@
 
 <main>
 	{#if repo.phase !== 'ready'}
-		<p class="muted">Loading…</p>
+		<!-- The reading's progress, or why there is none, as every other view says
+		     it: a failed reading has to say so, and a local folder lost to a reload
+		     has to be offered again, not waited for. -->
+		<div class="wide"><RepoStatus {repo} {ref} /></div>
 	{:else if !task}
 		<section class="panel">
 			<h2>No such task</h2>
@@ -252,7 +256,9 @@
 		align-items: start;
 	}
 
-	main > p,
+	/* Across both columns: the panel belongs to neither the article nor the
+	   sidebar, and its own markup is another component's to style. */
+	.wide,
 	main > section {
 		grid-column: 1 / -1;
 	}
