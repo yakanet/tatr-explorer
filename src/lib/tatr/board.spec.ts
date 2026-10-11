@@ -138,7 +138,7 @@ describe('moving a card', () => {
 
 	it('lands the card in the column it was moved to', () => {
 		for (const column of ['backlog', 'progress', 'done'] as const) {
-			const text = editTaskMd(at('CLOSED', 'scope'), moveTo(column))!;
+			const text = editTaskMd(at('CLOSED', 'scope'), moveTo(column));
 			expect(columnOf(readTask('20260101-000001', text)!)).toBe(column);
 		}
 	});

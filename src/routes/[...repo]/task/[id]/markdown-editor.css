@@ -1,0 +1,45 @@
+/*
+ * The editor's colours, from the site's tokens so that dark mode follows. It is
+ * the site's only prism-code-editor, hence the bare class; this sheet loads with
+ * the editor.
+ */
+.prism-code-editor {
+	--pce-bg: transparent;
+	--pce-cursor: var(--fg);
+	/* The selection keeps the text above it at a contrast of about 9:1 in both themes. */
+	--pce-selection: color-mix(in oklab, var(--accent) 35%, transparent);
+	min-height: 18rem;
+	font-family: var(--font-mono);
+	font-size: 0.875rem;
+	line-height: 1.7;
+	color: var(--fg);
+}
+
+.prism-code-editor .token:is(.title, .important) {
+	color: var(--accent-text);
+	font-weight: 700;
+}
+
+.prism-code-editor .token:is(.punctuation, .hr, .blockquote) {
+	color: var(--muted);
+}
+
+.prism-code-editor .token.bold {
+	font-weight: 700;
+}
+
+.prism-code-editor .token.italic {
+	font-style: italic;
+}
+
+.prism-code-editor .token:is(.code, .code-snippet, .keyword) {
+	color: var(--dot-mint);
+}
+
+.prism-code-editor .token:is(.url, .variable) {
+	color: var(--dot-sky);
+}
+
+.prism-code-editor .token:is(.tag, .entity, .attr-name) {
+	color: var(--dot-rose);
+}

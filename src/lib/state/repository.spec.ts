@@ -8,7 +8,8 @@ import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
 import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
-import { withStatus } from '../tatr/task-file.ts';
+import { fieldsOf, withFields } from '../tatr/task-fields.ts';
+import { loadTaskFile, withStatus } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
 const NOW = 1_000_000_000;
@@ -308,7 +309,7 @@ describe('editing a task', () => {
 
 	it('writes the edit, then shows it as any change found on disk', async () => {
 		const repo = await editing();
-		await repo.edit(ID, close, 'closed');
+		expect(await repo.edit(ID, close, 'closed')).toBe(true);
 
 		expect(disk[TASK]).toBe(rewritten(90, 'CLOSED'));
 		expect(repo.tasks[0].closed).toBe(true);
@@ -356,7 +357,7 @@ describe('editing a task', () => {
 
 	it('says why a write failed, and leaves the reading as it was', async () => {
 		const repo = await editing(() => Promise.reject(new DOMException('no click', 'SecurityError')));
-		await expect(repo.edit(ID, close, 'closed')).resolves.toBeUndefined();
+		expect(await repo.edit(ID, close, 'closed')).toBe(false);
 
 		expect(repo.notice?.failed).toBe(true);
 		expect(repo.notice?.text).toMatch(/click/);
@@ -382,6 +383,20 @@ describe('editing a task', () => {
 		expect(disk[TASK]).toBe(loose);
 		expect(repo.tasks[0].closed).toBe(false);
 		expect(repo.notice).toEqual({ text: `${ID}: undone.`, failed: false, undoable: false });
+	});
+
+	it('says why an edit refused the file, writing nothing and reading again', async () => {
+		const repo = await editing();
+		const opened = fieldsOf(loadTaskFile(disk[TASK])!);
+		saved(110);
+
+		const done = await repo.edit(ID, withFields(opened, { ...opened, priority: 60 }), 'saved');
+		expect(done).toBe(false);
+		expect(repo.notice?.text).toBe(
+			`${ID}: the priority changed on disk since editing began, so nothing was written.`
+		);
+		expect(disk[TASK]).toBe(taskAt(110));
+		expect(repo.tasks[0].priority).toBe(110);
 	});
 
 	it('undoes nothing over a save made since', async () => {

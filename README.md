@@ -199,8 +199,15 @@ Without the variable nothing changes, and the built site contains none of it.
 A folder on your own machine can be more than read. Where the page can write to
 it, the board and a task's page act on the backlog: drag a card to **Done** and
 its file says `STATUS: CLOSED`; to **In progress** and it gains the `scope` tag;
-back to **Backlog** and it loses it. On a task's page, the status, the priority
-and the tags are fields.
+back to **Backlog** and it loses it.
+
+A task's page reads the same everywhere, and **Edit** turns it into a sheet:
+the title, the description in a Markdown editor with its syntax highlighted, a
+small toolbar and a Preview that shows it as the page will, and the status, the
+priority and the tags as fields. **Save** writes only the fields you changed,
+so a priority `tatr` changed meanwhile is kept, and refuses a field changed on
+both sides rather than pick one. Leaving with changes unsaved asks first. The
+editor (9 kB) loads only when a sheet opens.
 
 Two sources can write: the folder the dev server serves, in any browser, and a
 folder picked or dropped on Chromium. That one asks whether the page may edit

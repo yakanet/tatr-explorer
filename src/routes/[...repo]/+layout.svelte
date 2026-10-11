@@ -187,7 +187,12 @@
 			{#if rereadable}
 				<!-- The previous reading stays on screen during a refresh, so the
 				     button is the only sign that one is under way. -->
-				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
+				<button
+					class="action"
+					disabled={repo.refreshing}
+					aria-busy={repo.refreshing}
+					onclick={() => repo.refresh()}
+				>
 					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
 				</button>
 			{:else if reopener}

@@ -21,7 +21,7 @@ import {
 	type Replaced,
 	type Snapshot
 } from '../tatr/changes.ts';
-import { editTaskMd, type Edit } from '../tatr/task-file.ts';
+import { EditRefused, editTaskMd, type Edit } from '../tatr/task-file.ts';
 import { taskPath, type Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
@@ -117,7 +117,7 @@ export class RepositoryState {
 	/** The last write, kept for Undo, which writes `before` back over `after`. */
 	#written: { id: string; before: string; after: string } | null = null;
 	/** The edits under way, run one after another so that two quick gestures do not race. */
-	#edits: Promise<void> = Promise.resolve();
+	#edits: Promise<boolean> = Promise.resolve(true);
 
 	/**
 	 * The repository's name on screen: the source's label, or the reference's
@@ -258,13 +258,14 @@ export class RepositoryState {
 	 * reading on screen holds it, which may be minutes old, then reads the
 	 * repository again. `what` says what the edit did, for the notice. It never
 	 * throws: a failure leaves the reading as it was, with a sentence saying why.
+	 * Resolves to whether the file now holds the edit.
 	 */
-	edit(id: string, edit: Edit, what: string): Promise<void> {
+	edit(id: string, edit: Edit, what: string): Promise<boolean> {
 		return this.#queue(() => this.#edit(id, edit, what));
 	}
 
 	/** Writes back the text the last edit replaced, unless the file changed since. */
-	undo(): Promise<void> {
+	undo(): Promise<boolean> {
 		return this.#queue(() => this.#undo());
 	}
 
@@ -277,60 +278,67 @@ export class RepositoryState {
 	}
 
 	/** Runs `step` once the edits under way are over, saying why it failed rather than throwing. */
-	#queue(step: () => Promise<void>): Promise<void> {
+	#queue(step: () => Promise<boolean>): Promise<boolean> {
 		this.#edits = this.#edits.then(step).catch((error: unknown) => {
 			this.notice = failed(messageOf(error));
+			return false;
 		});
 		return this.#edits;
 	}
 
-	async #edit(id: string, edit: Edit, what: string): Promise<void> {
+	async #edit(id: string, edit: Edit, what: string): Promise<boolean> {
 		const source = this.source;
-		if (!isWritable(source) || this.#refused) return;
+		if (!isWritable(source) || this.#refused) return false;
 		const path = taskPath(id);
 		// A folder holds the files of its last walk, so it walks again first.
 		if (isRereadable(source)) await source.reread();
 		const before = await source.read(path);
 		if (before === null) {
 			this.notice = failed(`${id} could not be read, so nothing was written.`);
-			return;
+			return false;
 		}
-		const after = editTaskMd(before, edit);
-		if (after === null) {
-			this.notice = failed(`${id} does not start with #, so it was not rewritten.`);
-			return;
+		let after: string;
+		try {
+			after = editTaskMd(before, edit);
+		} catch (error) {
+			if (!(error instanceof EditRefused)) throw error;
+			// As for a file that changed under a write: the reading on screen is stale.
+			this.notice = failed(`${id}: ${error.message}`);
+			await this.refresh();
+			return false;
 		}
 		if (after === before) {
 			// The file already says so: the reading on screen is the stale part.
 			this.notice = null;
 			await this.refresh();
-			return;
+			return true;
 		}
 		const answer = await source.write(path, after, before);
 		if (answer === 'written') this.#written = { id, before, after };
-		await this.#settle(answer, id, what);
+		return this.#settle(answer, id, what);
 	}
 
-	async #undo(): Promise<void> {
+	async #undo(): Promise<boolean> {
 		const source = this.source;
 		const last = this.#written;
-		if (!isWritable(source) || !last) return;
+		if (!isWritable(source) || !last) return false;
 		this.#written = null;
 		const answer = await source.write(taskPath(last.id), last.before, last.after);
-		await this.#settle(answer, last.id, 'undone');
+		return this.#settle(answer, last.id, 'undone');
 	}
 
 	/**
 	 * Says what a write's answer means, and reads again wherever the disk may
-	 * now differ from the screen. `what` says what a write made did.
+	 * now differ from the screen. `what` says what a write made did. Resolves to
+	 * whether the write was made.
 	 */
-	async #settle(answer: WriteAnswer, id: string, what: string): Promise<void> {
+	async #settle(answer: WriteAnswer, id: string, what: string): Promise<boolean> {
 		if (answer === 'refused') {
 			this.#refused = true;
 			this.notice = failed(
 				'Editing was not allowed, so this folder stays read-only until it is opened again.'
 			);
-			return;
+			return false;
 		}
 		if (answer === 'changed') {
 			this.notice = failed(
@@ -341,6 +349,7 @@ export class RepositoryState {
 			this.notice = { text: `${id}: ${what}.`, failed: false, undoable: this.#written !== null };
 		}
 		await this.refresh();
+		return answer === 'written';
 	}
 
 	/**

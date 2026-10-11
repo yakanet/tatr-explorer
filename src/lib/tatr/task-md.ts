@@ -127,6 +127,11 @@ export function isClosed(properties: ReadonlyMap<string, string>): boolean {
 	return properties.get('STATUS') === 'CLOSED';
 }
 
+/** Reads the status, `OPEN` when it is absent, as `load_tasks` assumes. */
+export function readStatus(properties: ReadonlyMap<string, string>): string {
+	return properties.get('STATUS') ?? 'OPEN';
+}
+
 export function readTags(properties: ReadonlyMap<string, string>): string[] {
 	return parseTags(properties.get('TAGS') ?? '');
 }

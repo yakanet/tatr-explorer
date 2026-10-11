@@ -18,8 +18,17 @@ export interface TaskFile {
 	body: string;
 }
 
-/** A change to a task file, applied to the file as read just before it is written. */
+/**
+ * A change to a task file, applied to the file as read just before it is
+ * written. It throws an {@link EditRefused} when that file is not one it can
+ * change.
+ */
 export type Edit = (file: TaskFile) => TaskFile;
+
+/** The sentence why an edit refused the file it was given, which follows the task's id. */
+export class EditRefused extends Error {
+	override name = 'EditRefused';
+}
 
 /**
  * The properties `load_tasks` adds when a file lacks them, in its order.
@@ -82,6 +91,14 @@ function withProperty(file: TaskFile, key: string, value: string): TaskFile {
 	return { ...file, properties };
 }
 
+export function withTitle(title: string): Edit {
+	return (file) => ({ ...file, title });
+}
+
+export function withBody(body: string): Edit {
+	return (file) => ({ ...file, body });
+}
+
 export function withStatus(status: string): Edit {
 	return (file) => withProperty(file, 'STATUS', status);
 }
@@ -90,29 +107,36 @@ export function withPriority(priority: number): Edit {
 	return (file) => withProperty(file, 'PRIORITY', String(priority));
 }
 
-/** Adds a tag after the others, or leaves the file as it is when it carries the tag. */
+export function withTags(tags: readonly string[]): Edit {
+	return (file) => withProperty(file, 'TAGS', tags.join(','));
+}
+
 export function withTag(tag: string): Edit {
-	return (file) => {
-		const tags = readTags(file.properties);
-		if (tags.includes(tag)) return file;
-		return withProperty(file, 'TAGS', [...tags, tag].join(','));
-	};
+	return (file) => withTags(tagged(readTags(file.properties), tag))(file);
+}
+
+export function withoutTag(tag: string): Edit {
+	return (file) => withTags(untagged(readTags(file.properties), tag))(file);
+}
+
+/** The tags with `tag` after the others, or the same tags when they hold it. */
+export function tagged(tags: readonly string[], tag: string): string[] {
+	if (tags.includes(tag)) return [...tags];
+	return [...tags, tag];
 }
 
 /**
- * Removes every occurrence of a tag as `tatr untag` does, moving the last tag
- * into each place it frees, so the file is the one the CLI would write.
+ * The tags without any `tag`, removed as `tatr untag` removes them: the last
+ * tag moves into each place freed, so the file is the one the CLI would write.
  */
-export function withoutTag(tag: string): Edit {
-	return (file) => {
-		const tags = readTags(file.properties);
-		// Searched again from the slot just filled, which the CLI checks again too.
-		for (let i = tags.indexOf(tag); i >= 0; i = tags.indexOf(tag, i)) {
-			tags[i] = tags[tags.length - 1];
-			tags.pop();
-		}
-		return withProperty(file, 'TAGS', tags.join(','));
-	};
+export function untagged(tags: readonly string[], tag: string): string[] {
+	const left = [...tags];
+	// Searched again from the slot just filled, which the CLI checks again too.
+	for (let i = left.indexOf(tag); i >= 0; i = left.indexOf(tag, i)) {
+		left[i] = left[left.length - 1];
+		left.pop();
+	}
+	return left;
 }
 
 /** The edits applied one after another, as one edit. */
@@ -121,13 +145,13 @@ export function chain(...edits: Edit[]): Edit {
 }
 
 /**
- * Applies `edit` to the text of a task file. Returns null when the file cannot
- * be rewritten (its title lacks its `#`), and the text unchanged when the edit
- * changes nothing, as the CLI writes only a task it changed.
+ * Applies `edit` to the text of a task file, or gives the text unchanged when
+ * the edit changes nothing, as the CLI writes only a task it changed. A file
+ * whose title lacks its `#` is refused, as `loadTaskFile` says why.
  */
-export function editTaskMd(text: string, edit: Edit): string | null {
+export function editTaskMd(text: string, edit: Edit): string {
 	const loaded = loadTaskFile(text);
-	if (!loaded) return null;
+	if (!loaded) throw new EditRefused('its file does not start with #, so it was not rewritten.');
 	const rendered = renderTaskMd(edit(loaded));
 	if (rendered === renderTaskMd(loaded)) return text;
 	return rendered;

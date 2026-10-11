@@ -10,7 +10,7 @@
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import { columnOf, moveTo, toColumns, type Column, type ColumnKey } from '#lib/tatr/board.ts';
-	import { byTag } from '#lib/tatr/stats.ts';
+	import { tagOptions } from '#lib/tatr/stats.ts';
 	import type { Task } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
@@ -28,13 +28,7 @@
 	const pool = $derived(columns.reduce((n, column) => n + column.total, 0));
 
 	// Tag counts cover every task because the board shows every task.
-	const tagOptions = $derived(
-		byTag(repo.tasks).map(({ tag, count }) => ({
-			name: tag,
-			description: repo.tags.descriptions.get(tag),
-			count
-		}))
-	);
+	const options = $derived(tagOptions(repo.tasks, repo.tags.descriptions));
 
 	function syncUrl() {
 		const url = new URL(page.url.href);
@@ -89,7 +83,7 @@
 </svelte:head>
 
 <main>
-	<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} chooseStatus={false} />
+	<QueryBar {query} {matched} {pool} tags={options} onchange={syncUrl} chooseStatus={false} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}

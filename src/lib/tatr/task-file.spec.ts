@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	editTaskMd,
+	EditRefused,
 	loadTaskFile,
 	renderTaskMd,
 	withoutTag,
@@ -72,6 +73,8 @@ describe('editing a task file', () => {
 	});
 
 	it('refuses a file whose title lacks its `#`', () => {
-		expect(editTaskMd('A task\n\n- STATUS: OPEN\n', withStatus('CLOSED'))).toBeNull();
+		expect(() => editTaskMd('A task\n\n- STATUS: OPEN\n', withStatus('CLOSED'))).toThrow(
+			EditRefused
+		);
 	});
 });

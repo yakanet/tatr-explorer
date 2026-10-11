@@ -1,82 +1,55 @@
 <script lang="ts">
-	// Lists every property of a task, each key beside its value. Where the source
-	// writes, the status, the priority and the tags are edited in place.
+	// Lists every property of a task, each key beside its value. While the task
+	// is edited, the status, the priority and the tags are fields of the draft.
 	import { tagHue } from '#lib/render/tag-hue.ts';
-	import {
-		chain,
-		withDefaults,
-		withoutTag,
-		withPriority,
-		withStatus,
-		withTag,
-		type Edit
-	} from '#lib/tatr/task-file.ts';
+	import type { TaskFields } from '#lib/tatr/task-fields.ts';
+	import { tagged, untagged, withDefaults } from '#lib/tatr/task-file.ts';
 	import { parseTags } from '#lib/tatr/task-md.ts';
 	import type { Task } from '#lib/tatr/task.ts';
+	import type { TagOption } from '#lib/tql/complete.ts';
 	import SidePanel from './SidePanel.svelte';
 
 	interface Props {
 		task: Task;
-		/**
-		 * Rewrites the task's file with an edit, saying what it did; absent where
-		 * the task cannot be edited, which leaves every property read-only.
-		 */
-		onedit?: (edit: Edit, what: string) => Promise<void>;
+		/** The draft of the editing sheet, or absent while the task is read. */
+		fields?: TaskFields;
+		/** The repository's tags, which the tags field offers as it is typed. */
+		known?: TagOption[];
 	}
 
-	let { task, onedit }: Props = $props();
+	let { task, fields = $bindable(), known = [] }: Props = $props();
 
-	const editing = $derived(onedit !== undefined);
+	const id = $props.id();
 
 	/**
-	 * The rows shown. While editing they are the file as a rewrite will hold it,
-	 * the defaults the CLI assumes included, so that every control has its row.
+	 * The rows shown. While editing they are the file as a save will hold it,
+	 * the defaults the CLI assumes included, so that every field has its row.
 	 */
 	const rows = $derived.by(() => {
-		if (editing) return withDefaults(task.properties);
+		if (fields) return withDefaults(task.properties);
 		return task.properties;
 	});
 
 	/** The statuses offered: open, closed, and the task's own when it is neither. */
 	const statuses = $derived([...new Set(['OPEN', 'CLOSED', task.status])]);
-	/** Each tag once, as removing one removes every occurrence. */
-	const tags = $derived([...new Set(task.tags)]);
-
-	/**
-	 * Applies an edit, then puts the control back to the task's value, which a
-	 * write that failed did not change.
-	 */
-	async function apply(edit: Edit, what: string, reset: () => void) {
-		await onedit?.(edit, what);
-		reset();
-	}
-
-	function statusChosen(event: Event & { currentTarget: HTMLSelectElement }) {
-		const select = event.currentTarget;
-		const status = select.value;
-		apply(withStatus(status), `status set to ${status}`, () => (select.value = task.status));
-	}
 
 	function priorityChosen(event: Event & { currentTarget: HTMLInputElement }) {
+		if (!fields) return;
 		const input = event.currentTarget;
-		const reset = () => (input.value = String(task.priority));
 		const priority = input.valueAsNumber;
-		if (!Number.isInteger(priority)) return reset();
-		apply(withPriority(priority), `priority set to ${priority}`, reset);
+		if (Number.isInteger(priority)) fields.priority = priority;
+		else input.value = String(fields.priority);
 	}
 
 	function tagTyped(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
-		if (event.key !== 'Enter') return;
+		if (!fields || event.key !== 'Enter') return;
 		const input = event.currentTarget;
-		// A tag the file already carries is left to `withTag`, which reads the file on disk.
-		const typed = parseTags(input.value);
-		if (typed.length === 0) return;
-		const what = `tagged ${typed.map((tag) => `:${tag}`).join(' ')}`;
-		apply(chain(...typed.map(withTag)), what, () => (input.value = ''));
+		fields.tags = parseTags(input.value).reduce(tagged, fields.tags);
+		input.value = '';
 	}
 
 	function untag(tag: string) {
-		onedit?.(withoutTag(tag), `untagged :${tag}`);
+		if (fields) fields.tags = untagged(fields.tags, tag);
 	}
 </script>
 
@@ -85,30 +58,41 @@
 		{#each rows as [key, value] (key)}
 			<dt>{key}</dt>
 			<dd>
-				{#if editing && key === 'STATUS'}
-					<select aria-label="Status" value={task.status} onchange={statusChosen}>
+				{#if fields && key === 'STATUS'}
+					<select aria-label="Status" bind:value={fields.status}>
 						{#each statuses as status (status)}
 							<option value={status}>{status}</option>
 						{/each}
 					</select>
-				{:else if editing && key === 'PRIORITY'}
+				{:else if fields && key === 'PRIORITY'}
 					<input
 						type="number"
 						step="1"
 						aria-label="Priority"
-						value={task.priority}
+						value={fields.priority}
 						onchange={priorityChosen}
 					/>
-				{:else if editing && key === 'TAGS'}
+				{:else if fields && key === 'TAGS'}
 					<span class="tags">
-						{#each tags as tag (tag)}
+						<!-- Each tag once, as removing one removes every occurrence. -->
+						{#each new Set(fields.tags) as tag (tag)}
 							<span class="tag" data-hue={tagHue(tag)}>
 								{tag}
 								<button type="button" aria-label="Remove {tag}" onclick={() => untag(tag)}>×</button
 								>
 							</span>
 						{/each}
-						<input aria-label="Add a tag" placeholder="add a tag" onkeydown={tagTyped} />
+						<input
+							aria-label="Add a tag"
+							placeholder="add a tag"
+							list="{id}-tags"
+							onkeydown={tagTyped}
+						/>
+						<datalist id="{id}-tags">
+							{#each known.filter((one) => !fields.tags.includes(one.name)) as tag (tag.name)}
+								<option value={tag.name}>{tag.description}</option>
+							{/each}
+						</datalist>
 					</span>
 				{:else if value}
 					{value}
@@ -119,8 +103,8 @@
 		{/each}
 	</dl>
 	{#snippet note()}
-		{#if editing}
-			A change rewrites <code>TASK.md</code> as the CLI would, every property in its place.
+		{#if fields}
+			Saving rewrites <code>TASK.md</code> as the CLI would, every property in its place.
 		{:else}
 			Any property key is shown, not just these.
 		{/if}

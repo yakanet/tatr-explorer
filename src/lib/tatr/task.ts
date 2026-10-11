@@ -4,7 +4,7 @@
  */
 import type { Attachment } from './attachments.ts';
 import { parseHuid, scanHuids } from './huid.ts';
-import { isClosed, parseTaskMd, readPriority, readTags } from './task-md.ts';
+import { isClosed, parseTaskMd, readPriority, readStatus, readTags } from './task-md.ts';
 
 /**
  * Lists the task ids mentioned in a `TASK.md`, deduplicated and sorted.
@@ -73,7 +73,7 @@ export function readTask(id: string, taskMd: string): Task | null {
 		id: huid.id,
 		created: huid.created,
 		title: parsed.title,
-		status: parsed.properties.get('STATUS') ?? 'OPEN',
+		status: readStatus(parsed.properties),
 		closed: isClosed(parsed.properties),
 		priority: readPriority(parsed.properties),
 		tags: readTags(parsed.properties),
