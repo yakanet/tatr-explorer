@@ -85,11 +85,11 @@ function splitExtension(name: string): [string, string] {
 }
 
 /**
- * The name an image pasted or dropped into a description asks for: its own,
+ * The name a file pasted or dropped into a description asks for: its own,
  * unless it is the generic `image.png` a browser gives a pasted screenshot,
  * which is named after the clock instead, as `pasted-<YYYYMMDD-HHMMSS>.png`.
  */
-export function wantedImageName(name: string, now: Date): string {
+export function wantedName(name: string, now: Date): string {
 	const generic = /^image\.([a-z]+)$/i.exec(name);
 	if (!generic) return name;
 	return `pasted-${formatHuid(now)}.${generic[1].toLowerCase()}`;

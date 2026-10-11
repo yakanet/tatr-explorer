@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Edits a task's title and description, or a new task's, with the images
+	// Edits a task's title and description, or a new task's, with the files
 	// pasted or dropped into it. The page holds the sheet, whose status,
 	// priority and tags the properties panel edits, and decides what Save and
 	// Cancel do.
@@ -41,7 +41,7 @@
 		if (saveable) onsave();
 	}
 
-	// The sheet is shown for as long as it is open, so its images go with it.
+	// The sheet is shown for as long as it is open, so its files go with it.
 	onDestroy(() => sheet.close());
 </script>
 
@@ -50,7 +50,7 @@
 <article class="panel">
 	<input class="title" aria-label="Title" placeholder={untitled} bind:value={sheet.draft.title} />
 
-	<MarkdownEditor bind:value={sheet.draft.description} label="Description" onimage={sheet.attach}>
+	<MarkdownEditor bind:value={sheet.draft.description} label="Description" onfile={sheet.attach}>
 		{#snippet preview()}
 			<Journal body={sheet.draft.description} options={sheet.preview(options)} />
 		{/snippet}

@@ -47,7 +47,7 @@ describe('an editing sheet', () => {
 	});
 });
 
-describe('the images of a sheet', () => {
+describe('the files of a sheet', () => {
 	const NOW = new Date(Date.UTC(2026, 9, 12, 8, 30, 0));
 	const png = (name: string) => new File(['a picture'], name, { type: 'image/png' });
 	/** The sheet of a task whose folder holds `shot.png`. */
@@ -84,7 +84,12 @@ describe('the images of a sheet', () => {
 		expect(url('tasks/new.png')).toMatch(/^blob:/);
 	});
 
-	it('writes into the folder of the id it is given the images the description still links', () => {
+	it('links a file that is not an image rather than show it', () => {
+		const pdf = new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' });
+		expect(opened().attach(pdf, NOW)).toBe('[notes.pdf](./notes.pdf)');
+	});
+
+	it('writes into the folder of the id it is given the files the description still links', () => {
 		const sheet = opened();
 		const kept = png('kept.png');
 		sheet.draft.description = sheet.attach(kept, NOW);

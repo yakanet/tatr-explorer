@@ -23,7 +23,7 @@
 	let back: string | null = null;
 
 	// The id is the clock's at Save, so the preview resolves files against
-	// `tasks/`, where only the images pasted are found.
+	// `tasks/`, where only the files pasted or dropped are found.
 	const options = $derived({
 		assetUrl: repo.assetUrl,
 		taskId: '',

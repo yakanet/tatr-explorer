@@ -4,7 +4,7 @@ import {
 	collectAttachments,
 	formatSize,
 	type Listed,
-	wantedImageName
+	wantedName
 } from './attachments.ts';
 
 /** The shape of tsoding/tatr's own task folders, as its listing reports them. */
@@ -117,15 +117,15 @@ describe('attachmentName', () => {
 	});
 });
 
-describe('wantedImageName', () => {
+describe('wantedName', () => {
 	const NOW = new Date(Date.UTC(2026, 9, 12, 8, 30, 0));
 
 	it("names a pasted screenshot, which carries the browser's generic name, after the clock", () => {
-		expect(wantedImageName('image.PNG', NOW)).toBe('pasted-20261012-083000.png');
+		expect(wantedName('image.PNG', NOW)).toBe('pasted-20261012-083000.png');
 	});
 
 	it('keeps any other name, of a file dropped or pasted from a folder', () => {
-		expect(wantedImageName('plan.jpg', NOW)).toBe('plan.jpg');
-		expect(wantedImageName('image-2.png', NOW)).toBe('image-2.png');
+		expect(wantedName('plan.jpg', NOW)).toBe('plan.jpg');
+		expect(wantedName('image-2.png', NOW)).toBe('image-2.png');
 	});
 });
