@@ -7,10 +7,11 @@
  * appear twice. `scope` is the one tag that means a stage, "currently working
  * on", and upstream task 20260826-200847 proposes tags for a kanban.
  *
- * Cards cannot be dragged: moving one would write to the repository, and this
- * viewer never writes.
+ * Moving a card is an edit of its file, offered only where the source writes.
  */
 import { compareById, compareByPriority, type Task } from './task.ts';
+import { chain, withoutTag, withStatus, withTag, type Edit, type TaskFile } from './task-file.ts';
+import { isClosed } from './task-md.ts';
 
 /** The tag upstream uses for "currently working on". */
 export const IN_PROGRESS = 'scope';
@@ -28,7 +29,7 @@ export interface Column {
 	total: number;
 }
 
-function columnOf(task: Task): ColumnKey {
+export function columnOf(task: Task): ColumnKey {
 	// A closed task goes to done even if still tagged `scope`, so each card
 	// lands in exactly one column.
 	if (task.closed) return 'done';
@@ -89,4 +90,24 @@ export function toColumns(
 			total: totals.done
 		}
 	];
+}
+
+/**
+ * The edit that moves a task to `column`, changing no more than the move needs:
+ * Done keeps the `scope` tag, and a status that is neither open nor closed is
+ * kept outside Done.
+ */
+export function moveTo(column: ColumnKey): Edit {
+	if (column === 'done') return withStatus('CLOSED');
+	return chain(reopened, stageOf(column));
+}
+
+function stageOf(column: 'backlog' | 'progress'): Edit {
+	if (column === 'progress') return withTag(IN_PROGRESS);
+	return withoutTag(IN_PROGRESS);
+}
+
+function reopened(file: TaskFile): TaskFile {
+	if (!isClosed(file.properties)) return file;
+	return withStatus('OPEN')(file);
 }

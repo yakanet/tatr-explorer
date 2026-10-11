@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { SOURCES, openSource, parseRepoPath } from './open.ts';
 import { parseForgePath } from '../repo/ref.ts';
-import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
+import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
 import { SourceError, type Source } from './contract.ts';
 import { fromDirectoryEntry } from './local/directory-entry.ts';
 import { fromDirectoryHandle } from './local/directory-handle.ts';
@@ -325,5 +325,84 @@ describe('following a folder', () => {
 			window.dispatchEvent(new Event('focus'));
 			expect(changed).toHaveBeenCalled();
 		});
+	});
+});
+
+describe('writing to a folder', () => {
+	const path = 'tasks/20260101-000001/TASK.md';
+	const before = '# a\n\n- STATUS: OPEN\n';
+	const after = '# a\n\n- STATUS: CLOSED\n';
+
+	/**
+	 * A folder picked on Chromium, whose reader answers `ask`, and the tree it
+	 * writes to. Without `ask`, the handle is one that cannot ask.
+	 */
+	const picked = async (ask?: () => Promise<PermissionState>) => {
+		const tree: Record<string, string> = { [path]: before };
+		const handle = directory('my-project', tree, ask);
+		openFolder(await fromDirectoryHandle(handle), handle);
+		return { tree, source: openSource(LOCAL) };
+	};
+
+	afterEach(() => closeFolder());
+
+	it('is offered only where the browser hands over a handle that can ask to write', async () => {
+		expect(isWritable((await picked(async () => 'granted')).source)).toBe(true);
+		expect(isWritable((await picked()).source)).toBe(false);
+
+		const entry = entryTree('my-project', { [path]: before });
+		openFolder(await fromDirectoryEntry(entry), entry);
+		expect(isWritable(openSource(LOCAL))).toBe(false);
+
+		openFolder(fromFileList([dropped(path, before)])!);
+		expect(isWritable(openSource(LOCAL))).toBe(false);
+	});
+
+	it('asks the reader on the first write only, and writes once allowed', async () => {
+		const ask = vi.fn(async (): Promise<PermissionState> => 'granted');
+		const { tree, source } = await picked(ask);
+
+		expect(await having(source, isWritable).write(path, after, before)).toBe('written');
+		expect(tree[path]).toBe(after);
+		expect(await having(source, isWritable).write(path, before, after)).toBe('written');
+		expect(ask).toHaveBeenCalledTimes(1);
+	});
+
+	it('answers refused when the reader says no, and does not ask again', async () => {
+		const ask = vi.fn(async (): Promise<PermissionState> => 'denied');
+		const { tree, source } = await picked(ask);
+
+		expect(await having(source, isWritable).write(path, after, before)).toBe('refused');
+		expect(await having(source, isWritable).write(path, after, before)).toBe('refused');
+		expect(ask).toHaveBeenCalledTimes(1);
+		expect(tree[path]).toBe(before);
+	});
+
+	it('asks again when the browser would not ask, long after the last click', async () => {
+		const ask = vi
+			.fn<() => Promise<PermissionState>>()
+			.mockRejectedValueOnce(new DOMException('User activation is required', 'SecurityError'))
+			.mockResolvedValue('granted');
+		const { source } = await picked(ask);
+
+		await expect(having(source, isWritable).write(path, after, before)).rejects.toBeInstanceOf(
+			SourceError
+		);
+		expect(await having(source, isWritable).write(path, after, before)).toBe('written');
+	});
+
+	it('answers changed for a file removed since it was read', async () => {
+		const { tree, source } = await picked(async () => 'granted');
+		delete tree[path];
+		expect(await having(source, isWritable).write(path, after, before)).toBe('changed');
+	});
+
+	it('writes nothing once another folder is opened', async () => {
+		const { tree, source } = await picked(async () => 'granted');
+		closeFolder();
+		await expect(having(source, isWritable).write(path, after, before)).rejects.toBeInstanceOf(
+			SourceError
+		);
+		expect(tree[path]).toBe(before);
 	});
 });

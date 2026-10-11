@@ -1,6 +1,6 @@
 # Edit the tasks of a folder, where it can be written
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 60
 - TAGS: data,ui
 
@@ -64,3 +64,46 @@ made here the same way as one made in an editor.
 To decide: for the browser way, whether the permission is asked when the folder
 is opened or on the first edit; for both, whether an edit can be undone from the
 page.
+
+---
+
+Done, for both ways of writing: the board moves cards, and a task's page edits
+its status, priority and tags in place, wherever `repo.editable` holds. The
+decisions: the permission is asked on the first edit, never when the folder is
+opened, and the last edit can be undone from the notice that reports it.
+
+What was built:
+
+- `task-file.ts`, beside the parser: a file loaded as `load_tasks` does (the
+  defaults it assumes appended), edited, and rendered as `render_task_md`. A
+  tag is removed as `tatr untag` removes it, the last tag moved into its place,
+  so the file is the one the CLI would write. `pnpm run fixtures` records
+  `untag` over each tag of each task, 58 rewrites of tsoding/tatr and 25 of our
+  corpus, and every one matches byte for byte, as does rendering back each file
+  the CLI wrote.
+- The parser moves a key defined twice to its later place, as
+  `properties_put` does; the Map kept the first place, which no listing showed
+  but a rewrite would have.
+- A folder picked or dropped on Chromium is `Writable` when its handle has
+  `requestPermission`, which alone decides: `createWritable` comes with it, and
+  exists without it only for the origin's private file system. A refusal is a
+  third answer, `refused`, beside `written` and `changed`, as the page acts on
+  it: it stops offering edits until another folder is opened. A browser that
+  will not ask, long after the last click, is an error instead, and asks again
+  next time.
+- `RepositoryState.edit` walks the folder again, reads the file, applies the
+  edit and writes over what it read, then reads the repository again, so the
+  moved card is marked like any change found on disk. Edits run one after
+  another. Nothing reaches the page as an exception: each failure is one
+  sentence in the notice, and the reading stays as it was.
+- The board says, above the columns, that a card can be dragged, and only
+  there; elsewhere a card does not drag at all.
+
+Checked in Chrome on the served folder: a move, Undo, then a tag added and
+removed, a priority and a status set, each file compared with git.
+
+Not checked: Chrome's own permission prompt, which no automation can answer.
+The specs run the folder over a stand-in handle. Whether a drop counts as the
+click `requestPermission` needs was not established either: the activation
+starts at the press that begins the drag and lasts a few seconds, so a slow
+drag may be told to try again, where a field on the task's page always works.

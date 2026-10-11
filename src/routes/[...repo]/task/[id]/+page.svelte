@@ -10,6 +10,8 @@
 	import { listHref, taskHref } from '#lib/repo/hrefs.ts';
 	import { loadTaskDescription } from '#lib/sources/load.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
+	import type { Edit } from '#lib/tatr/task-file.ts';
+	import { taskPath } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
@@ -61,6 +63,12 @@
 	}
 
 	const renderOptions = $derived({ assetUrl: repo.assetUrl, taskId: id, taskUrl });
+
+	/** Rewrites this task's file, or is undefined where it cannot be edited. */
+	const onedit = $derived.by(() => {
+		if (!task || !repo.canEdit(task)) return undefined;
+		return (edit: Edit, what: string) => repo.edit(id, edit, what);
+	});
 </script>
 
 <svelte:head>
@@ -82,10 +90,10 @@
 		<Article {task} {body} {loadingBody} options={renderOptions} />
 
 		<aside>
-			<Properties properties={task.properties} />
+			<Properties {task} {onedit} />
 			<References {task} tasks={repo.tasks} {ref} options={renderOptions} />
 			<Attachments attachments={task.attachments ?? []} options={renderOptions} />
-			<ForgeLink url={repo.fileUrl(`tasks/${id}/TASK.md`)} />
+			<ForgeLink url={repo.fileUrl(taskPath(id))} />
 			<p><a href={listHref(ref)}>← Back to the list</a></p>
 		</aside>
 	{/if}

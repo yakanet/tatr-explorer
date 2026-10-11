@@ -258,6 +258,10 @@ const SUBJECTS = {
 				const handle = directory('my-project', tree);
 				return [await fromDirectoryHandle(handle), handle];
 			}),
+			through('a folder picked on Chromium, whose reader allows writing', async (tree) => {
+				const handle = directory('my-project', tree, async () => 'granted');
+				return [await fromDirectoryHandle(handle), handle];
+			}),
 			through('a folder dropped, with its entry tree', async (tree) => {
 				const entry = entryTree('my-project', tree);
 				return [await fromDirectoryEntry(entry), entry];

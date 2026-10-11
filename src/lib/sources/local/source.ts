@@ -5,11 +5,17 @@
  * reload, so no URL can restore it. The gesture calls `openFolder`, and the
  * navigation that follows finds that source through `LocalFolderSource.open`.
  */
-import type { Followable } from '../capabilities.ts';
+import type { Followable, Writable, WriteAnswer } from '../capabilities.ts';
 import { settle } from '../settle.ts';
-import { SourceError, type Address, type Listing, type Source } from '../contract.ts';
+import { messageOf, SourceError, type Address, type Listing, type Source } from '../contract.ts';
 import { fromDirectoryEntry } from './directory-entry.ts';
-import { fromDirectoryHandle, tasksDirectoryOf } from './directory-handle.ts';
+import {
+	askToWrite,
+	canWriteThrough,
+	fromDirectoryHandle,
+	tasksDirectoryOf,
+	writeThrough
+} from './directory-handle.ts';
 import { listFolder, type LocalFolder, readBranch } from './folder.ts';
 
 /** What lets a folder be walked again: a directory handle, or the entry tree of a drop. */
@@ -71,8 +77,7 @@ export class LocalFolderSource implements Source {
 	}
 
 	async list(): Promise<Listing> {
-		const folder = this.folder;
-		if (!folder) throw new SourceError('no-source', this.#gone);
+		const folder = this.held();
 		return {
 			entries: listFolder(folder),
 			branch: (await readBranch(folder)) ?? 'working tree'
@@ -100,6 +105,12 @@ export class LocalFolderSource implements Source {
 		return url;
 	}
 
+	/** The folder, or a `no-source` error once there is none. */
+	protected held(): LocalFolder {
+		if (!this.folder) throw new SourceError('no-source', this.#gone);
+		return this.folder;
+	}
+
 	/** Lets go of the folder, and revokes every URL handed out for it. */
 	close(): void {
 		for (const { url } of this.#assets.values()) URL.revokeObjectURL(url);
@@ -111,16 +122,16 @@ export class LocalFolderSource implements Source {
 
 /** A folder with a `WayBack`, which can be read again and followed as it changes. */
 class LiveFolderSource extends LocalFolderSource implements Followable {
-	readonly #back: WayBack;
+	protected readonly back: WayBack;
 
 	constructor(folder: LocalFolder, back: WayBack) {
 		super(folder);
-		this.#back = back;
+		this.back = back;
 	}
 
 	async reread(signal?: AbortSignal): Promise<void> {
 		if (!this.folder) return;
-		const folder = await fromWayBack(this.#back, signal);
+		const folder = await fromWayBack(this.back, signal);
 		// A later reading aborted this one, and its newer tree may already be in place.
 		signal?.throwIfAborted();
 		// Swapped, not closed: closing would revoke the URLs the reading on screen
@@ -129,7 +140,54 @@ class LiveFolderSource extends LocalFolderSource implements Followable {
 	}
 
 	follow(onChange: () => void): () => void {
-		return followFolder(this.#back, onChange);
+		return followFolder(this.back, onChange);
+	}
+}
+
+/**
+ * A folder whose handle can write, picked or dropped on Chromium. The reader is
+ * asked whether this page may edit it on the first write, so that a reader who
+ * only reads is never asked.
+ */
+class WritableFolderSource extends LiveFolderSource implements Writable {
+	declare protected readonly back: FileSystemDirectoryHandle;
+	/** The reader's answer, kept once given so that a refusal is not asked again. */
+	#allowed: Promise<boolean> | null = null;
+
+	async write(path: string, text: string, expected: string): Promise<WriteAnswer> {
+		const folder = this.held();
+		if (!(await this.#allow())) return 'refused';
+		let written: File | null;
+		try {
+			written = await writeThrough(this.back, path, text, expected);
+		} catch (error) {
+			throw new SourceError(
+				'not-written',
+				`The folder refused to write ${path}: ${messageOf(error)}`
+			);
+		}
+		// A file removed since it was read has changed too, as reading again shows.
+		if (!written) return 'changed';
+		// The source holds what it wrote, until the next reading replaces it.
+		folder.files.set(path, written);
+		return 'written';
+	}
+
+	/**
+	 * Asks the reader once whether this page may write. A browser that refuses to
+	 * ask, as it does long after the last click, leaves the question open.
+	 */
+	async #allow(): Promise<boolean> {
+		this.#allowed ??= askToWrite(this.back);
+		try {
+			return await this.#allowed;
+		} catch {
+			this.#allowed = null;
+			throw new SourceError(
+				'not-written',
+				'The browser asks whether this page may edit the folder only right after a click: try again.'
+			);
+		}
 	}
 }
 
@@ -196,6 +254,9 @@ export function closeFolder(): void {
 function sourceOver(folder: LocalFolder, back: WayBack | undefined): LocalFolderSource {
 	if (back === undefined) {
 		return new LocalFolderSource(folder);
+	}
+	if ('kind' in back && canWriteThrough(back)) {
+		return new WritableFolderSource(folder, back);
 	}
 	return new LiveFolderSource(folder, back);
 }

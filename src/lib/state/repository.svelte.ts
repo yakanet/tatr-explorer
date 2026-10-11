@@ -2,10 +2,16 @@
  * Loading state for one repository. Listing and reading are separate phases,
  * so the UI can tell a rate-limited listing apart from task files streaming in.
  */
-import { isFollowable, isLinked } from '../sources/capabilities.ts';
+import {
+	isFollowable,
+	isLinked,
+	isRereadable,
+	isWritable,
+	type WriteAnswer
+} from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
 import { openSource } from '../sources/open.ts';
-import { SourceError, type Source, type SourceFailure } from '../sources/contract.ts';
+import { messageOf, SourceError, type Source, type SourceFailure } from '../sources/contract.ts';
 import { formatRepoName, isForgeRef, type RepoRef } from '../repo/ref.ts';
 import {
 	compare,
@@ -15,7 +21,8 @@ import {
 	type Replaced,
 	type Snapshot
 } from '../tatr/changes.ts';
-import type { Task } from '../tatr/task.ts';
+import { editTaskMd, type Edit } from '../tatr/task-file.ts';
+import { taskPath, type Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
 /** Context key for the repository state shared by every view of one repository. */
@@ -42,8 +49,23 @@ export const FAILURE_HEADINGS = {
 	malformed: 'not understood',
 	'no-source': 'nothing to read',
 	'no-tasks-folder': 'not a tatr repository',
+	'not-written': 'not written',
 	unknown: 'could not be read'
 } satisfies Record<Failure['kind'], string>;
+
+/** What the page says once an edit is over, in one sentence. */
+export interface EditNotice {
+	text: string;
+	/** True when nothing was written, which the page shows as a warning. */
+	failed: boolean;
+	/** True after a write, which Undo can take back while the file still holds it. */
+	undoable: boolean;
+}
+
+/** The notice of an edit that was not made. */
+function failed(text: string): EditNotice {
+	return { text, failed: true, undoable: false };
+}
 
 export class RepositoryState {
 	phase = $state<Phase>('idle');
@@ -86,7 +108,16 @@ export class RepositoryState {
 	 */
 	refreshing = $state(false);
 
+	/** What the last edit came to, until another edit or another source replaces it. */
+	notice = $state<EditNotice | null>(null);
+
 	#controller: AbortController | null = null;
+	/** True once the reader refused to let this page write, until the source is opened again. */
+	#refused = $state(false);
+	/** The last write, kept for Undo, which writes `before` back over `after`. */
+	#written: { id: string; before: string; after: string } | null = null;
+	/** The edits under way, run one after another so that two quick gestures do not race. */
+	#edits: Promise<void> = Promise.resolve();
 
 	/**
 	 * The repository's name on screen: the source's label, or the reference's
@@ -95,6 +126,13 @@ export class RepositoryState {
 	readonly name = $derived(this.source?.label ?? nameOf(this.ref));
 
 	readonly open = $derived(this.tasks.filter((task) => !task.closed));
+
+	/**
+	 * Whether the views offer to edit: the source writes and the reader has not
+	 * refused. Where it is false they show no edit control at all, rather than
+	 * one that fails.
+	 */
+	readonly editable = $derived(isWritable(this.source) && !this.#refused);
 
 	/**
 	 * What moved since the reader's last reading, or null on a first visit or
@@ -118,6 +156,10 @@ export class RepositoryState {
 	 * effect would re-run and abort the reading in flight.
 	 */
 	load(ref: RepoRef): Promise<void> {
+		// What was said or refused about writing concerned the source let go of.
+		this.notice = null;
+		this.#refused = false;
+		this.#written = null;
 		return this.#read(ref, { refresh: false, source: null, replaces: null });
 	}
 
@@ -212,6 +254,96 @@ export class RepositoryState {
 	}
 
 	/**
+	 * Applies `edit` to a task's file as it is on disk now, rather than as the
+	 * reading on screen holds it, which may be minutes old, then reads the
+	 * repository again. `what` says what the edit did, for the notice. It never
+	 * throws: a failure leaves the reading as it was, with a sentence saying why.
+	 */
+	edit(id: string, edit: Edit, what: string): Promise<void> {
+		return this.#queue(() => this.#edit(id, edit, what));
+	}
+
+	/** Writes back the text the last edit replaced, unless the file changed since. */
+	undo(): Promise<void> {
+		return this.#queue(() => this.#undo());
+	}
+
+	/**
+	 * Whether a task can be edited: the views offer to, and its file has the `#`
+	 * without which it is never rewritten.
+	 */
+	canEdit(task: Task): boolean {
+		return this.editable && !task.malformed;
+	}
+
+	/** Runs `step` once the edits under way are over, saying why it failed rather than throwing. */
+	#queue(step: () => Promise<void>): Promise<void> {
+		this.#edits = this.#edits.then(step).catch((error: unknown) => {
+			this.notice = failed(messageOf(error));
+		});
+		return this.#edits;
+	}
+
+	async #edit(id: string, edit: Edit, what: string): Promise<void> {
+		const source = this.source;
+		if (!isWritable(source) || this.#refused) return;
+		const path = taskPath(id);
+		// A folder holds the files of its last walk, so it walks again first.
+		if (isRereadable(source)) await source.reread();
+		const before = await source.read(path);
+		if (before === null) {
+			this.notice = failed(`${id} could not be read, so nothing was written.`);
+			return;
+		}
+		const after = editTaskMd(before, edit);
+		if (after === null) {
+			this.notice = failed(`${id} does not start with #, so it was not rewritten.`);
+			return;
+		}
+		if (after === before) {
+			// The file already says so: the reading on screen is the stale part.
+			this.notice = null;
+			await this.refresh();
+			return;
+		}
+		const answer = await source.write(path, after, before);
+		if (answer === 'written') this.#written = { id, before, after };
+		await this.#settle(answer, id, what);
+	}
+
+	async #undo(): Promise<void> {
+		const source = this.source;
+		const last = this.#written;
+		if (!isWritable(source) || !last) return;
+		this.#written = null;
+		const answer = await source.write(taskPath(last.id), last.before, last.after);
+		await this.#settle(answer, last.id, 'undone');
+	}
+
+	/**
+	 * Says what a write's answer means, and reads again wherever the disk may
+	 * now differ from the screen. `what` says what a write made did.
+	 */
+	async #settle(answer: WriteAnswer, id: string, what: string): Promise<void> {
+		if (answer === 'refused') {
+			this.#refused = true;
+			this.notice = failed(
+				'Editing was not allowed, so this folder stays read-only until it is opened again.'
+			);
+			return;
+		}
+		if (answer === 'changed') {
+			this.notice = failed(
+				`${id} changed on disk since it was read, so it was left as it is and read again.`
+			);
+		} else {
+			// Undo is offered while the last write can still be taken back.
+			this.notice = { text: `${id}: ${what}.`, failed: false, undoable: this.#written !== null };
+		}
+		await this.refresh();
+	}
+
+	/**
 	 * Refreshes the reading whenever a followable source reports a change, and
 	 * returns the function that stops it. The layout's effect re-runs it when
 	 * the source or the phase changes; a refresh changes neither.
@@ -249,11 +381,6 @@ export class RepositoryState {
 function describe(error: unknown): Failure {
 	if (error instanceof SourceError) return { kind: error.failure, message: error.message };
 	return { kind: 'unknown', message: messageOf(error) };
-}
-
-function messageOf(error: unknown): string {
-	if (error instanceof Error) return error.message;
-	return 'Something went wrong.';
 }
 
 /**

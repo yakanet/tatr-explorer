@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import BranchField from '#lib/components/BranchField.svelte';
+	import EditNotice from '#lib/components/EditNotice.svelte';
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
@@ -200,6 +201,8 @@
 </header>
 
 {@render children()}
+
+<EditNotice {repo} />
 
 <style>
 	/* The header is a floating pill like the cards under it, because an

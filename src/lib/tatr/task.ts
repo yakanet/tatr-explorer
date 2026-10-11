@@ -55,6 +55,11 @@ export interface Task {
 	malformed: boolean;
 }
 
+/** The path of a task's file from the repository root. */
+export function taskPath(id: string): string {
+	return `tasks/${id}/TASK.md`;
+}
+
 /**
  * Builds a task, or returns `null` when the folder name is not a HUID, because
  * the CLI skips such folders rather than failing.

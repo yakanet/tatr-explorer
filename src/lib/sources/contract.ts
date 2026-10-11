@@ -24,9 +24,10 @@ export interface Listing {
 }
 
 /**
- * Why a reading failed, as one of the cases the page has a heading for.
- * `no-source` is a source with nothing behind it, such as a folder after a
- * reload.
+ * Why a reading or a write failed, as one of the cases the page has a heading
+ * for. `no-source` is a source with nothing behind it, such as a folder after a
+ * reload. `not-written` is a write the disk refused, which the page reports by
+ * its message alone, as it does every failed edit.
  */
 export type SourceFailure =
 	| 'rate-limited'
@@ -35,12 +36,13 @@ export type SourceFailure =
 	| 'unsupported-host'
 	| 'malformed'
 	| 'no-source'
-	| 'no-tasks-folder';
+	| 'no-tasks-folder'
+	| 'not-written';
 
 /**
- * The error a reading fails with: a {@link SourceFailure} for the page's
- * heading, and a message for under it. The source writes the message, as only
- * it knows its budget, its fallbacks, or that a reload took its folder back.
+ * The error a reading or a write fails with: a {@link SourceFailure} for the
+ * page's heading, and a message for under it. The source writes the message, as
+ * only it knows its budget, its fallbacks, or that a reload took its folder back.
  * The loader and the registry throw it too.
  */
 export class SourceError extends Error {
@@ -51,6 +53,12 @@ export class SourceError extends Error {
 		this.name = 'SourceError';
 		this.failure = failure;
 	}
+}
+
+/** The message of a thrown value, for a page that shows only sentences. */
+export function messageOf(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return 'Something went wrong.';
 }
 
 /**
