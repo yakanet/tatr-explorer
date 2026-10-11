@@ -3,7 +3,8 @@ import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { ListingError, NoSourceError, type Source } from './source.ts';
-import { directory, entryTree } from './local/fake-directory.ts';
+import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
+import { unreachable } from '../../../tests/support/network.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
@@ -81,9 +82,7 @@ describe('openSource', () => {
 
 /** A file as the directory input reports it. */
 function dropped(path: string, text: string): File {
-	const file = new File([text], path.split('/').pop()!);
-	Object.defineProperty(file, 'webkitRelativePath', { value: `my-project/${path}` });
-	return file;
+	return fileList('my-project', { [path]: text })[0];
 }
 
 /**
@@ -116,10 +115,7 @@ describe('reading through a forge', () => {
 	it('answers null when the network does not answer at all', async () => {
 		// A read that throws would take the whole load down; one task that cannot
 		// be read is listed as skipped instead.
-		const fetchImpl = (async () => {
-			throw new TypeError('Failed to fetch');
-		}) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
+		expect(await openSource(ref, { fetchImpl: unreachable }).read('tasks/a/TASK.md')).toBeNull();
 	});
 
 	it('can be refreshed, having only a request to spend', async () => {

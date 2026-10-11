@@ -22,7 +22,9 @@ import { localRef, parseRepoPath, servedRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { githubKind } from './github/kind.ts';
 import { loadRepository } from './load.ts';
-import { directory, entryTree, fileList } from './local/fake-directory.ts';
+import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
+import { scratchFolder, serving, writeTree } from '../../../tests/support/disk-tree.ts';
+import { unreachable } from '../../../tests/support/network.ts';
 import {
 	fromDirectoryEntry,
 	fromDirectoryHandle,
@@ -32,7 +34,6 @@ import {
 } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { KINDS } from './open.ts';
-import { scratchFolder, serving, writeTree } from './served/disk-tree.server.ts';
 import { servedKind } from './served/kind.ts';
 import { ListingError, NoSourceError, type Listing, type Source } from './source.ts';
 import { memoryStore } from './store.ts';
@@ -172,11 +173,6 @@ function honoursTheContract(subject: Subject): void {
 		});
 	});
 }
-
-/** A network that does not answer: no forge, no dev server. */
-const unreachable = (async () => {
-	throw new TypeError('Failed to fetch');
-}) as typeof fetch;
 
 /**
  * GitHub over `tree`, through both of its doors: the trees API that lists it,

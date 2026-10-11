@@ -1,14 +1,13 @@
 /**
- * Writes a tree of files on the disk, and serves it as the dev server would,
- * for the specs: nothing in the application imports this file. Its own file
- * because the served source is specced over real folders, as the disk is what
- * it is about, by its own specs and by the contract every source runs.
+ * Writes a tree of files on the disk, and serves it as the dev server would:
+ * the served source is specced over real folders, the disk being what it is
+ * about, by its own specs and by the contract every source runs.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach } from 'vitest';
-import { answer, locate } from './folder.server.ts';
+import { answer, locate } from '../../src/lib/sources/served/folder.server.ts';
 
 /**
  * A fresh folder for every spec, removed after it. Returns a function, as the

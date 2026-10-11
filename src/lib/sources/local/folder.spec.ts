@@ -8,7 +8,7 @@ import {
 	looksLikeTasksFolder,
 	readBranch
 } from './folder.ts';
-import { directory, entryTree } from './fake-directory.ts';
+import { directory, entryTree } from '../../../../tests/support/fake-directory.ts';
 
 /** A file as the directory input reports it, path and all. */
 function entry(relativePath: string, contents = 'x'): File {

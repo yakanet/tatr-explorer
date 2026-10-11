@@ -1,7 +1,7 @@
 import { symlink } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { scratchFolder, writeTree } from './disk-tree.server.ts';
+import { scratchFolder, writeTree } from '../../../../tests/support/disk-tree.ts';
 import { answer, diskPath, listing, locate, servedFolder } from './folder.server.ts';
 
 /**

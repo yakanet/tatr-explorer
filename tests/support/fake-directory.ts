@@ -1,8 +1,6 @@
 /**
- * Stand-ins for what the browser hands over for a folder, for the specs:
- * nothing in the application imports this file, so it never reaches a build.
- * Its own file because several specs use them, the folder's and the source's
- * among them, one per door a browser offers to a folder.
+ * Stand-ins for what the browser hands over for a folder, one per door it
+ * offers to a folder; Node, where the specs run, has none of them.
  *
  * The two with a way back read their tree when asked rather than when built,
  * so a spec can change the tree between two readings, as an editor changes a
