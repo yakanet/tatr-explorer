@@ -1,22 +1,11 @@
 <script lang="ts">
 	// Opens a folder on the reader's machine, through whichever API the browser
-	// has. `showDirectoryPicker` gives a handle, and a drop gives a handle on
-	// Chromium or an entry tree elsewhere: both can be walked again, so a refresh
-	// rereads the folder and the reading can follow it. The directory input gives
-	// a flat list, once. The entry API behind a drop exists where the picker does
-	// not, so a browser without the picker can still open a folder it rereads.
+	// has: `showDirectoryPicker`, the directory input, or a drop.
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import {
-		canDropFolder,
-		folderAccess,
-		fromDirectoryHandle,
-		fromFileList,
-		fromWayBack,
-		type LocalFolder,
-		type WayBack
-	} from '#lib/sources/local/folder.ts';
-	import { LOCAL_PATH, openFolder } from '#lib/sources/local/source.ts';
+	import { canDropFolder, droppedFolder } from '#lib/sources/local/drop.ts';
+	import { folderAccess, fromFileList, type LocalFolder } from '#lib/sources/local/folder.ts';
+	import { fromWayBack, LOCAL_PATH, openFolder, type WayBack } from '#lib/sources/local/source.ts';
 
 	interface Props {
 		label?: string;
@@ -50,14 +39,18 @@
 		await goto(resolve('/[...repo]', { repo: LOCAL_PATH }), { refreshAll: true });
 	}
 
+	/** Opens a folder that has a way back, so a refresh rereads it. */
+	async function openBack(back: WayBack) {
+		await opened(await fromWayBack(back), back);
+	}
+
 	async function pick() {
 		if (!hasPicker) {
 			input?.click();
 			return;
 		}
 		try {
-			const handle = await window.showDirectoryPicker!({ mode: 'read' });
-			await opened(await fromDirectoryHandle(handle), handle);
+			await openBack(await window.showDirectoryPicker!({ mode: 'read' }));
 		} catch (thrown) {
 			// Cancelling the dialog throws, and cancelling is not an error.
 			if (thrown instanceof DOMException && thrown.name === 'AbortError') return;
@@ -96,42 +89,19 @@
 		if (droppable && carriesFiles(event)) event.preventDefault();
 	}
 
-	/** Reads each dropped item as a handle where the browser has them, or as an entry. */
-	function handlesOrEntries(items: DataTransferItem[]) {
-		if (items.some((item) => typeof item.getAsFileSystemHandle === 'function')) {
-			return items.map((item) => item.getAsFileSystemHandle!());
-		}
-		return items.map((item) => item.webkitGetAsEntry());
-	}
-
-	/** Whether a dropped handle or entry is a folder. */
-	function isFolder(one: FileSystemHandle | FileSystemEntry) {
-		if ('kind' in one) return one.kind === 'directory';
-		return one.isDirectory;
-	}
-
 	async function dropped(event: DragEvent) {
 		if (!droppable) return;
 		event.preventDefault();
 		over = 0;
 
-		// Read the items before any await, because the browser empties the list
-		// once this handler returns.
-		const items = [...(event.dataTransfer?.items ?? [])];
-		const pending = handlesOrEntries(items);
-
 		try {
-			// The spec answers null for an item that is not a file, and Chrome
-			// answers `undefined` for one a script made, so any falsy value is skipped.
-			const folder = (await Promise.all(pending)).find(
-				(one): one is WayBack => !!one && isFolder(one)
-			);
+			const folder = await droppedFolder(event.dataTransfer?.items ?? []);
 			if (!folder) {
 				error = 'Drop a folder, not a file.';
 				return;
 			}
 
-			await opened(await fromWayBack(folder), folder);
+			await openBack(folder);
 		} catch {
 			// Without this, a rejected drop would do nothing and say nothing.
 			error = 'That folder could not be read.';

@@ -4,7 +4,8 @@ import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { parseRepoPath } from '../sources/open.ts';
-import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
+import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
+import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
 import type { Task } from '../tatr/task.ts';
 

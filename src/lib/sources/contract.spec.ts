@@ -20,14 +20,10 @@ import { parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
 import { GitHubRepositorySource } from './github/source.ts';
 import { loadRepository } from './load.ts';
-import {
-	fromDirectoryEntry,
-	fromDirectoryHandle,
-	fromFileList,
-	type LocalFolder,
-	type WayBack
-} from './local/folder.ts';
-import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
+import { fromDirectoryEntry } from './local/directory-entry.ts';
+import { fromDirectoryHandle } from './local/directory-handle.ts';
+import { fromFileList, type LocalFolder } from './local/folder.ts';
+import { closeFolder, LocalFolderSource, openFolder, type WayBack } from './local/source.ts';
 import type { SourceId } from './open.ts';
 import { FollowedServedSource, ServedSource } from './served/source.ts';
 import { SourceError, type Listing, type Source } from './contract.ts';

@@ -4,7 +4,9 @@ import { SOURCES, openSource, parseRepoPath } from './open.ts';
 import { parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { SourceError, type Source } from './contract.ts';
-import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
+import { fromDirectoryEntry } from './local/directory-entry.ts';
+import { fromDirectoryHandle } from './local/directory-handle.ts';
+import { fromFileList } from './local/folder.ts';
 import { GitHubRepositorySource } from './github/source.ts';
 import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 

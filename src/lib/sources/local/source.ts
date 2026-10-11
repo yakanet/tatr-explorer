@@ -8,14 +8,18 @@
 import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
 import { SourceError, type Address, type Listing, type Source } from '../contract.ts';
-import {
-	fromWayBack,
-	listFolder,
-	type LocalFolder,
-	readBranch,
-	tasksDirectoryOf,
-	type WayBack
-} from './folder.ts';
+import { fromDirectoryEntry } from './directory-entry.ts';
+import { fromDirectoryHandle, tasksDirectoryOf } from './directory-handle.ts';
+import { listFolder, type LocalFolder, readBranch } from './folder.ts';
+
+/** What lets a folder be walked again: a directory handle, or the entry tree of a drop. */
+export type WayBack = FileSystemDirectoryHandle | FileSystemDirectoryEntry;
+
+/** Walks a folder again through its `WayBack`, stopping at the next entry once `signal` aborts. */
+export function fromWayBack(back: WayBack, signal?: AbortSignal): Promise<LocalFolder> {
+	if ('kind' in back) return fromDirectoryHandle(back, signal);
+	return fromDirectoryEntry(back, signal);
+}
 
 /** The path of this site that is the local folder's address, `/local`. */
 export const LOCAL_PATH = 'local';
