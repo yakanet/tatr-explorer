@@ -12,9 +12,11 @@
 	const GLYPH = { in: '←', out: '→', both: '⇄', self: '↺' } as const;
 </script>
 
-<span class="glyph {kind}" title={say} aria-hidden={!say}
-	>{GLYPH[kind]}{#if say}<span class="sr">{say}:</span>{/if}</span
->
+<!-- The arrow and its #if share a line: a line break between them renders as a
+     space after the arrow. -->
+<span class="glyph {kind}" title={say} aria-hidden={!say}>
+	{GLYPH[kind]}{#if say}<span class="sr">{say}:</span>{/if}
+</span>
 
 <style>
 	.glyph {
