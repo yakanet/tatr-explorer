@@ -154,12 +154,16 @@ class WritableFolderSource extends LiveFolderSource implements Writable {
 	/** The reader's answer, kept once given so that a refusal is not asked again. */
 	#allowed: Promise<boolean> | null = null;
 
-	async write(path: string, text: string, expected: string): Promise<WriteAnswer> {
+	async write(
+		path: string,
+		contents: string | Blob,
+		expected: string | null
+	): Promise<WriteAnswer> {
 		const folder = this.held();
 		if (!(await this.#allow())) return 'refused';
 		let written: File | null;
 		try {
-			written = await writeThrough(this.back, path, text, expected);
+			written = await writeThrough(this.back, path, contents, expected);
 		} catch (error) {
 			throw new SourceError(
 				'not-written',

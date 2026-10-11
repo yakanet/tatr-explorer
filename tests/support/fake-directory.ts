@@ -36,8 +36,9 @@ function join(prefix: string, name: string): string {
 
 /**
  * A stand-in for the handle `showDirectoryPicker` returns. Given `ask`, it is
- * the handle Chromium hands over, which can write once `ask` answers `granted`
- * to its `requestPermission`; its files are then written into `tree`.
+ * the handle Chromium hands over, which can write and create once `ask`
+ * answers `granted` to its `requestPermission`; its files are then written into
+ * `tree`. A folder created holds nothing in `tree` until a file is written in it.
  */
 export function directory(
 	name: string,
@@ -53,9 +54,9 @@ export function directory(
 		}
 	};
 
-	const handleOf = (prefix: string, child: string, found: Child) => {
+	const handleOf = (prefix: string, child: string, kind: Child['kind']) => {
 		const path = join(prefix, child);
-		if (found.kind === 'directory') return build(child, path);
+		if (kind === 'directory') return build(child, path);
 		return {
 			kind: 'file',
 			name: child,
@@ -68,13 +69,17 @@ export function directory(
 		} as unknown as FileSystemFileHandle;
 	};
 
+	const requireGranted = () => {
+		if (permission !== 'granted') throw new DOMException('not allowed', 'NotAllowedError');
+	};
+
 	/** A stream that replaces the file at `path` on `close`, as Chromium's does. */
 	const writableAt = (path: string) => {
-		if (permission !== 'granted') throw new DOMException('not allowed', 'NotAllowedError');
+		requireGranted();
 		let written = '';
 		return {
-			write: async (text: string) => {
-				written += text;
+			write: async (contents: string | Blob) => {
+				written += await new Blob([contents]).text();
 			},
 			close: async () => {
 				tree[path] = written;
@@ -83,10 +88,17 @@ export function directory(
 	};
 
 	const build = (dirName: string, prefix: string): FileSystemDirectoryHandle => {
-		const lookup = (child: string, kind: Child['kind']) => {
+		const lookup = (child: string, kind: Child['kind'], create = false) => {
+			// Chromium refuses such names outright, whatever the folder holds.
+			if (['', '.', '..'].includes(child) || child.includes('/')) {
+				throw new TypeError(`Name is not allowed: ${child}`);
+			}
 			const found = childrenOf(tree, prefix).get(child);
-			if (found?.kind !== kind) throw new DOMException('missing', 'NotFoundError');
-			return handleOf(prefix, child, found);
+			if (found?.kind === kind) return handleOf(prefix, child, kind);
+			if (found || !create) throw new DOMException('missing', 'NotFoundError');
+			requireGranted();
+			if (kind === 'file') tree[join(prefix, child)] = '';
+			return handleOf(prefix, child, kind);
 		};
 		return {
 			kind: 'directory',
@@ -94,11 +106,13 @@ export function directory(
 			...permissions,
 			entries: async function* () {
 				for (const [child, found] of childrenOf(tree, prefix)) {
-					yield [child, handleOf(prefix, child, found)];
+					yield [child, handleOf(prefix, child, found.kind)];
 				}
 			},
-			getDirectoryHandle: async (child: string) => lookup(child, 'directory'),
-			getFileHandle: async (child: string) => lookup(child, 'file')
+			getDirectoryHandle: async (child: string, options?: { create?: boolean }) =>
+				lookup(child, 'directory', options?.create),
+			getFileHandle: async (child: string, options?: { create?: boolean }) =>
+				lookup(child, 'file', options?.create)
 		} as unknown as FileSystemDirectoryHandle;
 	};
 

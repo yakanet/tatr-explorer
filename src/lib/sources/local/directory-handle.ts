@@ -81,40 +81,75 @@ export async function askToWrite(handle: FileSystemDirectoryHandle): Promise<boo
 }
 
 /**
- * Replaces the file at `path` with `text` while it still holds `expected`, and
- * returns the file written, or null when it changed or went since. Throws
- * when the browser refuses the write.
+ * Writes `contents` at `path` while it holds `expected`, its text or null for
+ * no file, and returns the file written, or null when it changed or went
+ * since. Throws when the browser refuses the write, or `path` is outside
+ * `tasks/` for a file to create.
  */
 export async function writeThrough(
 	handle: FileSystemDirectoryHandle,
 	path: string,
-	text: string,
-	expected: string
+	contents: string | Blob,
+	expected: string | null
 ): Promise<File | null> {
+	if (expected === null) return createAt(handle, path, contents);
 	const file = await fileHandleAt(handle, path);
 	if (!file) return null;
 	if ((await (await file.getFile()).text()) !== expected) return null;
+	return writeTo(file, contents);
+}
+
+/**
+ * Creates the file at `path` holding `contents`, and the folders missing on the
+ * way, and returns the file created, or null when one is there already. Throws
+ * for a path outside `tasks/`.
+ */
+async function createAt(
+	handle: FileSystemDirectoryHandle,
+	path: string,
+	contents: string | Blob
+): Promise<File | null> {
+	const place = underTasks(path);
+	if (!place) throw new Error(`${path} is not a path under tasks/.`);
+	let dir = await tasksDirectoryOf(handle);
+	if (!dir) throw new Error('the folder has no tasks/.');
+	// The browser refuses a name such as `..`, so the folders stay under `tasks/`.
+	for (const folder of place.folders) {
+		dir = await dir.getDirectoryHandle(folder, { create: true });
+	}
+	if (await fileHandleOrNull(dir, place.name)) return null;
+	return writeTo(await dir.getFileHandle(place.name, { create: true }), contents);
+}
+
+/** Replaces what `file` holds with `contents`, and returns the file written. */
+async function writeTo(file: FileSystemFileHandle, contents: string | Blob): Promise<File> {
 	const stream = await file.createWritable();
-	await stream.write(text);
+	await stream.write(contents);
 	await stream.close();
 	return file.getFile();
 }
 
 /**
- * The handle on the file at `path` from the repository root, or null when
- * there is none. Only a path under `tasks/` is looked up, as nothing else is
- * ever written.
+ * A path from the repository root as the folders under `tasks/` and the file's
+ * name, or null for a path outside `tasks/`, where nothing is ever written.
  */
+function underTasks(path: string): { folders: string[]; name: string } | null {
+	const [root, ...folders] = path.split('/');
+	const name = folders.pop();
+	if (root !== 'tasks' || !name) return null;
+	return { folders, name };
+}
+
+/** The handle on the file at `path` from the repository root, or null when there is none. */
 async function fileHandleAt(
 	handle: FileSystemDirectoryHandle,
 	path: string
 ): Promise<FileSystemFileHandle | null> {
-	const [root, ...inside] = path.split('/');
-	const name = inside.pop();
-	if (root !== 'tasks' || !name) return null;
+	const place = underTasks(path);
+	if (!place) return null;
 	let dir = await tasksDirectoryOf(handle);
-	for (const segment of inside) dir = await directoryOrNull(dir, segment);
-	return fileHandleOrNull(dir, name);
+	for (const folder of place.folders) dir = await directoryOrNull(dir, folder);
+	return fileHandleOrNull(dir, place.name);
 }
 
 async function directoryOrNull(

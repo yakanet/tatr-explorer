@@ -1,6 +1,7 @@
 /**
  * The dev server's half of the served source: it reads a folder from the disk,
- * answers the page over HTTP, writes task files back and pushes changes.
+ * answers the page over HTTP, writes and creates files under its tasks, and
+ * pushes changes.
  *
  * A Vite plugin rather than SvelteKit routes, so the routes exist in the dev
  * server only and the static build never includes them. They run after Vite's
@@ -12,7 +13,7 @@
  * half is `source.ts`, and the two share only `protocol.ts`.
  */
 import { watch } from 'node:fs';
-import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { arrayBuffer } from 'node:stream/consumers';
@@ -75,15 +76,53 @@ export async function listing(served: ServedFolder): Promise<Listing> {
  * to elsewhere in the same folder.
  */
 export async function diskPath(served: ServedFolder, page: string): Promise<string | null> {
-	if (!served.tasks || !page.startsWith('tasks/')) return null;
+	const place = placeOf(served, page);
+	if (!place) return null;
 	try {
-		const real = await realpath(path.resolve(served.tasks, page.slice('tasks/'.length)));
-		if (!isInside(served.tasks, real)) return null;
+		const real = await realpath(place.target);
+		if (!isInside(place.tasks, real)) return null;
 		if (!(await stat(real)).isFile()) return null;
 		return real;
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Where on disk a file the page creates goes, once the folders missing on the
+ * way are made, or null for a path the page may not create: one outside
+ * `tasks/`, or one through any symbolic link, so that a file created is where
+ * its path says.
+ */
+export async function newDiskPath(served: ServedFolder, page: string): Promise<string | null> {
+	const place = placeOf(served, page);
+	if (!place) return null;
+	const folders = path.relative(place.tasks, place.target).split(path.sep).slice(0, -1);
+	let folder = place.tasks;
+	for (const name of folders) {
+		folder = path.join(folder, name);
+		try {
+			await mkdir(folder);
+		} catch (error) {
+			if (!hasCode(error, 'EEXIST')) throw error;
+			// `lstat`, so that a symbolic link to a folder is not entered.
+			if (!(await lstat(folder)).isDirectory()) return null;
+		}
+	}
+	return place.target;
+}
+
+/**
+ * The path on disk a page path names, with the served tasks, or null when its
+ * letters alone put it outside them, by `..` included. Symbolic links are left
+ * to the caller, which reads or creates.
+ */
+function placeOf(served: ServedFolder, page: string): { tasks: string; target: string } | null {
+	const tasks = served.tasks;
+	if (!tasks || !page.startsWith('tasks/')) return null;
+	const target = path.resolve(tasks, page.slice('tasks/'.length));
+	if (!isInside(tasks, target)) return null;
+	return { tasks, target };
 }
 
 /**
@@ -111,10 +150,14 @@ export async function answer(served: ServedFolder, request: Request): Promise<Re
 		return Response.json(await listing(served), { headers: NO_STORE });
 	}
 	if (route.startsWith('files/')) {
-		// A task file is replaced whole; nothing is created or removed.
+		// A file is replaced whole or created; nothing is removed.
 		if (request.method !== 'GET' && request.method !== 'PUT') return notAllowed('GET, PUT');
 		const page = decoded(route.slice('files/'.length));
 		if (page === null) return new Response(null, { status: 400 });
+		// `If-None-Match: *` is "only if there is none": a creation.
+		if (request.method === 'PUT' && request.headers.get('if-none-match') === '*') {
+			return create(served, page, request);
+		}
 		const disk = await diskPath(served, page);
 		if (!disk) return new Response(null, { status: 404 });
 		if (request.method === 'PUT') return write(disk, request);
@@ -260,6 +303,28 @@ async function write(disk: string, request: Request): Promise<Response> {
 	}
 	await writeFile(disk, await request.bytes());
 	return new Response(null, { status: 204 });
+}
+
+/**
+ * Creates one file: 201, 412 when something is there already, 403 for a path
+ * `newDiskPath` refuses.
+ */
+async function create(served: ServedFolder, page: string, request: Request): Promise<Response> {
+	const disk = await newDiskPath(served, page);
+	if (!disk) return new Response(null, { status: 403 });
+	try {
+		// `wx` fails on anything already there, a symbolic link included.
+		await writeFile(disk, await request.bytes(), { flag: 'wx' });
+	} catch (error) {
+		if (!hasCode(error, 'EEXIST')) throw error;
+		return new Response(null, { status: 412 });
+	}
+	return new Response(null, { status: 201 });
+}
+
+/** Whether `error` is the file system's error `code`. */
+function hasCode(error: unknown, code: string): boolean {
+	return (error as NodeJS.ErrnoException).code === code;
 }
 
 /** A path as the page encoded it, or null for one that does not decode. */
