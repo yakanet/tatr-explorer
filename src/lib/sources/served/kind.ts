@@ -9,13 +9,14 @@
  *
  * What sets it apart from the local folder is where the folder lives: in the
  * server, not in a grant the browser takes back on a reload. So it survives
- * one, follows the folder in every browser, and needs no picker.
+ * one, follows the folder in every browser, needs no picker, and writes a task
+ * file back with no permission to ask for.
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
-import type { Followable, Rereadable } from '../capabilities.ts';
+import type { Followable, Rereadable, Writable } from '../capabilities.ts';
 import { encodePath, readJson, readText } from '../http.ts';
 import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
-import { CHANGED, ROUTES } from './protocol.ts';
+import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
 /** The kind's id, and the word that is its address. */
 export const SERVED_WORD = 'served';
@@ -32,7 +33,7 @@ const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
  * Not `Cached`: reading it is free, and a stored copy of files someone is
  * editing would be wrong before it was written.
  */
-export class ServedSource implements Source, Rereadable {
+export class ServedSource implements Source, Rereadable, Writable {
 	readonly id = SERVED_WORD;
 	// The dev server is this machine.
 	readonly concurrency = Number.POSITIVE_INFINITY;
@@ -46,17 +47,8 @@ export class ServedSource implements Source, Rereadable {
 	}
 
 	async list(signal?: AbortSignal): Promise<Listing> {
-		// Called unbound: the browser's own `fetch` refuses any `this` but the window.
-		const network = this.#network;
-		let response: Response;
-		try {
-			response = await network(route('listing'), { signal });
-		} catch {
-			throw new SourceError('network', 'The dev server did not answer.');
-		}
-		if (!response.ok) {
-			throw new SourceError('network', `The dev server answered ${response.status}.`);
-		}
+		const response = await this.#ask(route('listing'), { signal });
+		if (!response.ok) throw refused(response);
 		return (await readJson(response, 'The dev server')) as Listing;
 	}
 
@@ -70,6 +62,35 @@ export class ServedSource implements Source, Rereadable {
 
 	/** Every listing is a fresh one, so there is nothing to make ready. */
 	async reread(): Promise<void> {}
+
+	/** Through the dev server, which compares `expected` with the disk before it writes. */
+	async write(path: string, text: string, expected: string): Promise<'written' | 'changed'> {
+		const response = await this.#ask(fileRoute(path), {
+			method: 'PUT',
+			headers: { 'if-match': await tagOf(expected) },
+			body: text
+		});
+		// Gone since it was read is changed too: reading again finds it so.
+		if (response.status === 412 || response.status === 404) return 'changed';
+		if (!response.ok) throw refused(response);
+		return 'written';
+	}
+
+	/** The dev server's answer, whatever it is, or the failure of its silence. */
+	async #ask(url: string, init: RequestInit): Promise<Response> {
+		// Called unbound: the browser's own `fetch` refuses any `this` but the window.
+		const network = this.#network;
+		try {
+			return await network(url, init);
+		} catch {
+			throw new SourceError('network', 'The dev server did not answer.');
+		}
+	}
+}
+
+/** What an answer other than the one asked for says. */
+function refused(response: Response): SourceError {
+	return new SourceError('network', `The dev server answered ${response.status}.`);
 }
 
 /** The same folder, followed as it changes: the dev server pushes word of it. */

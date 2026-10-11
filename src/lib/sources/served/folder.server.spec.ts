@@ -1,8 +1,20 @@
-import { symlink } from 'node:fs/promises';
+import { readFile, symlink } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { scratchFolder, writeTree } from '#tests/support/disk-tree.ts';
-import { answer, diskPath, listing, locate, tatrServedFolder } from './folder.server.ts';
+import { text } from 'node:stream/consumers';
+import { describe, expect, it, onTestFinished } from 'vitest';
+import { fromPage, scratchFolder, writeTree } from '#tests/support/disk-tree.ts';
+import {
+	answer,
+	diskPath,
+	listing,
+	locate,
+	serve,
+	tatrServedFolder,
+	type ServedFolder
+} from './folder.server.ts';
+import { tagOf } from './protocol.ts';
 
 /**
  * Real folders on the disk, because what is worth pinning here is what the disk
@@ -22,9 +34,8 @@ const repository = () =>
 		'README.md': '# not a task\n'
 	});
 
-/** A request as the dev server hands it over. */
-const get = (pathname: string, method = 'GET') =>
-	new Request(new URL(pathname, 'http://localhost'), { method });
+/** The one task of the repository, by its path from the root. */
+const TASK = 'tasks/20260101-000001/TASK.md';
 
 describe('locating the tasks', () => {
 	it('finds them in `tasks/`, as in a repository', async () => {
@@ -96,19 +107,22 @@ describe('what may be read', () => {
 
 describe('what the dev server answers', () => {
 	it('sends `/` to the folder, so the server opens on it', async () => {
-		const reply = await answer(await locate(await repository()), get('/'));
+		const reply = await answer(await locate(await repository()), fromPage('/'));
 		expect(reply?.status).toBe(302);
 		expect(reply?.headers.get('location')).toBe('/served');
 	});
 
 	it('leaves every other request to Vite and SvelteKit', async () => {
 		const served = await locate(await repository());
-		expect(await answer(served, get('/served'))).toBeNull();
-		expect(await answer(served, get('/src/app.css'))).toBeNull();
+		expect(await answer(served, fromPage('/served'))).toBeNull();
+		expect(await answer(served, fromPage('/src/app.css'))).toBeNull();
 	});
 
 	it('answers the listing as JSON', async () => {
-		const reply = await answer(await locate(await repository()), get('/__tatr/served/listing'));
+		const reply = await answer(
+			await locate(await repository()),
+			fromPage('/__tatr/served/listing')
+		);
 		expect(reply?.status).toBe(200);
 		expect((await reply?.json()).branch).toBe('wip');
 	});
@@ -116,7 +130,7 @@ describe('what the dev server answers', () => {
 	it('serves a file raw, sandboxed against its own scripts', async () => {
 		const reply = await answer(
 			await locate(await repository()),
-			get('/__tatr/served/files/tasks/20260101-000001/shot.png')
+			fromPage('/__tatr/served/files/tasks/20260101-000001/shot.png')
 		);
 		expect(reply?.status).toBe(200);
 		expect(reply?.headers.get('content-type')).toBe('image/png');
@@ -126,25 +140,121 @@ describe('what the dev server answers', () => {
 
 	it('refuses a path climbing out, encoded slashes included', async () => {
 		const served = await locate(await repository());
-		const reply = await answer(served, get('/__tatr/served/files/tasks%2F..%2FREADME.md'));
+		const reply = await answer(served, fromPage('/__tatr/served/files/tasks%2F..%2FREADME.md'));
 		expect(reply?.status).toBe(404);
 	});
 
 	it('refuses an encoding that does not decode', async () => {
 		const reply = await answer(
 			await locate(await repository()),
-			get('/__tatr/served/files/%E0%A4%A')
+			fromPage('/__tatr/served/files/%E0%A4%A')
 		);
 		expect(reply?.status).toBe(400);
 	});
 
-	it('reads only: writing through the folder is a capability of its own', async () => {
+	it('answers only the methods each route has', async () => {
 		const served = await locate(await repository());
-		const reply = await answer(
+		const listed = await answer(served, fromPage('/__tatr/served/listing', { method: 'PUT' }));
+		expect(listed?.status).toBe(405);
+		const removed = await answer(
 			served,
-			get('/__tatr/served/files/tasks/20260101-000001/TASK.md', 'PUT')
+			fromPage(`/__tatr/served/files/${TASK}`, { method: 'DELETE' })
 		);
-		expect(reply?.status).toBe(405);
+		expect(removed?.status).toBe(405);
+		expect(removed?.headers.get('allow')).toBe('GET, PUT');
+	});
+});
+
+describe('writing a task file', () => {
+	/** A write as a page of this dev server sends it, unless told otherwise. */
+	const put = (file: string, body: string, headers: Record<string, string>) =>
+		fromPage(`/__tatr/served/files/${file}`, { method: 'PUT', body, headers });
+
+	/** The repository, served, and a way to look at the task file on its disk. */
+	const opened = async () => {
+		const root = await repository();
+		return {
+			served: await locate(root),
+			onDisk: () => readFile(path.join(root, TASK), 'utf8')
+		};
+	};
+
+	it('replaces a task file whole, over the version it was read as', async () => {
+		const { served, onDisk } = await opened();
+		const reply = await answer(served, put(TASK, '# b\n', { 'if-match': await tagOf('# a\n') }));
+		expect(reply?.status).toBe(204);
+		expect(await onDisk()).toBe('# b\n');
+	});
+
+	it('refuses a write over a version it did not read, rather than lose an edit', async () => {
+		const { served, onDisk } = await opened();
+		const reply = await answer(served, put(TASK, '# b\n', { 'if-match': await tagOf('# x\n') }));
+		expect(reply?.status).toBe(412);
+		expect(await onDisk()).toBe('# a\n');
+	});
+
+	it('refuses a write that names no version, having nothing to compare', async () => {
+		const { served, onDisk } = await opened();
+		expect((await answer(served, put(TASK, '# b\n', {})))?.status).toBe(428);
+		expect(await onDisk()).toBe('# a\n');
+	});
+
+	it("refuses another page's write, one served from another port of this machine included", async () => {
+		const { served, onDisk } = await opened();
+		const expected = await tagOf('# a\n');
+		for (const origin of ['http://localhost:3000', 'https://example.com', '']) {
+			const reply = await answer(served, put(TASK, '# b\n', { origin, 'if-match': expected }));
+			expect(reply?.status).toBe(403);
+		}
+		expect(await onDisk()).toBe('# a\n');
+	});
+
+	it('creates no file: only one already there is replaced', async () => {
+		// Which paths may be touched at all is what reading them already pins.
+		const { served } = await opened();
+		const file = 'tasks/20260101-000002/TASK.md';
+		const reply = await answer(served, put(file, '# b\n', { 'if-match': await tagOf('# a\n') }));
+		expect(reply?.status).toBe(404);
+	});
+});
+
+describe('the middleware, on a real server', () => {
+	/**
+	 * `serve` on a port of this machine, with a next handler that reads what
+	 * it is handed: the address a browser would write to, and what reached it.
+	 */
+	const listening = async (served: ServedFolder) => {
+		const passed: string[] = [];
+		const server = createServer((req, res) =>
+			serve(served)(req, res, async () => {
+				passed.push(await text(req));
+				res.end();
+			})
+		);
+		await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+		onTestFinished(() => new Promise<void>((resolve) => server.close(() => resolve())));
+		return { at: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, passed };
+	};
+
+	it('compares the origin of a write with the address it was sent to', async () => {
+		const root = await repository();
+		const { at } = await listening(await locate(root));
+		const write = (origin: string) =>
+			fetch(`${at}/__tatr/served/files/${TASK}`, {
+				method: 'PUT',
+				headers: { origin, 'if-match': '"none"' },
+				body: '# b\n'
+			});
+
+		// Past the origin, the stale version is what refuses it.
+		expect((await write(at)).status).toBe(412);
+		expect((await write('http://127.0.0.1:1')).status).toBe(403);
+	});
+
+	it('leaves the body of a request it does not answer for the next handler', async () => {
+		const { at, passed } = await listening(await locate(await repository()));
+		await fetch(`${at}/elsewhere`, { method: 'POST', body: 'kept' });
+		expect(passed).toEqual(['kept']);
 	});
 });
 

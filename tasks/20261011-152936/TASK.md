@@ -1,6 +1,6 @@
 # Write a task through the folder the dev server serves
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 38
 - TAGS: data,infra
 
@@ -38,3 +38,36 @@ files that exist, which is what replacing a task file whole needs.
 
 Done when a task file can be written through the dev server, a stale write is
 refused, and a write from another origin is refused, each covered by a spec.
+
+---
+
+Done. The served source is `Writable`, a capability beside the others:
+`write(path, text, expected)` replaces a file whole, and only over `expected`,
+the text read before it was changed. The contract runs that rule over every
+source that writes (the served one, plain and followed), and skips the others.
+
+What differs from the plan above:
+
+- A file that changed since is an answer, `changed`, rather than an error, as
+  a file `read` cannot find is null: the page acts on it by reading again.
+  Only a write that cannot be made at all throws.
+- The dev server answers a stale version 412, HTTP's own answer to an
+  `If-Match` that does not hold, and a write naming none 428.
+- The version is a SHA-256 of the text as decoded (`tagOf`, shared by both
+  halves), so a byte order mark the browser drops compares equal.
+- The origin is checked once for every request to the routes that is not a
+  read, against the address the request was sent to, which a spec runs the
+  middleware on a real server to build. Measured besides: a preflight from
+  another port of this machine is answered 405, so a browser would not even
+  send that write.
+- A file deleted since it was read answers `changed` too.
+
+Left as they are, and why:
+
+- Nothing shows it yet: the controls, and the function that renders a task
+  file as the CLI does, belong to 20261010-030543.
+- Comparing and writing are two steps, so a save landing between them, within a
+  millisecond, would be overwritten. A lock would not stop an editor anyway,
+  and the folder is one person's.
+- Nothing is created or removed: a task file is replaced, which is all editing
+  asks for.

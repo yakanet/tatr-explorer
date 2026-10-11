@@ -1,80 +1,66 @@
-# Edit the tasks of a local folder
+# Edit the tasks of a folder, where it can be written
 
 - STATUS: OPEN
 - PRIORITY: 35
 - TAGS: data,ui
 
-This viewer only reads. For a local folder, some browsers can also write, after
-asking the reader for permission. That would let the views act on the backlog
-instead of only showing it:
+This viewer only reads. Where a source can write, the views could act on the
+backlog instead of only showing it:
 
 - **The board**: dragging a card to Done sets `STATUS: CLOSED`; to In progress
   adds the `scope` tag; back to Backlog removes it.
 - **A task's page**: priority, tags and status edited in place.
 
-This changes what the product is, from a viewer to an editor, and only for one
-of its sources: a repository on a forge stays read-only. That boundary has to be
-visible, or a reader will drag a card on GitHub's tasks and wonder why nothing
-happens.
+This changes what the product is, from a viewer to an editor, and only for the
+sources that can write: a repository on a forge stays read-only. That boundary
+has to be visible, or a reader will drag a card on GitHub's tasks and wonder why
+nothing happens.
 
-## Where it can work
+Rewritten after 20261011-163029, which made writing one capability among others.
 
-Only where the folder came with a handle and the handle can be written: the
-picker, or a drop, on Chromium (Chrome, Edge; Brave ships the API turned off).
-Firefox has no picker, and what it gives for a drop is the legacy entry tree,
-which reads and can be walked again (20261010-030542) but cannot write. Its
-`createWritable()`, supported since 111, exists for the origin's private file
-system only, never for the reader's folder. Safari is in the same place. The
-directory input is a snapshot everywhere.
+## Writing is a capability
 
-## Feature detection, never a crash
+A source that can replace a file implements `Writable`, beside `Rereadable` and
+the others. The views ask `isWritable` and show no edit control at all where it
+is false, rather than one that fails: no component tests the browser, and
+removing the feature means removing the capability and the controls, nothing in
+between.
 
-Whether editing is offered is decided by what the opened folder and the browser
-actually expose (a handle, `createWritable`, `requestPermission`), never by the
-browser's name. Where any of it is missing, the views show no edit control at
-all rather than one that fails.
+When a write answers `changed`, the page reads again and says so. An edit is
+applied to the file as read just before writing, not to the reading on screen,
+which may be minutes old.
 
-Where it is offered, every failure leaves the viewer as it was, read-only and
-still correct, with one sentence saying why: the permission refused (and not
-asked again on every gesture), the file changed on disk since it was read (the
-write compares first and asks the reader to read again), the write itself
-failing. No error reaches the page as an exception.
+The folder the dev server serves has it already (20261011-152936): every
+browser, no permission prompt, but only in development. What remains is **a
+folder picked or dropped on Chromium**, through the File System Access API: the
+handle's `createWritable()`, after `requestPermission`. Firefox has no picker,
+and what it gives for a drop is the legacy entry tree, which reads and can be
+walked again but cannot write; its `createWritable()` exists for the origin's
+private file system only. Safari is in the same place, and the directory input
+is a snapshot everywhere. Whether a folder can write is decided by what it
+exposes (a handle, `createWritable`, `requestPermission`), never by the
+browser's name, and its source is `Writable` only then.
 
-## Kept apart
+## Rendering a task file is the format's business
 
-Three pieces that do not know about each other:
+A pure function beside the parser, with no browser in it, shared by every
+source that writes. It follows the CLI rather than a guess at it: `tatr untag` rewrites a
+whole file through `render_task_md`, the title, every property in its original
+order (unknown keys included) normalised to `- KEY: value`, then the body
+untouched. A file the CLI wrote should come back byte for byte, which is for the
+differential fixtures to show rather than for this task to assume: `tatr untag`
+run over the corpus tasks carrying a tag, and its files compared with ours.
 
-- **Writing the file is the format's business**, a pure function beside the
-  parser, with no browser in it. It follows the CLI rather than a guess at it:
-  `tatr untag` rewrites a whole file through `render_task_md`, the title, every
-  property in its original order (unknown keys included) normalised to
-  `- KEY: value`, then the body untouched. A file the CLI wrote should come back
-  byte for byte, which is for the differential fixtures to show rather than for
-  this task to assume: `tatr untag` run over the corpus tasks carrying a tag,
-  and its files compared with ours.
-- **Being able to write is the source's business**, an optional capability on
-  the source interface the way `refresh?()` already is. The local source has it
-  only when the detection above passes; a forge never has it. The detection
-  lives in that one place. It needs the source instance to own its folder
-  first: today it reads the handle from the module when called, and
-  `openFolder` swaps that handle before the navigation that replaces the
-  source. Harmless for reading (a stale subscription is dropped a moment
-  later, 20261010-030542), not for writing: a write from the old instance in
-  that moment would land in the folder just opened, and two worktrees of one
-  repository share their task ids, so comparing before writing would not
-  catch it. `open()` takes the folder, its way back and its `blob:` URLs over
-  from the module.
-- **The views only ask whether the capability is there.** No component tests
-  the browser, and removing the feature would mean removing the capability and
-  the controls, nothing in between.
+## Failures
 
-Following the folder as it changes (20261010-030542) shows the result of an
-edit made here the same way as one made in an editor, and makes a file changed
-under the reader's feet rare.
+Every failure leaves the viewer as it was, read-only and still correct, with one
+sentence saying why: the permission refused (and not asked again on every
+gesture), the file changed on disk since it was read, the write itself failing.
+No error reaches the page as an exception.
 
-To decide, first: whether writing goes through the File System Access API, as
-above, or through the folder the dev server serves (20261011-150846, written
-through by 20261011-152936), which works in every browser with no permission
-prompt but exists only in development. Then, for the browser way: whether the
-permission is asked when the folder is opened or on the first edit. And for
-both: whether an edit can be undone from the page.
+Following the folder as it changes (20261010-030542) shows the result of an edit
+made here the same way as one made in an editor.
+
+To decide: for the browser way, whether the permission is asked when the folder
+is opened or on the first edit; for both, whether an edit can be undone from the
+page.
