@@ -5,10 +5,10 @@
  * A Vite plugin rather than SvelteKit routes. Its routes exist in the dev
  * server only (`configureServer` runs nowhere else), so the site stays a folder
  * of static files and the build never learns about a development tool. They
- * also come after Vite's own CORS and host validation, which `configureServer`
- * hooks run behind, so a foreign origin can read none of it and a rebound DNS
- * name cannot reach it. Pushes go over Vite's dev channel, which a page joins
- * with a token a foreign page cannot read.
+ * also come after Vite's own handlers, its CORS and host validation included,
+ * so a foreign origin can read none of it and a rebound DNS name cannot reach
+ * it. Pushes go over Vite's dev channel, which a page joins with a token a
+ * foreign page cannot read.
  *
  * `.server.ts`, so that SvelteKit refuses to let browser code import it: the
  * page half is `kind.ts`, and the two meet only through `protocol.ts`.
@@ -17,7 +17,7 @@ import { watch } from 'node:fs';
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import type { Plugin } from 'vite';
+import type { Connect, Plugin } from 'vite';
 import { branchFromHead } from '../local/folder.ts';
 import { settle } from '../settle.ts';
 import type { Listing } from '../source.ts';
@@ -129,35 +129,48 @@ export function servedFolder(folder = process.env.TATR_FOLDER): Plugin {
 			define: { __TATR_SERVED__: JSON.stringify(servedName(folder, command)) }
 		}),
 
-		async configureServer(server) {
-			if (!folder) return;
-			const served = await locate(folder);
+		configureServer: {
+			// Ahead of SvelteKit's, whatever the order of the plugins, so that its
+			// routes are installed before SvelteKit's catch-all.
+			order: 'pre',
+			async handler(server) {
+				if (!folder) return;
+				const served = await locate(folder);
 
-			server.middlewares.use((req, res, next) => {
-				const request = new Request(new URL(req.url ?? '/', 'http://localhost'), {
-					method: req.method
-				});
-				answer(served, request)
-					.then(async (reply) => {
-						if (!reply) return next();
-						res.writeHead(reply.status, Object.fromEntries(reply.headers));
-						res.end(Buffer.from(await reply.arrayBuffer()));
-					})
-					.catch(next);
-			});
+				const stop = watchFolder(served, () => server.ws.send(CHANGED));
+				server.httpServer?.once('close', stop);
 
-			const stop = watchFolder(served, () => server.ws.send(CHANGED));
-			server.httpServer?.once('close', stop);
+				// Said where the server says where it listens, so the address to open
+				// is the one printed.
+				const printUrls = server.printUrls;
+				server.printUrls = () => {
+					printUrls();
+					const url = server.resolvedUrls?.local[0];
+					if (url) server.config.logger.info(`  ➜  tatr:    ${served.root} at ${url}served`);
+				};
 
-			// Said where the server says where it listens, so the address to open
-			// is the one printed.
-			const printUrls = server.printUrls;
-			server.printUrls = () => {
-				printUrls();
-				const url = server.resolvedUrls?.local[0];
-				if (url) server.config.logger.info(`  ➜  tatr:    ${served.root} at ${url}served`);
-			};
+				// Returned rather than installed now, so that Vite's own handlers come
+				// first: the hundreds of module requests a page makes never reach it,
+				// and none of Vite's routes is shadowed.
+				return () => server.middlewares.use(serve(served));
+			}
 		}
+	};
+}
+
+/** The routes as a middleware: Node's request in, the answer out, or on to the next. */
+function serve(served: ServedFolder): Connect.NextHandleFunction {
+	return (req, res, next) => {
+		const request = new Request(new URL(req.url ?? '/', 'http://localhost'), {
+			method: req.method
+		});
+		answer(served, request)
+			.then(async (reply) => {
+				if (!reply) return next();
+				res.writeHead(reply.status, Object.fromEntries(reply.headers));
+				res.end(Buffer.from(await reply.arrayBuffer()));
+			})
+			.catch(next);
 	};
 }
 

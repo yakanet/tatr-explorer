@@ -5,8 +5,9 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
-	import { formatRepoPath, parseRepoInput } from '#lib/repo/ref.ts';
+	import { formatRepoPath, parseRepoInput, servedRef } from '#lib/repo/ref.ts';
 	import { toSuggestions, type CachedShape, type Suggestion } from '#lib/repo/recent.ts';
+	import { SERVED } from '#lib/served.ts';
 	import { folderAccess } from '#lib/sources/local/folder.ts';
 	import { openStore } from '#lib/sources/store.ts';
 	import { describeAge } from '#lib/state/repository.svelte.ts';
@@ -195,6 +196,23 @@
 				{/if}
 			{/if}
 		</div>
+	{/if}
+
+	<!-- First, being the folder the server was started for, and under a heading
+	     of its own: it was neither read before nor is it a suggestion. -->
+	{#if SERVED}
+		<section class="recent">
+			<h2>Served by this dev server</h2>
+			<ul>
+				<li>
+					<a href={resolve('/[...repo]', { repo: formatRepoPath(servedRef()) })} data-key-row>
+						<span class="path mono">{SERVED}</span>
+						<span class="about">Read from the disk, and followed as it changes</span>
+						<span class="arrow" aria-hidden="true">→</span>
+					</a>
+				</li>
+			</ul>
+		</section>
 	{/if}
 
 	{#if suggestions.length > 0}

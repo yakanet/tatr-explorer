@@ -191,8 +191,8 @@ when you start the dev server.
 
 The page opens on `/served`, read from the disk by the dev server: no picker,
 in any browser, still there after a reload, and following the folder as you
-edit it. It exists in the dev server only. Without the variable nothing
-changes, and the built site contains none of it.
+edit it. The home page lists it too, first. It exists in the dev server only.
+Without the variable nothing changes, and the built site contains none of it.
 
 ## Identical to the CLI, and that claim is tested
 
