@@ -91,9 +91,10 @@ function honoursTheContract(subject: Subject): void {
 	describe(`${subject.name}, as a source`, () => {
 		const holding = () => subject.holding({ ...TREE });
 
-		it('declares what the loader asks of it', async () => {
+		it('declares what the loader and the page ask of it', async () => {
 			const source = await holding();
 			expect(source.label).not.toBe('');
+			expect(source.cost.listing).not.toBe('');
 			expect(source.concurrency).toBeGreaterThanOrEqual(1);
 			// A source that is not `Cached` has no key; one that is says what it is
 			// cached under, which an empty key would leave every such source sharing.
@@ -141,7 +142,6 @@ function honoursTheContract(subject: Subject): void {
 			expect(tasks[1].attachments?.map((attachment) => attachment.name)).toEqual(['shot.png']);
 			expect(result.tags.descriptions.get('ui')).toBe('screens');
 			expect(result.skipped).toEqual([]);
-			expect(result.label).toBe(source.label);
 		});
 
 		it('finds what changed since, once read again, where it says it can be', async () => {

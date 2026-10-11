@@ -65,21 +65,26 @@ export class SourceError extends Error {
 /**
  * What every source does: list what it holds, read a file, and point at one.
  *
- * What a source may do besides (be cached, be read again, be followed, link a
- * file to its page) is a capability of its own, in `capabilities.ts`.
+ * What a source may do besides is a capability of its own, in `capabilities.ts`.
  */
 export interface Source {
 	/** `github`, `local`. The UI picks a mark by it; nothing else may. */
 	readonly id: string;
 
-	/** What the reading calls itself: `owner/name`, or a folder's name. */
+	/**
+	 * What the page calls the reading, from the moment it starts: `owner/name`,
+	 * a folder's name, or what a source with nothing behind it is.
+	 */
 	readonly label: string;
+
+	readonly cost: Cost;
 
 	/*
 	 * No `branch` here on purpose. A forge captures one when it is opened, and
-	 * uses it to build every URL; a working tree reads its own out of a file,
-	 * asynchronously, so it could not answer a synchronous member. Which branch
-	 * was read is a fact about the *reading*, and {@link Listing} carries it.
+	 * uses it to build every URL, which makes it `Branched`; a working tree reads
+	 * its own out of a file, asynchronously, so it could not answer a synchronous
+	 * member. Which branch was read is a fact about the *reading*, and
+	 * {@link Listing} carries it.
 	 */
 
 	/**
@@ -120,23 +125,16 @@ export interface Cost {
 }
 
 /**
- * A kind of source: what is known of it before there is a source, and how one
- * is opened.
+ * A kind of source: which references it opens, and how.
  *
  * Recognising a reference is not something an instance can do (it is what
- * decides which instance to build), so it sits one storey up, and so does
- * everything a page needs before a reading exists: how to name the reference,
- * whether it has branches, what reading it will cost.
+ * decides which instance to build), so it sits one storey up. Everything else
+ * the page asks, it asks the source, which is opened as a reading starts.
  */
 export interface SourceKind {
 	readonly id: string;
 	/** Which references it opens; the registry finds a reference's kind by it. */
 	readonly address: Address;
-	/** How a reference reads on screen, before a reading names it. */
-	describe(ref: RepoRef): string;
-	/** Whether a reading can be taken at another branch, which the header offers. */
-	readonly branches: boolean;
-	readonly cost: Cost;
 	/**
 	 * The source for `ref`, from the reference alone. What a spec substitutes
 	 * (the network, a channel) goes to a source's own constructor, each kind

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	formatRepoName,
 	formatRepoPath,
 	isBranchName,
 	parseForgePath,
@@ -149,6 +150,12 @@ describe('isBranchName', () => {
 	it('refuses what git allows but our URL cannot carry', () => {
 		expect(isBranchName('fix#12')).toBe(false);
 		expect(isBranchName('100%')).toBe(false);
+	});
+});
+
+describe('formatRepoName', () => {
+	it('names a repository by owner and name, its host and branch aside', () => {
+		expect(formatRepoName(parseForgePath('gitlab.com/group/project@dev')!)).toBe('group/project');
 	});
 });
 

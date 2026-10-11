@@ -138,6 +138,11 @@ export function isBranchName(name: string): boolean {
 	return !/\.\.|\/\/|@\{|^\/|\/$|\.$|\.lock$|(^|\/)\./.test(name);
 }
 
+/** `owner/name`: how a repository is named on its forge, host and branch aside. */
+export function formatRepoName(ref: RepoRef): string {
+	return `${ref.owner}/${ref.name}`;
+}
+
 /** Renders a reference back into the path form used by our own URLs. */
 export function formatRepoPath(ref: RepoRef): string {
 	// A word is the whole address: a folder's name, say, would read as one, and
@@ -145,7 +150,7 @@ export function formatRepoPath(ref: RepoRef): string {
 	if (!ref.owner) return ref.host;
 	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;
 	const suffix = ref.branch ? `@${ref.branch}` : '';
-	return `${prefix}${ref.owner}/${ref.name}${suffix}`;
+	return `${prefix}${formatRepoName(ref)}${suffix}`;
 }
 
 /** Stable identity for caching, independent of the default-branch lookup. */

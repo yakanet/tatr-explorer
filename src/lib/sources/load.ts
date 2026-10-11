@@ -66,11 +66,6 @@ export interface LoadResult {
 	 * that moved something and kept by one that moved nothing.
 	 */
 	previous: Snapshot | null;
-	/**
-	 * How this reading names itself on screen: `owner/name`, or the name of the
-	 * folder that was opened, which no URL carries, so only the reading knows.
-	 */
-	label: string;
 }
 
 /** Runs `worker` over `items` with a bounded number in flight. */
@@ -95,7 +90,7 @@ async function pooled<T, R>(
 }
 
 /** What is cached: no descriptions, and none of the fields describing this retrieval. */
-type CachedLoad = Omit<LoadResult, 'fromCache' | 'storedAt' | 'label'>;
+type CachedLoad = Omit<LoadResult, 'fromCache' | 'storedAt'>;
 
 /** Strips the bodies before storing. References were extracted at parse time. */
 function withoutDescriptions(tasks: Task[]): Task[] {
@@ -165,8 +160,7 @@ export async function loadRepository(
 				// A record written before this field existed has nothing behind it.
 				previous: cached.value.previous ?? null,
 				fromCache: true,
-				storedAt: cached.storedAt,
-				label: source.label
+				storedAt: cached.storedAt
 			};
 		}
 	}
@@ -215,7 +209,7 @@ export async function loadRepository(
 	}
 
 	// The caller gets the bodies it just paid for; only the cache goes without.
-	return { ...payload, fromCache: false, storedAt, label: source.label };
+	return { ...payload, fromCache: false, storedAt };
 }
 
 /**

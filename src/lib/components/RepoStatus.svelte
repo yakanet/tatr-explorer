@@ -3,14 +3,13 @@
 	import { reopenerOf } from '#lib/components/kinds.ts';
 	import { onBranch } from '#lib/repo/branch.ts';
 	import type { RepoRef } from '#lib/repo/ref.ts';
-	import { kindOf } from '#lib/sources/open.ts';
 	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
 	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
 
 	const percent = $derived(repo.total === 0 ? 0 : Math.round((repo.done / repo.total) * 100));
-	/** What reading costs, which the kind says: a request, or nothing at all. */
-	const cost = $derived(kindOf(ref)?.cost);
+	/** What reading costs, which the source says: a request, or nothing at all. */
+	const cost = $derived(repo.source?.cost);
 	/** The gesture that opens the source again, where trying again cannot. */
 	const reopener = $derived(reopenerOf(ref));
 </script>

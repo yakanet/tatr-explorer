@@ -57,6 +57,15 @@ export interface Followable extends Rereadable {
 }
 
 /**
+ * A source read at one of several branches, which another reference can name
+ * instead: the header offers the others.
+ */
+export interface Branched {
+	/** The branch it reads: `HEAD` unless one was named. */
+	readonly branch: string;
+}
+
+/**
  * A source whose files each have a page somewhere, where their history and
  * their blame are. A folder on the disk has no page anywhere to link to.
  */
@@ -100,6 +109,10 @@ export function isRereadable(source: Source | null): source is Source & Rereadab
 
 export function isFollowable(source: Source | null): source is Source & Followable {
 	return isRereadable(source) && typeof memberOf(source, 'follow') === 'function';
+}
+
+export function isBranched(source: Source | null): source is Source & Branched {
+	return typeof memberOf(source, 'branch') === 'string';
 }
 
 export function isLinked(source: Source | null): source is Source & Linked {

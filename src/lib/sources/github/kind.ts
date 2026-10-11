@@ -8,8 +8,8 @@
  * CDN with no rate limit at all (64 files in a fifth of a second, measured). So
  * the listing has a fallback, ungh, and the files need none.
  */
-import { repoKey, type RepoRef } from '../../repo/ref.ts';
-import type { Cached, Linked, Rereadable } from '../capabilities.ts';
+import { formatRepoName, repoKey, type RepoRef } from '../../repo/ref.ts';
+import type { Branched, Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import {
 	SourceError,
@@ -24,14 +24,18 @@ import { listViaUnghApi } from './ungh-api.ts';
 const HOST = 'github.com';
 const RAW = 'https://raw.githubusercontent.com';
 
-export class GitHubRepository implements Source, Cached, Rereadable, Linked {
+export class GitHubRepository implements Source, Cached, Rereadable, Linked, Branched {
 	readonly id = 'github';
 	// Polite to the CDN while still finishing in well under a second.
 	readonly concurrency = 12;
+	readonly cost = {
+		listing: 'one request',
+		files: 'Task files are read from a CDN and cost no rate limit.'
+	};
 	readonly label: string;
 	readonly cacheKey: string;
+	readonly branch: string;
 	readonly #ref: RepoRef;
-	readonly #branch: string;
 	readonly #network: typeof fetch;
 
 	/** `network` is what a spec substitutes for GitHub. */
@@ -39,9 +43,9 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 		this.#ref = ref;
 		// The trees API and raw both accept `HEAD`, so the request that would
 		// resolve a default branch by name is never made.
-		this.#branch = ref.branch ?? 'HEAD';
+		this.branch = ref.branch ?? 'HEAD';
 		this.#network = network;
-		this.label = describe(ref);
+		this.label = formatRepoName(ref);
 		this.cacheKey = repoKey(ref);
 	}
 
@@ -58,13 +62,13 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 		for (const lister of [listViaGitHubApi, listViaUnghApi]) {
 			let entries: TreeEntry[] | null;
 			try {
-				entries = await lister(this.#ref, this.#branch, this.#network, signal);
+				entries = await lister(this.#ref, this.branch, this.#network, signal);
 			} catch (error) {
 				failures.push(error);
 				continue;
 			}
 			if (!entries) throw new SourceError('not-found', this.#missing());
-			return { entries, branch: this.#branch };
+			return { entries, branch: this.branch };
 		}
 		throw failures.find(isSpentBudget) ?? failures.at(-1);
 	}
@@ -99,7 +103,7 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	 * of that literal name, which no repository has.
 	 */
 	#at(path: string): string {
-		return `${encodePath(this.#branch)}/${encodePath(path)}`;
+		return `${encodePath(this.branch)}/${encodePath(path)}`;
 	}
 
 	/**
@@ -118,26 +122,12 @@ function isSpentBudget(error: unknown): boolean {
 	return error instanceof SourceError && error.failure === 'rate-limited';
 }
 
-/** How a repository reads on screen: `owner/name`, its host being github.com. */
-function describe(ref: RepoRef): string {
-	return `${ref.owner}/${ref.name}`;
-}
-
 export const githubKind = {
 	id: 'github',
 
 	// A forge address on any other host parses all the same, and is refused when
 	// opened, as a host nothing reads.
 	address: { hosts: [HOST] },
-
-	describe,
-
-	branches: true,
-
-	cost: {
-		listing: 'one request',
-		files: 'Task files are read from a CDN and cost no rate limit.'
-	},
 
 	open: (ref) => new GitHubRepository(ref)
 } satisfies SourceKind;

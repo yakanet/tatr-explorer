@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
-import { describeRef, KINDS, kindOf, openSource, parseRepoPath } from './open.ts';
+import { KINDS, kindOf, openSource, parseRepoPath } from './open.ts';
 import { parseForgePath, wordRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { SourceError, type Source } from './source.ts';
@@ -59,12 +59,6 @@ describe('our own addresses', () => {
 		// The dev server defines which folder it serves; these specs run with none.
 		expect(parseRepoPath('served')).toBeNull();
 	});
-
-	it('name a reference as its kind says, or as owner/name where nothing reads it', () => {
-		expect(describeRef(parseRepoPath('owner/repo')!)).toBe('owner/repo');
-		expect(describeRef(wordRef('local'))).toBe('a folder on this machine');
-		expect(describeRef(parseRepoPath('gitlab.com/group/project')!)).toBe('group/project');
-	});
 });
 
 describe('openSource', () => {
@@ -92,8 +86,11 @@ describe('openSource', () => {
 	});
 
 	it('opens the folder on this machine', () => {
+		closeFolder();
 		const source = openSource(wordRef('local'));
 		expect(source.id).toBe('local');
+		// With no folder behind it, as after a reload, it still names the reading.
+		expect(source.label).toBe('a folder on this machine');
 		// The two capabilities whose absence says what a folder is: nowhere to
 		// cache it, and no page anywhere to link one of its files to.
 		expect(isCached(source)).toBe(false);

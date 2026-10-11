@@ -32,6 +32,7 @@ class Holding implements Source, Cached, Rereadable {
 	readonly label = 'tsoding/tatr';
 	readonly cacheKey = 'holding/tsoding/tatr';
 	readonly concurrency = 12;
+	readonly cost = { listing: 'nothing', files: 'Nothing either.' };
 	listings = 0;
 	readonly #tree: Readonly<Record<string, string>>;
 
@@ -318,7 +319,6 @@ describe('a folder on this machine', () => {
 		const source = open([task('20260101-000001', 90), task('20260101-000002', 50, 'CLOSED')]);
 		const result = await loadRepository(source, { store });
 		expect(result.tasks.map((one) => one.id)).toEqual(['20260101-000001', '20260101-000002']);
-		expect(result.label).toBe('my-project');
 	});
 
 	it('is never served from the cache, nor written to it', async () => {

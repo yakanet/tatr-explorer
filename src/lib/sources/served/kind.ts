@@ -37,6 +37,10 @@ export class ServedSource implements Source, Rereadable, Writable {
 	readonly id = SERVED_WORD;
 	// The dev server is this machine.
 	readonly concurrency = Number.POSITIVE_INFINITY;
+	readonly cost = {
+		listing: 'from the dev server',
+		files: 'The dev server reads the folder from the disk, and says when it changes.'
+	};
 	readonly label: string;
 	readonly #network: typeof fetch;
 
@@ -119,15 +123,6 @@ export function servedKind(name: string): SourceKind {
 		// A word, as for a folder opened in the browser: no URL anyone else follows
 		// reaches it, though it survives a reload.
 		address: { word: SERVED_WORD },
-
-		describe: () => 'the folder the dev server serves',
-
-		branches: false,
-
-		cost: {
-			listing: 'from the dev server',
-			files: 'The dev server reads the folder from the disk, and says when it changes.'
-		},
 
 		open(): Source {
 			// The dev channel is there whenever the dev server is, which is the only

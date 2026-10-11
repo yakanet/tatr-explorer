@@ -40,6 +40,10 @@ class FolderSnapshot implements Source {
 	readonly id = LOCAL_WORD;
 	// A disk has no CDN to be polite to.
 	readonly concurrency = Number.POSITIVE_INFINITY;
+	readonly cost = {
+		listing: 'from this machine',
+		files: 'The folder is read where it sits: nothing is uploaded.'
+	};
 	readonly label: string;
 	protected folder: LocalFolder | null;
 	/** Why there is nothing to list, once there is not. */
@@ -61,8 +65,9 @@ class FolderSnapshot implements Source {
 
 	constructor(folder: LocalFolder | null) {
 		this.folder = folder;
-		// The folder's own name, which is all the identity it has.
-		this.label = folder?.name ?? '';
+		// The folder's own name, which is all the identity it has, or what it is
+		// with no folder behind it.
+		this.label = folder?.name ?? 'a folder on this machine';
 	}
 
 	async list(): Promise<Listing> {
@@ -215,16 +220,6 @@ export const localKind: SourceKind = {
 	// One word, and nothing else: the folder's name would read as an address,
 	// and nobody else's machine can follow it.
 	address: { word: LOCAL_WORD },
-
-	describe: () => 'a folder on this machine',
-
-	// A working tree is on whatever branch is checked out, which `.git/HEAD` says.
-	branches: false,
-
-	cost: {
-		listing: 'from this machine',
-		files: 'The folder is read where it sits: nothing is uploaded.'
-	},
 
 	// With nothing handed over, the source every reload leaves.
 	open: () => current ?? new FolderSnapshot(null)

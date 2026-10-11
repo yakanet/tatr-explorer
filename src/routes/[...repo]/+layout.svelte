@@ -9,8 +9,7 @@
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { reopenerOf } from '#lib/components/kinds.ts';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
-	import { kindOf } from '#lib/sources/open.ts';
-	import { isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
+	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {
 		FAILURE_HEADINGS,
 		RepositoryState,
@@ -49,8 +48,8 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** Whether the reading has branches to choose from, which its kind says. */
-	const branched = $derived(kindOf(ref)?.branches ?? false);
+	/** Whether the reading has branches to choose from, which its source says. */
+	const branched = $derived(isBranched(repo.source));
 	/** What the branch shortcut does: open the menu, where there are branches. */
 	const openBranches = $derived.by(() => {
 		if (!branched) return undefined;

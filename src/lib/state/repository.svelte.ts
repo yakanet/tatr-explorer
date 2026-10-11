@@ -7,9 +7,9 @@
  */
 import { isFollowable, isLinked } from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
-import { describeRef, openSource } from '../sources/open.ts';
+import { openSource } from '../sources/open.ts';
 import { SourceError, type Source, type SourceFailure } from '../sources/source.ts';
-import type { RepoRef } from '../repo/ref.ts';
+import { formatRepoName, type RepoRef } from '../repo/ref.ts';
 import {
 	compare,
 	snapshot,
@@ -62,9 +62,7 @@ export class RepositoryState {
 	/** Files read so far, and how many there are, for the progress bar. */
 	done = $state(0);
 	total = $state(0);
-	/** What the reading calls itself: `owner/name`, or the folder's own name. */
-	label = $state('');
-	/** What is being read, kept so a view can name it before there is a reading. */
+	/** What is being read, kept to read it again and to name one no source reads. */
 	ref = $state<RepoRef | null>(null);
 	fromCache = $state(false);
 	storedAt = $state(0);
@@ -104,13 +102,11 @@ export class RepositoryState {
 	#controller: AbortController | null = null;
 
 	/**
-	 * How to name this repository on screen, at any point in a load.
-	 *
-	 * The reading knows best (a local folder's name is in it and nowhere else),
-	 * but a page has a title before there is a reading, so the reference stands
-	 * in until then.
+	 * How to name this repository on screen, at any point in a load: as its
+	 * source says, which is opened as the reading starts. A reference no source
+	 * reads, on a host nothing reads, is named `owner/name`.
 	 */
-	readonly name = $derived(this.label || (this.ref ? describeRef(this.ref) : ''));
+	readonly name = $derived(this.source?.label ?? nameOf(this.ref));
 
 	readonly open = $derived(this.tasks.filter((task) => !task.closed));
 
@@ -220,7 +216,6 @@ export class RepositoryState {
 			this.tasks = result.tasks;
 			this.skipped = result.skipped;
 			this.tags = result.tags;
-			this.label = result.label;
 			this.fromCache = result.fromCache;
 			this.storedAt = result.storedAt;
 			this.previous = result.previous;
@@ -310,4 +305,10 @@ export function describeAge(storedAt: number, now = Date.now()): string {
 	const hours = Math.round(minutes / 60);
 	if (hours < 24) return RELATIVE.format(-hours, 'hour');
 	return RELATIVE.format(-Math.round(hours / 24), 'day');
+}
+
+/** A reference by its name on its forge, or nothing before there is one. */
+function nameOf(ref: RepoRef | null): string {
+	if (!ref) return '';
+	return formatRepoName(ref);
 }

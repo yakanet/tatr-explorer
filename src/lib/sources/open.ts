@@ -1,7 +1,7 @@
 /**
  * Every kind of source, and what the page asks of the whole list: which kind a
- * reference belongs to, how one of our own addresses reads back, how a
- * reference is named, and the source that serves it.
+ * reference belongs to, how one of our own addresses reads back, and the
+ * source that serves it.
  *
  * Separate from the contract in `source.ts` so that a source may name the
  * interface without this registry importing it back; the kinds live with their
@@ -77,14 +77,6 @@ export function parseRepoPath(path: string): RepoRef | null {
 	const word = path.replace(/^\/+|\/+$/g, '');
 	if (Object.values(KINDS).some((kind) => wordOf(kind.address) === word)) return wordRef(word);
 	return parseForgePath(path);
-}
-
-/**
- * How a reference reads on screen, before a reading names it: its kind's say,
- * or `owner/name` for one on a host nothing reads.
- */
-export function describeRef(ref: RepoRef): string {
-	return kindOf(ref)?.describe(ref) ?? `${ref.owner}/${ref.name}`;
 }
 
 /**

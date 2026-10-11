@@ -64,7 +64,6 @@ describe('the served folder, as a source', () => {
 		const result = await loadRepository(await open(), { store: memoryStore() });
 		expect(result.tasks.map((task) => task.id)).toEqual(['20260101-000001', '20260101-000002']);
 		expect(result.tags.descriptions.get('ui')).toBe('screens');
-		expect(result.label).toBe('my-project');
 	});
 
 	it('follows the folder over the dev channel, until told to stop', () => {
