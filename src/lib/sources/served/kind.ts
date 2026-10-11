@@ -33,24 +33,25 @@ const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
  * Not `Cached`: reading it is free, and a stored copy of files someone is
  * editing would be wrong before it was written.
  */
-class ServedSource implements Source, Rereadable {
+export class ServedSource implements Source, Rereadable {
 	readonly id = NAME;
 	// The dev server is this machine.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly label: string;
-	readonly #fetch: typeof fetch;
+	readonly #network: typeof fetch;
 
-	constructor(label: string, doFetch: typeof fetch) {
+	/** `network` is what a spec substitutes for the dev server. */
+	constructor(label: string, network: typeof fetch = fetch) {
 		this.label = label;
-		this.#fetch = doFetch;
+		this.#network = network;
 	}
 
 	async list(signal?: AbortSignal): Promise<Listing> {
 		// Called unbound: the browser's own `fetch` refuses any `this` but the window.
-		const doFetch = this.#fetch;
+		const network = this.#network;
 		let response: Response;
 		try {
-			response = await doFetch(route('listing'), { signal });
+			response = await network(route('listing'), { signal });
 		} catch {
 			throw new ListingError('network', NAME, 'The dev server did not answer.');
 		}
@@ -61,7 +62,7 @@ class ServedSource implements Source, Rereadable {
 	}
 
 	read(path: string, signal?: AbortSignal): Promise<string | null> {
-		return readText(this.#fetch, fileRoute(path), signal);
+		return readText(this.#network, fileRoute(path), signal);
 	}
 
 	assetUrl(path: string): string {
@@ -73,11 +74,11 @@ class ServedSource implements Source, Rereadable {
 }
 
 /** The same folder, followed as it changes: the dev server pushes word of it. */
-class FollowedServedSource extends ServedSource implements Followable {
+export class FollowedServedSource extends ServedSource implements Followable {
 	readonly #channel: ViteHotContext;
 
-	constructor(label: string, doFetch: typeof fetch, channel: ViteHotContext) {
-		super(label, doFetch);
+	constructor(label: string, channel: ViteHotContext, network: typeof fetch = fetch) {
+		super(label, network);
 		this.#channel = channel;
 	}
 
@@ -97,13 +98,12 @@ export function servedKind(name: string): SourceKind {
 
 		claims: (ref) => isServed(ref),
 
-		open(_ref, options = {}): Source {
-			const doFetch = options.fetchImpl ?? fetch;
+		open(): Source {
 			// The dev channel is there whenever the dev server is, which is the only
 			// place this kind is registered; the specs open it without one.
 			const channel = import.meta.hot;
-			if (!channel) return new ServedSource(name, doFetch);
-			return new FollowedServedSource(name, doFetch, channel);
+			if (!channel) return new ServedSource(name);
+			return new FollowedServedSource(name, channel);
 		}
 	};
 }

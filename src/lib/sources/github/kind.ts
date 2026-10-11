@@ -19,13 +19,7 @@
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
 import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import {
-	ListingError,
-	type Listing,
-	type OpenOptions,
-	type Source,
-	type SourceKind
-} from '../source.ts';
+import { ListingError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { listViaApi } from './api.ts';
 import { listViaUngh } from './ungh.ts';
 
@@ -79,6 +73,18 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
 }
 
 /**
+ * One way of listing a repository: a function, there being nothing else to a
+ * lister. The name it answers to lives in the failures it throws, which is
+ * where provenance is read. It asks the network it is handed, so that a
+ * repository opened over a substitute lists over it too.
+ */
+export type Lister = (
+	ref: RepoRef,
+	network: typeof fetch,
+	signal?: AbortSignal
+) => Promise<Listing>;
+
+/**
  * The listers this forge falls back through, in order. GitHub first so the
  * normal path depends on nobody else; ungh is a mirror *of GitHub*, which is
  * why it belongs to it rather than standing beside it as a source.
@@ -88,13 +94,6 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
  * repository's 64 tasks when measured, missing the newest). Two third parties
  * for that last case was more machinery than a reader of task folders needs.
  */
-/**
- * One way of listing a repository: a function, there being nothing else to a
- * lister. The name it answers to lives in the failures it throws, which is
- * where provenance is read.
- */
-type Lister = (ref: RepoRef, signal?: AbortSignal) => Promise<Listing>;
-
 const LISTERS: Lister[] = [listViaApi, listViaUngh];
 
 /**
@@ -106,15 +105,16 @@ const LISTERS: Lister[] = [listViaApi, listViaUngh];
  */
 async function listRepository(
 	ref: RepoRef,
-	options: { listers?: readonly Lister[]; signal?: AbortSignal } = {}
+	listers: readonly Lister[],
+	network: typeof fetch,
+	signal?: AbortSignal
 ): Promise<Listing> {
 	assertHost(ref);
-	const listers = options.listers ?? LISTERS;
 	let lastError: unknown;
 
 	for (const lister of listers) {
 		try {
-			return await lister(ref, options.signal);
+			return await lister(ref, network, signal);
 		} catch (error) {
 			// A missing repository is the same everywhere; do not ask the others.
 			if (error instanceof ListingError && error.failure === 'not-found') throw error;
@@ -124,6 +124,14 @@ async function listRepository(
 	throw lastError ?? new Error('No lister could list the repository');
 }
 
+/** What a spec substitutes in a repository: what it would otherwise ask of GitHub. */
+export interface Seams {
+	/** The network, which the reads and the listers alike go through. */
+	network?: typeof fetch;
+	/** The listers this forge falls back through, in order. */
+	listers?: readonly Lister[];
+}
+
 /**
  * A repository on a GitHub-shaped forge, as a source.
  *
@@ -131,7 +139,7 @@ async function listRepository(
  * forge rather than about sources: both the trees API and raw accept it, so the
  * request that would resolve a default branch by name is never made.
  */
-class GitHubRepository implements Source, Cached, Rereadable, Linked {
+export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	readonly id = NAME;
 	// Polite to the CDN while still finishing in well under a second.
 	readonly concurrency = 12;
@@ -139,24 +147,24 @@ class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	readonly cacheKey: string;
 	readonly #ref: RepoRef;
 	readonly #branch: string;
-	readonly #fetch: typeof fetch;
-	readonly #listers: readonly Lister[] | undefined;
+	readonly #network: typeof fetch;
+	readonly #listers: readonly Lister[];
 
-	constructor(ref: RepoRef, options: OpenOptions) {
+	constructor(ref: RepoRef, seams: Seams = {}) {
 		this.#ref = ref;
 		this.#branch = ref.branch ?? 'HEAD';
-		this.#fetch = options.fetchImpl ?? fetch;
-		this.#listers = options.listers;
+		this.#network = seams.network ?? fetch;
+		this.#listers = seams.listers ?? LISTERS;
 		this.label = `${ref.owner}/${ref.name}`;
 		this.cacheKey = repoKey(ref);
 	}
 
 	list(signal?: AbortSignal): Promise<Listing> {
-		return listRepository(this.#ref, { listers: this.#listers, signal });
+		return listRepository(this.#ref, this.#listers, this.#network, signal);
 	}
 
 	read(path: string, signal?: AbortSignal): Promise<string | null> {
-		return readText(this.#fetch, this.assetUrl(path), signal);
+		return readText(this.#network, this.assetUrl(path), signal);
 	}
 
 	assetUrl(path: string): string {
@@ -182,5 +190,5 @@ export const githubKind = {
 	// method's job once a second forge claims some.
 	claims: (ref) => ref.host.includes('.'),
 
-	open: (ref: RepoRef, options: OpenOptions = {}) => new GitHubRepository(ref, options)
+	open: (ref) => new GitHubRepository(ref)
 } satisfies SourceKind;

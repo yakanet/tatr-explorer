@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { githubKind } from './kind.ts';
+import { unreachable } from '../../../../tests/support/network.ts';
+import { GitHubRepository, githubKind } from './kind.ts';
 import { ListingError } from '../source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
@@ -8,6 +9,30 @@ const path = 'tasks/20260304-115038/TASK.md';
 
 /** Through the kind, which is how the application reaches these. */
 const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
+
+describe('reading a file', () => {
+	it('reads it from the CDN', async () => {
+		const asked: string[] = [];
+		const network = (async (url: RequestInfo | URL) => {
+			asked.push(String(url));
+			return new Response('# a task\n', { status: 200 });
+		}) as unknown as typeof fetch;
+
+		expect(await new GitHubRepository(ref, { network }).read(path)).toBe('# a task\n');
+		expect(asked).toEqual([`https://raw.githubusercontent.com/owner/repo/HEAD/${path}`]);
+	});
+
+	it('answers null for a file the CDN refuses, rather than throwing', async () => {
+		const network = (async () => new Response('nope', { status: 404 })) as unknown as typeof fetch;
+		expect(await new GitHubRepository(ref, { network }).read(path)).toBeNull();
+	});
+
+	it('answers null when the network does not answer at all', async () => {
+		// A read that throws would take the whole load down; one task that cannot
+		// be read is listed as skipped instead.
+		expect(await new GitHubRepository(ref, { network: unreachable }).read(path)).toBeNull();
+	});
+});
 
 describe('the URL of a file', () => {
 	it('reads it from the CDN that costs no budget', () => {
@@ -58,8 +83,7 @@ describe('a host this forge does not serve', () => {
 			throw new Error('should not be reached');
 		};
 
-		const failure = await githubKind
-			.open(elsewhere, { listers: [counting] })
+		const failure = await new GitHubRepository(elsewhere, { listers: [counting] })
 			.list()
 			.catch((error: unknown) => error);
 

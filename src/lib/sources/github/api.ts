@@ -22,10 +22,10 @@ interface TreeResponse {
 	truncated?: boolean;
 }
 
-async function json(url: string, signal?: AbortSignal): Promise<Response> {
+async function json(network: typeof fetch, url: string, signal?: AbortSignal): Promise<Response> {
 	let response: Response;
 	try {
-		response = await fetch(url, {
+		response = await network(url, {
 			signal,
 			headers: { Accept: 'application/vnd.github+json' }
 		});
@@ -49,10 +49,15 @@ async function json(url: string, signal?: AbortSignal): Promise<Response> {
 }
 
 /** Lists a repository through the trees API. */
-export async function listViaApi(ref: RepoRef, signal?: AbortSignal): Promise<Listing> {
+export async function listViaApi(
+	ref: RepoRef,
+	network: typeof fetch,
+	signal?: AbortSignal
+): Promise<Listing> {
 	// `HEAD` avoids a second request to learn the default branch's name.
 	const branch = ref.branch ?? 'HEAD';
 	const response = await json(
+		network,
 		`${API}/repos/${ref.owner}/${ref.name}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
 		signal
 	);

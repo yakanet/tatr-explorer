@@ -17,10 +17,11 @@
  * file that is not there is left to each kind's own spec, and so is the branch
  * a listing names, which a folder reads out of `.git/HEAD` and a forge does not.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { localRef, parseRepoPath, servedRef } from '../repo/ref.ts';
+import type { ViteHotContext } from 'vite/types/hot.d.ts';
+import { afterEach, describe, expect, it } from 'vitest';
+import { localRef, parseRepoPath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
-import { githubKind } from './github/kind.ts';
+import { GitHubRepository } from './github/kind.ts';
 import { loadRepository } from './load.ts';
 import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
 import { scratchFolder, serving, writeTree } from '../../../tests/support/disk-tree.ts';
@@ -34,7 +35,7 @@ import {
 } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { KINDS } from './open.ts';
-import { servedKind } from './served/kind.ts';
+import { FollowedServedSource, ServedSource } from './served/kind.ts';
 import { ListingError, NoSourceError, type Listing, type Source } from './source.ts';
 import { memoryStore } from './store.ts';
 
@@ -199,13 +200,8 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 	} as typeof fetch;
 }
 
-/**
- * The listers reach for the global `fetch` rather than the one a source is
- * opened with, so the network is substituted in both places.
- */
 function openGitHubOver(network: typeof fetch): Source {
-	vi.stubGlobal('fetch', network);
-	return githubKind.open(parseRepoPath('owner/repo')!, { fetchImpl: network });
+	return new GitHubRepository(parseRepoPath('owner/repo')!, { network });
 }
 
 /** What a door hands over for a folder: the folder, and a way back to it when it has one. */
@@ -229,26 +225,22 @@ function forgotten(): Source {
 	return localKind.open(localRef());
 }
 
-function openServedOver(network: typeof fetch): Source {
-	return servedKind('my-project').open(servedRef(), { fetchImpl: network });
-}
+/** The dev channel, with nothing said on it: the contract only asks that it is there. */
+const SILENT = { on() {}, off() {} } as unknown as ViteHotContext;
 
 /**
  * Every kind's sources, one per way a source of that kind comes to be. Each
  * entry is called inside its kind's own `describe`, so the hooks a kind needs
- * (a global to restore, a folder to close, a scratch folder) are its own.
+ * (a folder to close, a scratch folder) are its own.
  */
 const SUBJECTS = {
-	github: () => {
-		afterEach(() => vi.unstubAllGlobals());
-		return [
-			{
-				name: 'a repository on GitHub',
-				holding: async (tree) => openGitHubOver(forge(tree)),
-				broken: () => openGitHubOver(unreachable)
-			}
-		];
-	},
+	github: () => [
+		{
+			name: 'a repository on GitHub',
+			holding: async (tree) => openGitHubOver(forge(tree)),
+			broken: () => openGitHubOver(unreachable)
+		}
+	],
 
 	// One per door a browser offers to a folder: they hand over different
 	// things, and each must read as a source.
@@ -269,19 +261,29 @@ const SUBJECTS = {
 		];
 	},
 
+	// Followed over the dev channel, as the application always opens it, and
+	// without one, as a spec can.
 	served: () => {
 		const scratch = scratchFolder();
+		const served = (name: string, open: (network: typeof fetch) => Source): Subject => ({
+			name,
+			async holding(tree) {
+				await writeTree(scratch(), tree);
+				return open(await serving(scratch()));
+			},
+			broken: () => open(unreachable),
+			// The folder is on the disk, where a change to the tree has to be written.
+			sync: (tree) => writeTree(scratch(), tree)
+		});
 		return [
-			{
-				name: 'a folder the dev server serves',
-				async holding(tree) {
-					await writeTree(scratch(), tree);
-					return openServedOver(await serving(scratch()));
-				},
-				broken: () => openServedOver(unreachable),
-				// The folder is on the disk, where a change to the tree has to be written.
-				sync: (tree) => writeTree(scratch(), tree)
-			}
+			served(
+				'a folder the dev server serves',
+				(network) => new ServedSource('my-project', network)
+			),
+			served(
+				'a folder the dev server serves, followed over its channel',
+				(network) => new FollowedServedSource('my-project', SILENT, network)
+			)
 		];
 	}
 } satisfies Record<keyof typeof KINDS, () => Subject[]>;

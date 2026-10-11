@@ -106,24 +106,6 @@ export interface Source {
 }
 
 /**
- * What a test may substitute when opening a source. The branch is not among
- * them: the reference carries it, and a source opened once per reading has no
- * other caller to hear it from.
- */
-export interface OpenOptions {
-	/** Substitutes for the network. */
-	fetchImpl?: typeof fetch;
-	/**
-	 * Which listers to try, in order.
-	 *
-	 * Spelled out rather than named: only a forge owns a chain of these, so the
-	 * type lives with the forge, and a contract that imported it would import an
-	 * implementation.
-	 */
-	listers?: readonly ((ref: RepoRef, signal?: AbortSignal) => Promise<Listing>)[];
-}
-
-/**
  * A kind of source: how a reference is recognised, and turned into one.
  *
  * Recognising a reference is not something an instance can do (it is what
@@ -134,5 +116,10 @@ export interface OpenOptions {
 export interface SourceKind {
 	readonly id: string;
 	claims(ref: RepoRef): boolean;
-	open(ref: RepoRef, options?: OpenOptions): Source;
+	/**
+	 * The source for `ref`, from the reference alone. What a spec substitutes
+	 * (the network, a chain of listers) goes to a source's own constructor, each
+	 * kind having its own, rather than through every kind's contract.
+	 */
+	open(ref: RepoRef): Source;
 }

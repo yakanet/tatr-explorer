@@ -10,7 +10,7 @@ import { githubKind } from './github/kind.ts';
 import { localKind } from './local/kind.ts';
 import { SERVED } from '../served.ts';
 import { servedKind } from './served/kind.ts';
-import { ListingError, type OpenOptions, type Source, type SourceKind } from './source.ts';
+import { ListingError, type Source, type SourceKind } from './source.ts';
 
 /**
  * Every source there is, by the id it answers to: the shape a lookup wants,
@@ -47,8 +47,8 @@ function servedKinds(): { served?: SourceKind } {
  * the host cannot serve: that is how the page explains it, and the reading is
  * the only place a source is opened.
  */
-export function openSource(ref: RepoRef, options: OpenOptions = {}): Source {
+export function openSource(ref: RepoRef): Source {
 	const kind = Object.values(KINDS).find((candidate) => candidate.claims(ref));
 	if (!kind) throw new ListingError('unsupported-host', ref.host, `${ref.host} is not served`);
-	return kind.open(ref, options);
+	return kind.open(ref);
 }

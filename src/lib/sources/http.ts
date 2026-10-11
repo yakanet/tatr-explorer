@@ -14,12 +14,12 @@ export function encodePath(path: string): string {
  * task that cannot be read is listed as skipped instead.
  */
 export async function readText(
-	doFetch: typeof fetch,
+	network: typeof fetch,
 	url: string,
 	signal?: AbortSignal
 ): Promise<string | null> {
 	try {
-		const response = await doFetch(url, { signal });
+		const response = await network(url, { signal });
 		if (!response.ok) return null;
 		return await response.text();
 	} catch {

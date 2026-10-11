@@ -4,11 +4,11 @@ import { fileList } from '../../../tests/support/fake-directory.ts';
 import { localRef, parseRepoPath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { NoTasksFolderError, loadRepository } from './load.ts';
-import { githubKind } from './github/kind.ts';
+import { GitHubRepository, type Lister, type Seams } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { Snapshot } from '../tatr/changes.ts';
-import { ListingError, NoSourceError, type Listing, type OpenOptions } from './source.ts';
+import { ListingError, NoSourceError, type Listing } from './source.ts';
 
 const sources = rawTasks as Record<string, string>;
 const ref = parseRepoPath('tsoding/tatr')!;
@@ -48,10 +48,10 @@ const fetchFixture = vi.fn(async (input: RequestInfo | URL) => {
 }) as unknown as typeof fetch;
 
 /** The forge, opened over substitutes for the network. */
-const github = (options: OpenOptions) => githubKind.open(ref, options);
+const github = (seams: Seams) => new GitHubRepository(ref, seams);
 
 /** The fixture's 79 tasks, as the forge serves them, listed by `lister`. */
-const fixture = (lister = fakeLister()) => github({ listers: [lister], fetchImpl: fetchFixture });
+const fixture = (lister = fakeLister()) => github({ listers: [lister], network: fetchFixture });
 
 let store = memoryStore();
 
@@ -65,7 +65,7 @@ describe('lister fallback', () => {
 	 * Through the door the application uses: the chain is the forge's own
 	 * business, reached by opening the source and asking it to list.
 	 */
-	const list = (listers: OpenOptions['listers']) => github({ listers }).list();
+	const list = (listers: Lister[]) => github({ listers }).list();
 
 	// A listing no longer says who produced it, so the question is put to the
 	// listers themselves, which is the stronger form of it anyway: that the
@@ -135,7 +135,7 @@ describe('loadRepository', () => {
 			return fetchFixture(input);
 		}) as unknown as typeof fetch;
 
-		await loadRepository(github({ listers: [fakeLister()], fetchImpl: counting }), {
+		await loadRepository(github({ listers: [fakeLister()], network: counting }), {
 			store,
 			concurrency: 4
 		});
@@ -156,7 +156,7 @@ describe('loadRepository', () => {
 			return fetchFixture(input);
 		}) as unknown as typeof fetch;
 
-		const result = await loadRepository(github({ listers: [fakeLister()], fetchImpl: flaky }), {
+		const result = await loadRepository(github({ listers: [fakeLister()], network: flaky }), {
 			store
 		});
 		expect(result.tasks).toHaveLength(78);
@@ -279,18 +279,18 @@ describe('what the cache keeps', () => {
  * A repository of a few task files that can be rewritten between readings,
  * which the 79-task fixture cannot be, being a fixture.
  */
-function mutable(files: Record<string, string>) {
+function mutable(files: Record<string, string>): Seams {
 	const lister = async (): Promise<Listing> => ({
 		entries: Object.keys(files).map((id) => ({ path: `tasks/${id}/TASK.md`, size: 1 })),
 		branch: 'HEAD'
 	});
-	const fetchImpl = (async (input: RequestInfo | URL) => {
+	const network = (async (input: RequestInfo | URL) => {
 		const match = /tasks\/([^/]+)\/TASK\.md$/.exec(String(input));
 		return match && files[match[1]]
 			? new Response(files[match[1]], { status: 200 })
 			: new Response('not found', { status: 404 });
 	}) as unknown as typeof fetch;
-	return { lister, fetchImpl };
+	return { listers: [lister], network };
 }
 
 const file = (priority: number, tags: string, status = 'OPEN') =>
@@ -310,19 +310,20 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('has nothing to compare with when given nothing, as on a first visit', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(90, 'ui') });
-		const first = await loadRepository(github({ listers: [lister], fetchImpl }), { store });
+		const first = await loadRepository(github(mutable({ [a]: file(90, 'ui') })), { store });
 		expect(first.previous).toBeNull();
 	});
 
 	it('is compared with what was on screen, which moved', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') });
-		const refreshed = await loadRepository(github({ listers: [lister], fetchImpl }), {
-			store,
-			refresh: true,
-			replaces: { shown: before(90), previous: null },
-			now: () => 2_000
-		});
+		const refreshed = await loadRepository(
+			github(mutable({ [a]: file(90, 'ui', 'CLOSED'), [b]: file(50, '') })),
+			{
+				store,
+				refresh: true,
+				replaces: { shown: before(90), previous: null },
+				now: () => 2_000
+			}
+		);
 
 		expect(refreshed.previous).toEqual(before(90));
 		expect(refreshed.storedAt).toBe(2_000);
@@ -332,8 +333,7 @@ describe('the reading a new one replaces', () => {
 		// A followed folder takes many such readings (the focus coming back, an
 		// editor's swap file, a save that only rewrote prose), and each would
 		// otherwise wipe the badges of the last real change.
-		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
-		const again = await loadRepository(github({ listers: [lister], fetchImpl }), {
+		const again = await loadRepository(github(mutable({ [a]: file(110, 'ui') })), {
 			store,
 			refresh: true,
 			replaces: { shown: before(110, 2_000), previous: before(90) }
@@ -342,8 +342,7 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('still carries it on the next visit, so the news survives a reload', async () => {
-		const { lister, fetchImpl } = mutable({ [a]: file(110, 'ui') });
-		const source = github({ listers: [lister], fetchImpl });
+		const source = github(mutable({ [a]: file(110, 'ui') }));
 
 		await loadRepository(source, {
 			store,
@@ -358,8 +357,7 @@ describe('the reading a new one replaces', () => {
 
 	it('does not look for it in the cache, where another tab may have stored one', async () => {
 		const files = { [a]: file(90, 'ui') };
-		const { lister, fetchImpl } = mutable(files);
-		const source = github({ listers: [lister], fetchImpl });
+		const source = github(mutable(files));
 
 		await loadRepository(source, { store });
 		files[a] = file(110, 'ui');

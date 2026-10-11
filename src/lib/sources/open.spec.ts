@@ -4,7 +4,6 @@ import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { ListingError, NoSourceError, type Source } from './source.ts';
 import { directory, entryTree, fileList } from '../../../tests/support/fake-directory.ts';
-import { unreachable } from '../../../tests/support/network.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
@@ -86,37 +85,11 @@ function dropped(path: string, text: string): File {
 }
 
 /**
- * What each source does when asked, rather than what it says about itself.
- *
- * The loader's tests cover the reading; these cover the seam it now reads
- * through, which nothing else touches directly.
+ * What each source does when asked, rather than what it says about itself,
+ * through `openSource`, the one way the application opens a source.
  */
 describe('reading through a forge', () => {
 	const ref = parseRepoPath('owner/repo')!;
-
-	it('reads a file from the CDN', async () => {
-		const asked: string[] = [];
-		const fetchImpl = (async (url: RequestInfo | URL) => {
-			asked.push(String(url));
-			return new Response('# a task\n', { status: 200 });
-		}) as unknown as typeof fetch;
-
-		const source = openSource(ref, { fetchImpl });
-		expect(await source.read('tasks/a/TASK.md')).toBe('# a task\n');
-		expect(asked).toEqual(['https://raw.githubusercontent.com/owner/repo/HEAD/tasks/a/TASK.md']);
-	});
-
-	it('answers null for a file the CDN refuses, rather than throwing', async () => {
-		const fetchImpl = (async () =>
-			new Response('nope', { status: 404 })) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
-	});
-
-	it('answers null when the network does not answer at all', async () => {
-		// A read that throws would take the whole load down; one task that cannot
-		// be read is listed as skipped instead.
-		expect(await openSource(ref, { fetchImpl: unreachable }).read('tasks/a/TASK.md')).toBeNull();
-	});
 
 	it('can be refreshed, having only a request to spend', async () => {
 		const source = openSource(ref);

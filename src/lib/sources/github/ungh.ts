@@ -20,13 +20,17 @@ interface UnghResponse {
 }
 
 /** Lists a repository through ungh, which proxies the same API. */
-export async function listViaUngh(ref: RepoRef, signal?: AbortSignal): Promise<Listing> {
+export async function listViaUngh(
+	ref: RepoRef,
+	network: typeof fetch,
+	signal?: AbortSignal
+): Promise<Listing> {
 	const branch = ref.branch ?? 'HEAD';
 	const url = `${API}/repos/${ref.owner}/${ref.name}/files/${encodeURIComponent(branch)}`;
 
 	let response: Response;
 	try {
-		response = await fetch(url, { signal });
+		response = await network(url, { signal });
 	} catch {
 		throw new ListingError('network', NAME, `Could not reach ${url}`);
 	}

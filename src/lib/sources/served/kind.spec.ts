@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import type { ViteHotContext } from 'vite/types/hot.d.ts';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { localRef, servedRef } from '../../repo/ref.ts';
 import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
@@ -6,7 +7,8 @@ import { memoryStore } from '../store.ts';
 import { ListingError } from '../source.ts';
 import { scratchFolder, serving, writeTree } from '../../../../tests/support/disk-tree.ts';
 import { unreachable } from '../../../../tests/support/network.ts';
-import { servedKind } from './kind.ts';
+import { FollowedServedSource, ServedSource, servedKind } from './kind.ts';
+import { CHANGED } from './protocol.ts';
 
 /**
  * The page half against the server half, with nothing between them but the
@@ -24,8 +26,7 @@ beforeEach(async () => {
 	});
 });
 
-const open = async () =>
-	servedKind('my-project').open(servedRef(), { fetchImpl: await serving(scratch()) });
+const open = async () => new ServedSource('my-project', await serving(scratch()));
 
 describe('the served folder, as a source', () => {
 	it('claims the served marker and nothing else', () => {
@@ -61,7 +62,7 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('says the dev server did not answer, rather than that there is nothing', async () => {
-		const source = servedKind('my-project').open(servedRef(), { fetchImpl: unreachable });
+		const source = new ServedSource('my-project', unreachable);
 		await expect(source.list()).rejects.toThrow(ListingError);
 	});
 
@@ -72,7 +73,23 @@ describe('the served folder, as a source', () => {
 		expect(result.label).toBe('my-project');
 	});
 
+	it('follows the folder over the dev channel, until told to stop', () => {
+		const heard = new Map<string, () => void>();
+		const channel = {
+			on: (event: string, handler: () => void) => heard.set(event, handler),
+			off: (event: string) => heard.delete(event)
+		} as unknown as ViteHotContext;
+		const changed = vi.fn();
+
+		const stop = new FollowedServedSource('my-project', channel).follow(changed);
+		heard.get(CHANGED)?.();
+		expect(changed).toHaveBeenCalledTimes(1);
+
+		stop();
+		expect(heard.has(CHANGED)).toBe(false);
+	});
+
 	it('follows nothing outside a dev server, there being no channel to hear from', async () => {
-		expect(isFollowable(await open())).toBe(false);
+		expect(isFollowable(servedKind('my-project').open(servedRef()))).toBe(false);
 	});
 });
