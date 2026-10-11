@@ -42,7 +42,7 @@ export interface ReferenceGraph {
 	/** Tasks citing nobody and cited by nobody. */
 	isolated: Task[];
 	/** The number of directed citations, as `tatr graph` writes them into its `.dot`. */
-	linkCount: number;
+	citationCount: number;
 }
 
 /**
@@ -62,14 +62,14 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	const known = new Map(tasks.map((task) => [task.id, task]));
 
 	const out = new Map<string, string[]>();
-	let linkCount = 0;
+	let citationCount = 0;
 
 	for (const task of tasks) {
 		const cited = task.references.filter((id) => known.has(id)).sort();
 		if (cited.length === 0) continue;
 
 		out.set(task.id, cited);
-		linkCount += cited.length;
+		citationCount += cited.length;
 	}
 
 	// One entry per connection, not per direction, so a pair citing each other
@@ -132,7 +132,7 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	return {
 		clusters,
 		isolated: tasks.filter((task) => !neighbours.has(task.id)).sort(compareById),
-		linkCount
+		citationCount
 	};
 }
 
@@ -153,6 +153,12 @@ export interface StarCard {
 	links: StarLink[];
 	/** Whether the pivot cites itself, a link with no neighbour to draw. */
 	self: boolean;
+}
+
+/** The number of links a card holds, counting the pivot citing itself. */
+export function linkCount(card: StarCard): number {
+	if (card.self) return card.links.length + 1;
+	return card.links.length;
 }
 
 const KIND_ORDER: StarLink['kind'][] = ['in', 'both', 'out'];
@@ -214,4 +220,35 @@ export function starCards(graph: ReferenceGraph): StarCard[] {
 		cards.push({ pivot: tasks.get(pivot)!, links, self });
 	}
 	return cards;
+}
+
+/** The page's order: what a task cites first, then what cites it alone. */
+const PAGE_ORDER: Record<StarLink['kind'], number> = { out: 0, both: 0, in: 1 };
+
+/**
+ * The links of one task, with the kinds the cards use: the tasks it cites,
+ * then those citing it that it does not cite back, oldest first within each.
+ * They are read from the graph's edges, so a task's page counts the citations
+ * the cards draw. A task citing itself is reported as `self`.
+ */
+export function referencesOf(
+	graph: ReferenceGraph,
+	id: string
+): { links: StarLink[]; self: boolean } {
+	const cluster = graph.clusters.find((one) => one.nodes.some((node) => node.task.id === id));
+	if (!cluster) return { links: [], self: false };
+
+	const tasks = new Map(cluster.nodes.map((node) => [node.task.id, node.task]));
+	const links: StarLink[] = [];
+	let self = false;
+	for (const edge of cluster.edges) {
+		if (edge.from !== id && edge.to !== id) continue;
+		if (edge.from === edge.to) {
+			self = true;
+			continue;
+		}
+		links.push({ task: tasks.get(neighbourOf(edge, id))!, kind: linkKind(edge, id) });
+	}
+	links.sort((a, b) => PAGE_ORDER[a.kind] - PAGE_ORDER[b.kind] || compareById(a.task, b.task));
+	return { links, self };
 }

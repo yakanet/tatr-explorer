@@ -5,16 +5,11 @@
 	import { lsEcho, STATUSES } from '#lib/tql/command.ts';
 	import type { QueryState } from '#lib/state/query.svelte.ts';
 
-	let {
-		query,
-		matched,
-		pool,
-		tags,
-		onchange,
-		chooseStatus = true
-	}: {
+	interface Props {
 		query: QueryState;
+		/** How many tasks the query keeps. */
 		matched: number;
+		/** How many tasks the query runs over. */
 		pool: number;
 		/** The repository's tags, so the box can offer them by name. */
 		tags: TagOption[];
@@ -24,7 +19,9 @@
 		 * tasks have a column of their own.
 		 */
 		chooseStatus?: boolean;
-	} = $props();
+	}
+
+	let { query, matched, pool, tags, onchange, chooseStatus = true }: Props = $props();
 
 	let field = $state<HTMLInputElement | null>(null);
 	let caret = $state(0);

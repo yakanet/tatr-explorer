@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { makeTask } from '#tests/support/tasks.ts';
-import { byMonth, byPriority, byTag, counts, summarise, topByPriority } from './stats.ts';
+import {
+	byMonth,
+	byPriority,
+	byTag,
+	counts,
+	monthName,
+	summarise,
+	topByPriority
+} from './stats.ts';
 import { readTask } from './task.ts';
 
 const sources = rawTasks as Record<string, string>;
@@ -113,6 +121,12 @@ describe('byMonth', () => {
 	it('sums to the number of tasks', () => {
 		const months = byMonth(all);
 		expect(months.reduce((n, m) => n + m.open + m.closed, 0)).toBe(79);
+	});
+});
+
+describe('monthName', () => {
+	it('names a month with its year, held together by a no-break space', () => {
+		expect(monthName('2026-09')).toBe('September\u00a02026');
 	});
 });
 

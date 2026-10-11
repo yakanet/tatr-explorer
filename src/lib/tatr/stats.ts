@@ -116,28 +116,21 @@ export function topByPriority(tasks: Task[], limit: number): Task[] {
 		.slice(0, limit);
 }
 
-const MONTH_NAMES = [
-	'January',
-	'February',
-	'March',
-	'April',
-	'May',
-	'June',
-	'July',
-	'August',
-	'September',
-	'October',
-	'November',
-	'December'
-];
+// In English, as is all of the site's copy, whatever the reader's language.
+const LONG_MONTH = new Intl.DateTimeFormat('en', { month: 'long', timeZone: 'UTC' });
+
+/** The first instant of a month written `2026-03`, in UTC as the ids are. */
+function startOf(month: string): Date {
+	const [year, index] = month.split('-').map(Number);
+	return new Date(Date.UTC(year, index - 1));
+}
 
 /**
- * Formats `2026-03` as `March 2026`, joined by a no-break space so the masthead
+ * Formats `2026-03` as `March 2026`, joined by a no-break space so the summary
  * never wraps a month away from its year.
  */
 export function monthName(month: string): string {
-	const [year, index] = month.split('-').map(Number);
-	return `${MONTH_NAMES[index - 1]}\u00a0${year}`;
+	return `${LONG_MONTH.format(startOf(month))}\u00a0${month.slice(0, 4)}`;
 }
 
 export interface Summary {
@@ -164,7 +157,7 @@ function leadClause(open: number, total: number): string {
  * bare "them" would seem to refer to the open tasks in the lead.
  *
  * Call it on a whole repository only: on a filtered subset, "29 were created in
- * August alone" would read as a fact about the repository the masthead names.
+ * August alone" would read as a fact about the repository the summary names.
  */
 export function summarise(tasks: Task[], now = new Date()): Summary {
 	const { open, closed, total } = counts(tasks);
@@ -199,8 +192,10 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 	// A quiet repository names the month of its latest task, which a reader can
 	// place, rather than a duration to count back from today.
 	const last = months[months.length - 1];
-	const [year, month] = last.month.split('-').map(Number);
-	if ((now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month) >= 3) {
+	const start = startOf(last.month);
+	const elapsed =
+		(now.getUTCFullYear() - start.getUTCFullYear()) * 12 + now.getUTCMonth() - start.getUTCMonth();
+	if (elapsed >= 3) {
 		return { lead, leadCount: open, detail: `the latest arrived in ${monthName(last.month)}` };
 	}
 

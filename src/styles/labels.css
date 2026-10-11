@@ -7,6 +7,12 @@
 	font-family: var(--font-mono);
 }
 
+/* Text that says something is absent or secondary. Global, for the same reason
+   as `.mono`. */
+.muted {
+	color: var(--muted);
+}
+
 /*
  * A tag: a pill on one of four tints, with a dot in the matching ink, chosen
  * by `tagHue`. No cursor here, because a tag is inert on a board card.
@@ -52,6 +58,16 @@
 .tag[data-hue='4'] {
 	--tag-tint: var(--tint-rose);
 	--tag-dot: var(--dot-rose);
+}
+
+/* A tag that is a button, or sits in one, filters the view it is in. */
+button.tag {
+	cursor: pointer;
+}
+
+button.tag:hover,
+button .tag:hover {
+	color: var(--fg);
 }
 
 /* A priority, on a pill wide enough for five digits and on the lilac tint, so

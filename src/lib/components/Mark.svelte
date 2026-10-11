@@ -2,7 +2,12 @@
 	// The logo, inline rather than an <img> so it takes the theme's accent and
 	// costs no request. It is hidden from screen readers because the name always
 	// sits beside it in text, and a label would be read twice.
-	let { size = 22 }: { size?: number } = $props();
+	interface Props {
+		/** Its width and height, in pixels. */
+		size?: number;
+	}
+
+	let { size = 22 }: Props = $props();
 </script>
 
 <svg

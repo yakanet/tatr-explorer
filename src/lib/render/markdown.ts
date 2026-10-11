@@ -9,6 +9,7 @@
  */
 import MarkdownIt, { type StateCore, type Token } from 'markdown-it';
 import { scanHuidSpans } from '../tatr/huid.ts';
+import type { Task } from '../tatr/task.ts';
 
 export interface RenderOptions {
 	/**
@@ -214,6 +215,14 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
  */
 export function renderInline(source: string, options: RenderOptions): string {
 	return createRenderer(options).renderInline(source);
+}
+
+/** Renders a task's title, its relative paths resolved against its own folder. */
+export function renderTitle(
+	task: Pick<Task, 'id' | 'title'>,
+	assetUrl: RenderOptions['assetUrl']
+): string {
+	return renderInline(task.title, { assetUrl, taskId: task.id });
 }
 
 /**

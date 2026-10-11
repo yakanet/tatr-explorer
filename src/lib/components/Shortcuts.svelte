@@ -1,13 +1,7 @@
 <script lang="ts">
 	import { NOTHING_PENDING, press, type Pending } from '#lib/keys.ts';
 
-	let {
-		onview,
-		onbranch,
-		onhelp,
-		ondismiss,
-		modal = false
-	}: {
+	interface Props {
 		/**
 		 * Switches to the view at this position in the nav. Absent where there is
 		 * no nav, as on the homepage, where `1`-`9` then do nothing.
@@ -24,7 +18,9 @@
 		 * `aria-modal`. This is simpler than trapping the focus.
 		 */
 		modal?: boolean;
-	} = $props();
+	}
+
+	let { onview, onbranch, onhelp, ondismiss, modal = false }: Props = $props();
 
 	let pending = $state<Pending>(NOTHING_PENDING);
 

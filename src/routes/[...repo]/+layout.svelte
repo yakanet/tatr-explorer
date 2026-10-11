@@ -27,8 +27,8 @@
 	const repo = new RepositoryState();
 	setContext(REPOSITORY, repo);
 
-	// The layout also shares one query with every view, and a link that carries a
-	// query sets it, so the overview's counts and bars can be plain links.
+	// The layout also shares one query with every view, and an address that
+	// carries a query sets it, so the overview's counts and bars only lead to one.
 	// A shallow `goto` runs the navigation hooks in SvelteKit 3. The list and the
 	// board call one as the reader types, and reading the trimmed URL back would
 	// delete the space under the cursor, so that `goto` is skipped. Going back to

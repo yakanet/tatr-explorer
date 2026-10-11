@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { BINDINGS } from '#lib/keys.ts';
 
-	let {
-		views,
-		branch = false,
-		onclose
-	}: {
+	interface Props {
+		/** The views `1` to `9` switch to, in order; none on the landing page. */
 		views: string[];
 		/** Whether `b` has a branch to choose here, which a folder has not. */
 		branch?: boolean;
 		onclose: () => void;
-	} = $props();
+	}
+
+	let { views, branch = false, onclose }: Props = $props();
 
 	let panel = $state<HTMLElement | null>(null);
 

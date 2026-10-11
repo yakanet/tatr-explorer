@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cliEdges from '#tests/fixtures/tatr-graph-edges.json' with { type: 'json' };
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
-import { buildGraph, starCards, type StarCard } from './graph.ts';
+import { buildGraph, linkCount, referencesOf, starCards, type StarCard } from './graph.ts';
 import { readTask, type Task } from './task.ts';
 
 /**
@@ -27,8 +27,8 @@ describe('conformance with `tatr graph`', () => {
 	});
 
 	it('counts the links the way the .dot file does', () => {
-		expect(buildGraph(all).linkCount).toBe(expected.length);
-		expect(buildGraph(all).linkCount).toBe(36);
+		expect(buildGraph(all).citationCount).toBe(expected.length);
+		expect(buildGraph(all).citationCount).toBe(36);
 	});
 
 	it('ignores ids naming no task, journal timestamps included', () => {
@@ -66,9 +66,9 @@ describe('buildGraph', () => {
 	it('draws a mutual citation once', () => {
 		const a = make('20260101-000001', 'see 20260101-000002');
 		const b = make('20260101-000002', 'see 20260101-000001');
-		const { clusters, linkCount } = buildGraph([a, b]);
+		const { clusters, citationCount } = buildGraph([a, b]);
 
-		expect(linkCount).toBe(2);
+		expect(citationCount).toBe(2);
 		expect(clusters[0].edges).toEqual([
 			{ from: '20260101-000001', to: '20260101-000002', mutual: true }
 		]);
@@ -91,13 +91,13 @@ describe('buildGraph', () => {
 			{ from: '20260101-000001', to: '20260101-000001', mutual: false }
 		]);
 		expect(graph.isolated).toEqual([]);
-		expect(graph.linkCount).toBe(1);
+		expect(graph.citationCount).toBe(1);
 	});
 
 	it('ignores an id no task carries', () => {
 		const graph = buildGraph([make('20260101-000001', 'see 20260101-999999')]);
 		expect(graph.clusters).toEqual([]);
-		expect(graph.linkCount).toBe(0);
+		expect(graph.citationCount).toBe(0);
 	});
 
 	it("lists a cluster's tasks oldest first", () => {
@@ -125,7 +125,7 @@ describe('buildGraph', () => {
 	});
 
 	it('has nothing to draw for an empty repository', () => {
-		expect(buildGraph([])).toEqual({ clusters: [], isolated: [], linkCount: 0 });
+		expect(buildGraph([])).toEqual({ clusters: [], isolated: [], citationCount: 0 });
 	});
 });
 
@@ -211,5 +211,45 @@ describe('star cards', () => {
 		];
 		const shown = starCards(buildGraph(tasks)).flatMap((card) => around(card).map((t) => t.id));
 		expect(new Set(shown).size).toBeLessThan(shown.length);
+	});
+});
+
+describe("a task's references", () => {
+	const kinds = (task: Task, tasks: Task[]) =>
+		referencesOf(buildGraph(tasks), task.id).links.map((link) => `${link.kind} ${link.task.id}`);
+
+	it('lists what it cites, oldest first, then what cites it alone', () => {
+		const a = make('20260101-000001', '20260101-000003 20260101-000002');
+		const b = make('20260101-000002', '20260101-000001');
+		const c = make('20260101-000003');
+		const d = make('20260101-000004', '20260101-000001');
+		expect(kinds(a, [a, b, c, d])).toEqual([
+			'both 20260101-000002',
+			'out 20260101-000003',
+			'in 20260101-000004'
+		]);
+	});
+
+	it('reports a task citing itself apart from its links', () => {
+		const a = make('20260101-000001', '20260101-000001 20260101-000002');
+		const b = make('20260101-000002');
+		expect(referencesOf(buildGraph([a, b]), a.id)).toEqual({
+			links: [{ task: b, kind: 'out' }],
+			self: true
+		});
+	});
+
+	it('ignores an id no task carries', () => {
+		const a = make('20260101-000001', '20260101-000009');
+		expect(referencesOf(buildGraph([a]), a.id)).toEqual({ links: [], self: false });
+	});
+});
+
+describe('linkCount', () => {
+	it('counts the links of a card, the pivot citing itself included', () => {
+		const a = make('20260101-000001', '20260101-000001 20260101-000002');
+		const b = make('20260101-000002');
+		const [card] = starCards(buildGraph([a, b]));
+		expect(linkCount(card)).toBe(2);
 	});
 });

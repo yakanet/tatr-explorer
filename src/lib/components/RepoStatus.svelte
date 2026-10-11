@@ -5,7 +5,12 @@
 	import type { RepoRef } from '#lib/repo/ref.ts';
 	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
-	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
+	interface Props {
+		repo: RepositoryState;
+		ref: RepoRef;
+	}
+
+	let { repo, ref }: Props = $props();
 
 	const percent = $derived.by(() => {
 		if (repo.total === 0) return 0;
@@ -117,7 +122,7 @@
 		color: var(--muted);
 	}
 
-	/* The same pill and track as the dashboard's bars. */
+	/* The same pill and track as the overview's bar charts. */
 	.bar {
 		height: 8px;
 		border-radius: var(--radius-full);

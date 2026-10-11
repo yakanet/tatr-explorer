@@ -5,15 +5,14 @@
 	import { formatRepoPath, isBranchName, type ForgeRef } from '../repo/ref.ts';
 	import { openStore } from '../sources/store.ts';
 
-	let {
-		ref,
-		open = $bindable(false)
-	}: {
+	interface Props {
 		/** A repository on a forge: a folder has no branch to choose. */
 		ref: ForgeRef;
 		/** Bound, so that `b` can open the menu from the keyboard layer. */
 		open?: boolean;
-	} = $props();
+	}
+
+	let { ref, open = $bindable(false) }: Props = $props();
 
 	let root = $state<HTMLElement | null>(null);
 	let input = $state<HTMLInputElement | null>(null);

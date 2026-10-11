@@ -18,7 +18,11 @@
 	} from '#lib/sources/local/folder.ts';
 	import { LOCAL_PATH, openFolder } from '#lib/sources/local/source.ts';
 
-	let { label = 'Open a folder…' }: { label?: string } = $props();
+	interface Props {
+		label?: string;
+	}
+
+	let { label = 'Open a folder…' }: Props = $props();
 
 	let input = $state<HTMLInputElement | null>(null);
 	let error = $state<string | null>(null);

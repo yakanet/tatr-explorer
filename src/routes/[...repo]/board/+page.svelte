@@ -1,18 +1,16 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import QueryBar from '#lib/components/QueryBar.svelte';
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
-	import { formatRepoPath } from '#lib/repo/ref.ts';
-	import { renderInline } from '#lib/render/markdown.ts';
+	import { taskHref } from '#lib/repo/hrefs.ts';
+	import { renderTitle } from '#lib/render/markdown.ts';
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import { toColumns } from '#lib/tatr/board.ts';
 	import { byTag } from '#lib/tatr/stats.ts';
-	import type { Task } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
@@ -43,10 +41,6 @@
 		goto(url, { shallow: true, replace: true });
 	}
 
-	const taskHref = (id: string) =>
-		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id });
-	const inline = (task: Task) =>
-		renderInline(task.title, { assetUrl: repo.assetUrl, taskId: task.id });
 	const describe = (tag: string) => repo.tags.descriptions.get(tag) ?? '';
 </script>
 
@@ -81,11 +75,11 @@
 								<li>
 									<!-- The whole card is the link and the key row, so `j`/`k` and
 									     Enter work on the board without code of its own. -->
-									<a href={taskHref(task.id)} data-key-row class:done={column.key === 'done'}>
-										<span class="prio" class:muted={column.key === 'done'}>
+									<a href={taskHref(ref, task.id)} data-key-row class:done={column.key === 'done'}>
+										<span class="prio" class:done={column.key === 'done'}>
 											{task.priority}
 										</span>
-										<span class="title">{@html inline(task)}</span>
+										<span class="title">{@html renderTitle(task, repo.assetUrl)}</span>
 										{#if moves || task.tags.length > 0}
 											<span class="meta">
 												{#if moves}
@@ -222,7 +216,7 @@
 		box-shadow: none;
 	}
 
-	.prio.muted {
+	.prio.done {
 		color: var(--muted);
 		background: var(--surface);
 	}

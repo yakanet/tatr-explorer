@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import QueryBar from '#lib/components/QueryBar.svelte';
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
-	import { formatRepoPath } from '#lib/repo/ref.ts';
-	import { renderInline } from '#lib/render/markdown.ts';
+	import { taskHref } from '#lib/repo/hrefs.ts';
+	import { renderTitle } from '#lib/render/markdown.ts';
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
 	import { byTag } from '#lib/tatr/stats.ts';
-	import type { Task } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
@@ -54,10 +52,6 @@
 	}
 
 	const describe = (tag: string) => repo.tags.descriptions.get(tag) ?? '';
-	const taskHref = (id: string) =>
-		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id });
-	const inline = (task: Task) =>
-		renderInline(task.title, { assetUrl: repo.assetUrl, taskId: task.id });
 </script>
 
 <svelte:head>
@@ -114,7 +108,9 @@
 								</td>
 								<td class="c-prio"><span class="prio">{task.priority}</span></td>
 								<td class="title">
-									<a href={taskHref(task.id)} data-key-row>{@html inline(task)}</a>
+									<a href={taskHref(ref, task.id)} data-key-row
+										>{@html renderTitle(task, repo.assetUrl)}</a
+									>
 									{#if moves}<span data-moved>{moves[0]}</span>{/if}
 								</td>
 								<td class="c-tags">
@@ -236,10 +232,5 @@
 
 	.tag {
 		margin-right: 0.25rem;
-		cursor: pointer;
-	}
-
-	.tag:hover {
-		color: var(--fg);
 	}
 </style>
