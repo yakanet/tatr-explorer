@@ -1,23 +1,31 @@
 <script lang="ts">
 	// Lists every property of a task, each key beside its value. While the task
-	// is edited, the status, the priority and the tags are fields of the draft.
+	// is edited or created, the status, the priority and the tags are fields of
+	// the draft.
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import type { TaskFields } from '#lib/tatr/task-fields.ts';
 	import { tagged, untagged, withDefaults } from '#lib/tatr/task-file.ts';
-	import { parseTags } from '#lib/tatr/task-md.ts';
-	import type { Task } from '#lib/tatr/task.ts';
+	import { parseTags, readStatus } from '#lib/tatr/task-md.ts';
 	import type { TagOption } from '#lib/tql/complete.ts';
 	import SidePanel from './SidePanel.svelte';
 
 	interface Props {
-		task: Task;
+		/** The task's properties as read, in their order; none for a new task. */
+		properties?: ReadonlyMap<string, string>;
 		/** The draft of the editing sheet, or absent while the task is read. */
 		fields?: TaskFields;
 		/** The repository's tags, which the tags field offers as it is typed. */
 		known?: TagOption[];
+		/** Whether Save creates the file, for a new task, rather than rewriting it. */
+		creating?: boolean;
 	}
 
-	let { task, fields = $bindable(), known = [] }: Props = $props();
+	let {
+		properties = new Map(),
+		fields = $bindable(),
+		known = [],
+		creating = false
+	}: Props = $props();
 
 	const id = $props.id();
 
@@ -26,12 +34,12 @@
 	 * the defaults the CLI assumes included, so that every field has its row.
 	 */
 	const rows = $derived.by(() => {
-		if (fields) return withDefaults(task.properties);
-		return task.properties;
+		if (fields) return withDefaults(properties);
+		return properties;
 	});
 
 	/** The statuses offered: open, closed, and the task's own when it is neither. */
-	const statuses = $derived([...new Set(['OPEN', 'CLOSED', task.status])]);
+	const statuses = $derived([...new Set(['OPEN', 'CLOSED', readStatus(properties)])]);
 
 	function priorityChosen(event: Event & { currentTarget: HTMLInputElement }) {
 		if (!fields) return;
@@ -103,7 +111,9 @@
 		{/each}
 	</dl>
 	{#snippet note()}
-		{#if fields}
+		{#if creating}
+			Saving creates <code>TASK.md</code> as <code>tatr new</code> would.
+		{:else if fields}
 			Saving rewrites <code>TASK.md</code> as the CLI would, every property in its place.
 		{:else}
 			Any property key is shown, not just these.

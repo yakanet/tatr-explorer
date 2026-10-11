@@ -1,17 +1,18 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { beforeNavigate } from '$app/navigation';
+	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import EditSheet from '#lib/components/EditSheet.svelte';
+	import Properties from '#lib/components/Properties.svelte';
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import Article from './Article.svelte';
 	import Attachments from './Attachments.svelte';
-	import EditSheet from './EditSheet.svelte';
 	import ForgeLink from './ForgeLink.svelte';
-	import Properties from './Properties.svelte';
 	import References from './References.svelte';
-	import { listHref, taskHref } from '#lib/repo/hrefs.ts';
+	import { listHref, taskLinks } from '#lib/repo/hrefs.ts';
 	import { loadTaskDescription } from '#lib/sources/load.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
+	import { askBeforeLeaving } from '#lib/state/unsaved.ts';
 	import { differing, fieldsOf, withFields, type TaskFields } from '#lib/tatr/task-fields.ts';
 	import { tagOptions } from '#lib/tatr/stats.ts';
 	import { taskPath } from '#lib/tatr/task.ts';
@@ -52,20 +53,11 @@
 		};
 	});
 
-	/**
-	 * The link for a task id found in the text. Only ids of other tasks in this
-	 * repository become links: an unknown id would lead to `No such task`, and
-	 * this task's own id to this page. The References panel uses the same list,
-	 * so the body links what it lists.
-	 */
-	function taskUrl(other: string) {
-		if (other !== id && repo.tasks.some((candidate) => candidate.id === other)) {
-			return taskHref(ref, other);
-		}
-		return null;
-	}
-
-	const renderOptions = $derived({ assetUrl: repo.assetUrl, taskId: id, taskUrl });
+	const renderOptions = $derived({
+		assetUrl: repo.assetUrl,
+		taskId: id,
+		taskUrl: taskLinks(ref, repo.tasks, id)
+	});
 
 	/** The editing sheet: the fields it was opened on, and the draft. Null while the task is read. */
 	let sheet = $state<{ opened: TaskFields; draft: TaskFields } | null>(null);
@@ -103,13 +95,9 @@
 		if (saved) sheet = null;
 	}
 
-	beforeNavigate(({ cancel, type }) => {
-		if (dirty) {
-			// Leaving the site, the browser asks by itself once the navigation is cancelled.
-			if (type === 'leave') return cancel();
-			if (!confirm('Leave this task without saving your changes?')) return cancel();
-		}
-		// The page stays mounted from one task to the next, and so would the sheet.
+	askBeforeLeaving(() => dirty, 'Leave this task without saving your changes?');
+	// The page stays mounted from one task to the next, and so would the sheet.
+	onNavigate(() => {
 		sheet = null;
 	});
 </script>
@@ -118,13 +106,13 @@
 	<title>{task?.title ?? id} · {repo.name}</title>
 </svelte:head>
 
-<main>
+<main class="task-page">
 	{#if repo.phase !== 'ready'}
 		<!-- RepoStatus shows the progress or the failure, as on every other view, so
 		     a local folder lost on reload is offered again rather than waited for. -->
 		<div class="wide"><RepoStatus {repo} {ref} /></div>
 	{:else if !task}
-		<section class="panel">
+		<section class="panel wide">
 			<h2>No such task</h2>
 			<p>This repository has no task <code>{id}</code>.</p>
 			<p><a href={listHref(ref)}>Back to the list</a></p>
@@ -146,9 +134,9 @@
 
 		<aside>
 			{#if sheet}
-				<Properties {task} {known} bind:fields={sheet.draft} />
+				<Properties properties={task.properties} {known} bind:fields={sheet.draft} />
 			{:else}
-				<Properties {task} />
+				<Properties properties={task.properties} />
 			{/if}
 			<References {task} tasks={repo.tasks} {ref} options={renderOptions} />
 			<Attachments attachments={task.attachments ?? []} options={renderOptions} />
@@ -159,30 +147,6 @@
 </main>
 
 <style>
-	main {
-		--column: 70rem;
-		display: grid;
-		grid-template-columns: 1fr 18rem;
-		gap: var(--card-gap);
-		align-items: start;
-	}
-
-	/* The status and not-found panels span both columns because they belong to
-	   neither the article nor the sidebar. `.wide` wraps RepoStatus, whose
-	   markup this page cannot style. */
-	.wide,
-	main > section {
-		grid-column: 1 / -1;
-	}
-
-	/* Below 50rem the sidebar goes under the article rather than squeezing it
-	   or pushing the page sideways. */
-	@media (max-width: 50rem) {
-		main {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
-
 	.panel {
 		padding: 1.5rem 1.75rem;
 	}

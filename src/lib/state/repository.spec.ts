@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
@@ -8,7 +8,7 @@ import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
 import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
-import { fieldsOf, withFields } from '../tatr/task-fields.ts';
+import { fieldsOf, NEW_TASK, withFields } from '../tatr/task-fields.ts';
 import { loadTaskFile, withStatus } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
@@ -408,5 +408,55 @@ describe('editing a task', () => {
 		expect(disk[TASK]).toBe(taskAt(110));
 		expect(repo.notice?.failed).toBe(true);
 		expect(repo.tasks[0].priority).toBe(110);
+	});
+
+	describe('creating a task', () => {
+		/** The id the clock gives while these run. */
+		const CREATED = '20261012-083000';
+		const createdPath = `tasks/${CREATED}/TASK.md`;
+
+		beforeEach(() => {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			vi.setSystemTime(Date.UTC(2026, 9, 12, 8, 30, 0));
+		});
+		afterEach(() => vi.useRealTimers());
+
+		it('writes the file `tatr new` writes, under the id of the clock, and reads it', async () => {
+			const repo = await editing();
+			expect(await repo.create({ ...NEW_TASK, title: 'Created', tags: ['ui'] })).toBe(CREATED);
+
+			expect(disk[createdPath]).toBe(
+				'# Created\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: ui\n\nNo description.\n'
+			);
+			expect(repo.tasks.map((task) => task.id)).toContain(CREATED);
+			expect(repo.notice).toEqual({ text: `${CREATED}: created.`, failed: false, undoable: false });
+		});
+
+		it('refuses an id whose folder exists, whatever it holds, as `tatr new` does', async () => {
+			const repo = await editing();
+			disk[`tasks/${CREATED}/shot.png`] = 'not much of a picture';
+
+			expect(await repo.create(NEW_TASK)).toBeNull();
+			expect(repo.notice?.text).toBe(
+				`${CREATED} already exists. You are probably creating tasks too fast, or your time is broken.`
+			);
+			expect(disk[createdPath]).toBeUndefined();
+		});
+
+		it('leaves nothing for Undo, which would have no file to write back', async () => {
+			const repo = await editing();
+			await repo.edit(ID, close, 'closed');
+			await repo.create(NEW_TASK);
+
+			expect(await repo.undo()).toBe(false);
+			expect(disk[TASK]).toBe(rewritten(90, 'CLOSED'));
+		});
+
+		it('creates nothing once the reader refuses', async () => {
+			const repo = await editing(async () => 'denied');
+			expect(await repo.create(NEW_TASK)).toBeNull();
+			expect(repo.editable).toBe(false);
+			expect(disk[createdPath]).toBeUndefined();
+		});
 	});
 });

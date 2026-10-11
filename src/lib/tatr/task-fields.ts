@@ -1,7 +1,11 @@
-/** The fields a task's editing sheet holds, and the edit that writes the ones changed. */
+/**
+ * The fields a task's editing sheet holds, the edit that writes the ones
+ * changed, and the file a new task starts as.
+ */
 import {
 	chain,
 	EditRefused,
+	renderTaskMd,
 	withBody,
 	withPriority,
 	withStatus,
@@ -54,6 +58,42 @@ export function fieldsOf(file: TaskFile): TaskFields {
 		tags: readTags(file.properties),
 		description: file.body.replace(OPENING, '').replaceAll('\r\n', '\n')
 	};
+}
+
+/**
+ * The fields of a new task before anything is typed: those `tatr new` writes
+ * when given no title, no priority and no tags.
+ */
+export const NEW_TASK: Readonly<TaskFields> = {
+	title: '',
+	status: 'OPEN',
+	priority: 100,
+	tags: [],
+	description: ''
+};
+
+/** The title `tatr new` writes when given none. */
+export const UNTITLED = 'New Task';
+
+/**
+ * The file `tatr new` writes for these fields, as `append_task_md_content`
+ * renders it: {@link UNTITLED} for an empty title, and the description in place
+ * of its `No description.`, as an edit would put it. Each field is written as
+ * a save writes it, so a new field cannot be left out.
+ */
+export function newTaskMd(fields: TaskFields): string {
+	const draft = {
+		...fields,
+		title: fields.title || UNTITLED,
+		description: withFinalNewline(fields.description || 'No description.')
+	};
+	const writes = (Object.keys(FIELDS) as Field[]).map((field) => FIELDS[field].write(draft, '\n'));
+	return renderTaskMd(chain(...writes)({ title: '', properties: new Map(), body: '' }));
+}
+
+function withFinalNewline(text: string): string {
+	if (text.endsWith('\n')) return text;
+	return `${text}\n`;
 }
 
 /** The fields that differ between `a` and `b`, in the order of the sheet. */

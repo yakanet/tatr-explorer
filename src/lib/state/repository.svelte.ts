@@ -21,7 +21,9 @@ import {
 	type Replaced,
 	type Snapshot
 } from '../tatr/changes.ts';
+import { formatHuid } from '../tatr/huid.ts';
 import { EditRefused, editTaskMd, type Edit } from '../tatr/task-file.ts';
+import { newTaskMd, type TaskFields } from '../tatr/task-fields.ts';
 import { taskPath, type Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
@@ -117,7 +119,7 @@ export class RepositoryState {
 	/** The last write, kept for Undo, which writes `before` back over `after`. */
 	#written: { id: string; before: string; after: string } | null = null;
 	/** The edits under way, run one after another so that two quick gestures do not race. */
-	#edits: Promise<boolean> = Promise.resolve(true);
+	#edits: Promise<unknown> = Promise.resolve();
 
 	/**
 	 * The repository's name on screen: the source's label, or the reference's
@@ -261,12 +263,22 @@ export class RepositoryState {
 	 * Resolves to whether the file now holds the edit.
 	 */
 	edit(id: string, edit: Edit, what: string): Promise<boolean> {
-		return this.#queue(() => this.#edit(id, edit, what));
+		return this.#queue(() => this.#edit(id, edit, what), false);
 	}
 
 	/** Writes back the text the last edit replaced, unless the file changed since. */
 	undo(): Promise<boolean> {
-		return this.#queue(() => this.#undo());
+		return this.#queue(() => this.#undo(), false);
+	}
+
+	/**
+	 * Creates a task holding `fields`, as `tatr new` would and under an id it
+	 * reads from the clock, then reads the repository again. It never throws, as
+	 * `edit` does not. Resolves to the task's id, or to null when nothing was
+	 * created.
+	 */
+	create(fields: TaskFields): Promise<string | null> {
+		return this.#queue(() => this.#create(fields), null);
 	}
 
 	/**
@@ -277,13 +289,17 @@ export class RepositoryState {
 		return this.editable && !task.malformed;
 	}
 
-	/** Runs `step` once the edits under way are over, saying why it failed rather than throwing. */
-	#queue(step: () => Promise<boolean>): Promise<boolean> {
-		this.#edits = this.#edits.then(step).catch((error: unknown) => {
+	/**
+	 * Runs `step` once the edits under way are over. When it throws, it says why
+	 * and resolves to `failure` instead.
+	 */
+	#queue<T>(step: () => Promise<T>, failure: T): Promise<T> {
+		const run = this.#edits.then(step).catch((error: unknown) => {
 			this.notice = failed(messageOf(error));
-			return false;
+			return failure;
 		});
-		return this.#edits;
+		this.#edits = run;
+		return run;
 	}
 
 	async #edit(id: string, edit: Edit, what: string): Promise<boolean> {
@@ -316,6 +332,28 @@ export class RepositoryState {
 		const answer = await source.write(path, after, before);
 		if (answer === 'written') this.#written = { id, before, after };
 		return this.#settle(answer, id, what);
+	}
+
+	async #create(fields: TaskFields): Promise<string | null> {
+		const source = this.source;
+		if (!isWritable(source) || this.#refused) return null;
+		const id = formatHuid(new Date());
+		if (await holdsFolder(source, id)) return this.#taken(id);
+		const answer = await source.write(taskPath(id), newTaskMd(fields), null);
+		// A `TASK.md` was made under that id since the listing was read.
+		if (answer === 'changed') return this.#taken(id);
+		// Undo writes a file back, and has no file to write back here.
+		this.#written = null;
+		if (!(await this.#settle(answer, id, 'created'))) return null;
+		return id;
+	}
+
+	/** Refuses an id that is taken, in the words of `tatr new`. */
+	#taken(id: string): null {
+		this.notice = failed(
+			`${id} already exists. You are probably creating tasks too fast, or your time is broken.`
+		);
+		return null;
 	}
 
 	async #undo(): Promise<boolean> {
@@ -385,6 +423,17 @@ export class RepositoryState {
 		this.#controller?.abort();
 		this.#controller = null;
 	}
+}
+
+/**
+ * Whether the folder of task `id` exists, whatever it holds, which is what
+ * `tatr new` refuses. The listing is read fresh, as a folder holds the files of
+ * its last walk.
+ */
+async function holdsFolder(source: Source, id: string): Promise<boolean> {
+	if (isRereadable(source)) await source.reread();
+	const { entries } = await source.list();
+	return entries.some((entry) => entry.path.startsWith(`tasks/${id}/`));
 }
 
 function describe(error: unknown): Failure {

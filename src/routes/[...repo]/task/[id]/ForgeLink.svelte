@@ -2,7 +2,7 @@
 	// Links to a task's TASK.md on its forge, where the reader finds its history,
 	// blame and raw markdown. The viewer does not show those because the format
 	// holds no modification date and the API would cost a request per task.
-	import SidePanel from './SidePanel.svelte';
+	import SidePanel from '#lib/components/SidePanel.svelte';
 
 	interface Props {
 		/** The file's page on the forge, or null when the source has none, such as a local folder. */

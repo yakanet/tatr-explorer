@@ -3,7 +3,7 @@
 	// nothing when there are none.
 	import { resolveAttachment, type RenderOptions } from '#lib/render/markdown.ts';
 	import { formatSize, type Attachment } from '#lib/tatr/attachments.ts';
-	import SidePanel from './SidePanel.svelte';
+	import SidePanel from '#lib/components/SidePanel.svelte';
 
 	interface Props {
 		attachments: Attachment[];

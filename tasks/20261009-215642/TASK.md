@@ -1,8 +1,8 @@
 # Create a task as `tatr new` would write it
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 55
-- TAGS: ui,scope
+- TAGS: ui
 
 Where the source writes, a reader who finds a gap while reading can create the
 task on the spot rather than in a terminal. The editing sheet of 20261011-204739
@@ -44,3 +44,24 @@ second later. Upstream marks `append_task_md_content` as due to change
 
 Done when the file created is byte for byte what `tatr new` writes for the same
 title, priority and tags, which a differential test against the binary pins.
+
+---
+
+`newTaskMd` renders the file through `renderTaskMd`, the renderer of every
+rewrite. `scripts/fixtures.mjs` now runs `tatr new` in an empty repository for
+seven cases (no title and no priority, tags, a zero priority, spaces around the
+title, a `#` in it, text outside ASCII), and the conformance spec replays them
+byte for byte, ids aside.
+
+`RepositoryState.create` takes its id from the clock. It refuses an id whose
+folder exists, whatever the folder holds, as the CLI does, reading the listing
+fresh for that; the write then expects no `TASK.md`, which refuses one made in
+between. A creation leaves nothing for Undo, which only writes a file back.
+
+The New task button and `n` show where `repo.editable` holds, `n` in the key
+help too. A key that opens something (`n`, `b`, `1` to `9`) now works from the
+help, which it closes first; behind the panel only `?` and Escape acted, so `n`
+read there did nothing. The page is `new` under the repository; Cancel goes back where the
+reader came from, and leaving a typed draft asks first. The sheet's components
+moved to `src/lib/components`, two pages using them now, and `Properties` takes
+the properties rather than a task, which a new one does not have yet.

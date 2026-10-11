@@ -3,7 +3,7 @@
 	// description and the entries appended to it.
 	import { renderInline, type RenderOptions } from '#lib/render/markdown.ts';
 	import type { Task } from '#lib/tatr/task.ts';
-	import Journal from './Journal.svelte';
+	import Journal from '#lib/components/Journal.svelte';
 
 	interface Props {
 		task: Task;
