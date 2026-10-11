@@ -8,7 +8,7 @@
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import FolderPicker from '#lib/components/FolderPicker.svelte';
-	import { formatRepoPath, isLocal } from '#lib/repo/ref.ts';
+	import { formatRepoPath, isLocal, isServed } from '#lib/repo/ref.ts';
 	import { RepositoryState, describeAge, REPOSITORY } from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
 
@@ -42,8 +42,8 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** A folder on this machine, which has no branch to choose. */
-	const local = $derived(isLocal(ref));
+	/** A folder on this machine, opened or served, which has no branch to choose. */
+	const local = $derived(isLocal(ref) || isServed(ref));
 
 	/** Whether Refresh means anything here, which only the source of the reading knows. */
 	const repeatable = $derived(repo.source?.repeatable ?? false);

@@ -31,6 +31,13 @@ declare global {
 		readonly relativePathComponents: readonly string[];
 	}
 
+	/**
+	 * The name of the folder the dev server serves, or false: replaced at compile
+	 * time by the plugin in `src/lib/sources/served/folder.server.ts`, and read in
+	 * `src/lib/served.ts` alone.
+	 */
+	const __TATR_SERVED__: string | false;
+
 	interface DataTransferItem {
 		/**
 		 * File System Access again, and undeclared for the same reason: a dropped

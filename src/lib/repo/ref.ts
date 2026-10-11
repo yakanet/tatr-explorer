@@ -5,6 +5,8 @@
  * gets a unique, shareable address: `/{owner}/{name}`, optionally prefixed with
  * a forge host and suffixed with `@{branch}`.
  */
+import { SERVED } from '../served.ts';
+
 export type RepoRef = {
 	/** Forge host, e.g. `github.com`. */
 	host: string;
@@ -34,6 +36,23 @@ export function localRef(name = ''): RepoRef {
 
 export function isLocal(ref: RepoRef): boolean {
 	return ref.host === LOCAL_HOST;
+}
+
+/**
+ * The host of the folder the dev server serves, when it was started with one.
+ *
+ * A marker like the local one, for a folder that is not a grant the browser
+ * holds but a path the server reads: it survives a reload, and still no URL
+ * anyone else follows can reach it.
+ */
+export const SERVED_HOST = 'served';
+
+export function servedRef(): RepoRef {
+	return { host: SERVED_HOST, owner: '', name: '' };
+}
+
+export function isServed(ref: RepoRef): boolean {
+	return ref.host === SERVED_HOST;
 }
 
 /** GitHub allows these characters in owner and repository names. */
@@ -70,6 +89,9 @@ export function parseRepoPath(path: string): RepoRef | null {
 	// One segment is never a repository on a forge, which needs an owner too, so
 	// the word is free to mean the folder the reader has open.
 	if (trimmed === LOCAL_HOST) return localRef();
+	// An address only where a folder is served: elsewhere, a build included, the
+	// word reads as what it is there, a path to nothing.
+	if (SERVED && trimmed === SERVED_HOST) return servedRef();
 
 	const at = trimmed.indexOf('@');
 	const branch = at === -1 ? undefined : trimmed.slice(at + 1) || undefined;
@@ -149,6 +171,7 @@ export function formatRepoPath(ref: RepoRef): string {
 	// The folder's name is deliberately not in the URL: it would read as an
 	// address, and nobody else's machine can follow it.
 	if (isLocal(ref)) return LOCAL_HOST;
+	if (isServed(ref)) return SERVED_HOST;
 	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;
 	const suffix = ref.branch ? `@${ref.branch}` : '';
 	return `${prefix}${ref.owner}/${ref.name}${suffix}`;
@@ -167,5 +190,6 @@ export function repoKey(ref: RepoRef): string {
  */
 export function describeRef(ref: RepoRef): string {
 	if (isLocal(ref)) return ref.name || 'a folder on this machine';
+	if (isServed(ref)) return 'the folder the dev server serves';
 	return `${ref.owner}/${ref.name}`;
 }

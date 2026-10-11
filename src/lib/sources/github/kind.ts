@@ -17,6 +17,7 @@
  * are not) is a fact about this forge, not about sources.
  */
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
+import { encodePath, readText } from '../http.ts';
 import {
 	ListingError,
 	type Listing,
@@ -49,15 +50,12 @@ function assertHost(ref: RepoRef): void {
 }
 
 /**
- * Encodes a path one segment at a time, so the slashes between them survive.
+ * URL of a file's raw contents. Free of the API budget.
  *
- * Branches take the same treatment as paths, and for the same reason: a URL
- * carries `feature/web-ui` as two segments, and `feature%2Fweb-ui` is a branch
- * of that literal name, which no repository has.
+ * The branch is encoded as a path, and for the same reason: a URL carries
+ * `feature/web-ui` as two segments, and `feature%2Fweb-ui` is a branch of that
+ * literal name, which no repository has.
  */
-const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
-
-/** URL of a file's raw contents. Free of the API budget. */
 function rawUrl(ref: RepoRef, branch: string, path: string): string {
 	return `${RAW}/${ref.owner}/${ref.name}/${encodePath(branch)}/${encodePath(path)}`;
 }
@@ -155,14 +153,7 @@ export const githubKind: SourceKind = {
 
 			list: (signal) => listRepository(ref, { listers: options.listers, signal }),
 
-			async read(path, signal) {
-				try {
-					const response = await doFetch(rawUrl(ref, branch, path), { signal });
-					return response.ok ? await response.text() : null;
-				} catch {
-					return null;
-				}
-			},
+			read: (path, signal) => readText(doFetch, rawUrl(ref, branch, path), signal),
 
 			assetUrl: (path) => rawUrl(ref, branch, path),
 			fileUrl: (path) => blobUrl(ref, branch, path)

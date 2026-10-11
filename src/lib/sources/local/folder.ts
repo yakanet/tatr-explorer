@@ -348,6 +348,13 @@ export function listFolder(folder: LocalFolder): { path: string; size: number }[
 export async function readBranch(folder: LocalFolder): Promise<string | undefined> {
 	const head = folder.files.get('.git/HEAD');
 	if (!head) return undefined;
-	const match = /^ref:\s*refs\/heads\/(.+)$/m.exec((await head.text()).trim());
-	return match?.[1];
+	return branchFromHead(await head.text());
+}
+
+/**
+ * The branch a `.git/HEAD` names, or nothing for a detached one. Apart from
+ * the walk, as a folder the dev server serves reads the same file from Node.
+ */
+export function branchFromHead(text: string): string | undefined {
+	return /^ref:\s*refs\/heads\/(.+)$/m.exec(text.trim())?.[1];
 }

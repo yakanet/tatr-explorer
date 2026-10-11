@@ -182,6 +182,18 @@ Whichever door it came through, a folder with no tasks in it is told so rather
 than trawled: the reader picked a folder, and the page can see in one look
 whether it holds task folders.
 
+### Or let the dev server serve it (optional)
+
+If you run this repository yourself, there is a shorter way: name the folder
+when you start the dev server.
+
+    TATR_FOLDER=../my-project pnpm run dev
+
+The page opens on `/served`, read from the disk by the dev server: no picker,
+in any browser, still there after a reload, and following the folder as you
+edit it. It exists in the dev server only. Without the variable nothing
+changes, and the built site contains none of it.
+
 ## Identical to the CLI, and that claim is tested
 
 The format parser, the query language and the reference graph are ported from

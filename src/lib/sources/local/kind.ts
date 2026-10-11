@@ -10,6 +10,7 @@
  * its chain of listers and its URL shapes: the source itself.
  */
 import { isLocal } from '../../repo/ref.ts';
+import { settle } from '../settle.ts';
 import { NoSourceError, type Source, type SourceKind } from '../source.ts';
 import {
 	fromWayBack,
@@ -61,9 +62,6 @@ async function reread(): Promise<void> {
 	if (openedBack) opened = await fromWayBack(openedBack);
 }
 
-/** How long a burst of changes is left to settle: one save can be several writes. */
-const SETTLE_MS = 150;
-
 /**
  * Calls `onChange` when the folder may have changed, and returns how to stop.
  *
@@ -78,11 +76,8 @@ function follow(onChange: () => void): () => void {
 
 	// Any change at all, an editor's swap file included: reading again costs a
 	// few milliseconds, and a reading that moves nothing leaves the badges be.
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const observer = new Observer(() => {
-		clearTimeout(timer);
-		timer = setTimeout(onChange, SETTLE_MS);
-	});
+	const burst = settle(onChange);
+	const observer = new Observer(burst.trigger);
 	// Kept, so that an `observe` answering after the stop does not revive it.
 	let stopped = false;
 	let unfocus: (() => void) | undefined;
@@ -96,7 +91,7 @@ function follow(onChange: () => void): () => void {
 
 	return () => {
 		stopped = true;
-		clearTimeout(timer);
+		burst.cancel();
 		observer.disconnect();
 		unfocus?.();
 	};

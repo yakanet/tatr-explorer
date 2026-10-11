@@ -4,10 +4,12 @@ import {
 	formatRepoPath,
 	isBranchName,
 	isLocal,
+	isServed,
 	localRef,
 	parseRepoInput,
 	parseRepoPath,
-	repoKey
+	repoKey,
+	servedRef
 } from './ref.ts';
 
 describe('parseRepoPath', () => {
@@ -185,5 +187,26 @@ describe('a folder on this machine', () => {
 		expect(describeRef(localRef('my-project'))).toBe('my-project');
 		expect(describeRef(localRef())).toBe('a folder on this machine');
 		expect(describeRef(parseRepoPath('owner/repo')!)).toBe('owner/repo');
+	});
+});
+
+describe('the folder the dev server serves', () => {
+	it('has an address of its own', () => {
+		expect(isServed(servedRef())).toBe(true);
+		expect(formatRepoPath(servedRef())).toBe('served');
+	});
+
+	it('is no address where no folder is served, as here and in a build', () => {
+		// The dev server defines which folder it serves; these specs run with none.
+		expect(parseRepoPath('served')).toBeNull();
+	});
+
+	it('is not the local folder, nor the local folder it', () => {
+		expect(isLocal(servedRef())).toBe(false);
+		expect(isServed(localRef())).toBe(false);
+	});
+
+	it('cannot be confused with a repository either', () => {
+		expect(isServed(parseRepoPath('served/repo')!)).toBe(false);
 	});
 });

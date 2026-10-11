@@ -8,6 +8,8 @@
 import type { RepoRef } from '../repo/ref.ts';
 import { githubKind } from './github/kind.ts';
 import { localKind } from './local/kind.ts';
+import { SERVED } from '../served.ts';
+import { servedKind } from './served/kind.ts';
 import { ListingError, type OpenOptions, type Source, type SourceKind } from './source.ts';
 
 /**
@@ -27,8 +29,18 @@ import { ListingError, type OpenOptions, type Source, type SourceKind } from './
  */
 export const KINDS = Object.freeze({
 	local: localKind,
-	github: githubKind
+	github: githubKind,
+	...servedKinds()
 } satisfies Record<string, SourceKind>);
+
+/**
+ * The folder the dev server serves, only when it serves one: a build, and a dev
+ * server started without a folder, carry no served source at all.
+ */
+function servedKinds(): { served?: SourceKind } {
+	if (!SERVED) return {};
+	return { served: servedKind(SERVED) };
+}
 
 /**
  * The source serving `ref`. Throws for a reference no kind claims, as a listing
