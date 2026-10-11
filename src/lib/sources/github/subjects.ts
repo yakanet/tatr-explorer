@@ -11,10 +11,12 @@ import { githubKind } from './kind.ts';
 /**
  * GitHub over `tree`, through both of its doors: the trees API that lists it,
  * and the CDN that serves each file. Read when asked, so a change to `tree`
- * is there the next time either door is knocked on.
+ * is there the next time either door is knocked on. Called with a `this`, it
+ * refuses, as the browser's own `fetch` does with any but the window.
  */
 function forge(tree: Readonly<Record<string, string>>): typeof fetch {
-	return (async (input: RequestInfo | URL) => {
+	return async function (this: unknown, input: RequestInfo | URL) {
+		if (this !== undefined) throw new TypeError('Illegal invocation');
 		const url = new URL(String(input));
 		if (url.hostname === 'api.github.com') {
 			const blobs = Object.entries(tree).map(([path, text]) => ({
@@ -28,7 +30,7 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 		const path = decodeURIComponent(url.pathname.split('/').slice(4).join('/'));
 		if (!Object.hasOwn(tree, path)) return new Response('not found', { status: 404 });
 		return new Response(tree[path]);
-	}) as typeof fetch;
+	} as typeof fetch;
 }
 
 /** A network that does not answer. */

@@ -36,12 +36,14 @@ export async function writeTree(root: string, tree: Record<string, string>): Pro
 
 /**
  * A fetch answered by the dev server's half itself, serving `folder`: no HTTP,
- * but no mock of either side.
+ * but no mock of either side. Called with a `this`, it refuses, as the
+ * browser's own `fetch` does with any but the window.
  */
 export async function serving(folder: string): Promise<typeof fetch> {
 	const served = await locate(folder);
-	return (async (input: RequestInfo | URL) => {
+	return async function (this: unknown, input: RequestInfo | URL) {
+		if (this !== undefined) throw new TypeError('Illegal invocation');
 		const request = new Request(new URL(String(input), 'http://localhost'));
 		return (await answer(served, request)) ?? new Response('not ours', { status: 404 });
-	}) as typeof fetch;
+	} as typeof fetch;
 }

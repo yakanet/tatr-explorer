@@ -404,8 +404,7 @@ describe('a folder on this machine', () => {
 		expect(first.fromCache).toBe(false);
 		expect(await store.list()).toEqual([]);
 
-		openFolder(fromFileList([task('20260101-000001', 110)])!);
-		const second = await loadRepository(source, { store });
+		const second = await loadRepository(open([task('20260101-000001', 110)]), { store });
 		expect(second.fromCache).toBe(false);
 		expect(second.tasks[0].priority).toBe(110);
 	});

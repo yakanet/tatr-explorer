@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
-import { ListingError, type Source } from './source.ts';
+import { ListingError, NoSourceError, type Source } from './source.ts';
 import { directory, entryTree } from './local/fake-directory.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
@@ -159,6 +159,24 @@ describe('reading through a folder', () => {
 		// offers to reopen rather than a Refresh that would do nothing.
 		const source = open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
 		expect(isRereadable(source)).toBe(false);
+	});
+
+	it('is one source for every reading of the folder, until another is picked', async () => {
+		// Coming back to the folder finds it as it was last read, and the URLs it
+		// handed out still good.
+		open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
+		expect(openSource(localRef())).toBe(openSource(localRef()));
+	});
+
+	it('lets go of its folder when another is picked, rather than reading that one', async () => {
+		// A source is the folder it was opened on, never whichever is open now:
+		// a write from the reading being replaced would otherwise land in the
+		// folder just picked, which may be another worktree with the same task ids.
+		const before = open([dropped('tasks/20260101-000001/TASK.md', '# before\n')]);
+		open([dropped('tasks/20260101-000001/TASK.md', '# after\n')]);
+
+		expect(await before.read('tasks/20260101-000001/TASK.md')).toBeNull();
+		await expect(before.list()).rejects.toThrow(NoSourceError);
 	});
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {

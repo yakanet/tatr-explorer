@@ -131,6 +131,49 @@ async function listRepository(
  * forge rather than about sources: both the trees API and raw accept it, so the
  * request that would resolve a default branch by name is never made.
  */
+class GitHubRepository implements Source, Cached, Rereadable, Linked {
+	readonly id = NAME;
+	// Polite to the CDN while still finishing in well under a second.
+	readonly concurrency = 12;
+	readonly label: string;
+	readonly cacheKey: string;
+	readonly #ref: RepoRef;
+	readonly #branch: string;
+	readonly #fetch: typeof fetch;
+	readonly #listers: readonly Lister[] | undefined;
+
+	constructor(ref: RepoRef, options: OpenOptions) {
+		this.#ref = ref;
+		this.#branch = ref.branch ?? 'HEAD';
+		this.#fetch = options.fetchImpl ?? fetch;
+		this.#listers = options.listers;
+		this.label = `${ref.owner}/${ref.name}`;
+		this.cacheKey = repoKey(ref);
+	}
+
+	list(signal?: AbortSignal): Promise<Listing> {
+		return listRepository(this.#ref, { listers: this.#listers, signal });
+	}
+
+	read(path: string, signal?: AbortSignal): Promise<string | null> {
+		return readText(this.#fetch, this.assetUrl(path), signal);
+	}
+
+	assetUrl(path: string): string {
+		return rawUrl(this.#ref, this.#branch, path);
+	}
+
+	fileUrl(path: string): string {
+		return blobUrl(this.#ref, this.#branch, path);
+	}
+
+	/**
+	 * Read again at the price of one request, which is what the reader is asking
+	 * for, and with nothing to prepare: the loader ignores the cache.
+	 */
+	async reread(): Promise<void> {}
+}
+
 export const githubKind = {
 	id: NAME,
 
@@ -139,27 +182,5 @@ export const githubKind = {
 	// method's job once a second forge claims some.
 	claims: (ref) => ref.host.includes('.'),
 
-	open(ref: RepoRef, options: OpenOptions = {}): Source & Cached & Rereadable & Linked {
-		const branch = ref.branch ?? 'HEAD';
-		const doFetch = options.fetchImpl ?? fetch;
-
-		return {
-			id: NAME,
-			label: `${ref.owner}/${ref.name}`,
-			cacheKey: repoKey(ref),
-			// Polite to the CDN while still finishing in well under a second.
-			concurrency: 12,
-
-			list: (signal) => listRepository(ref, { listers: options.listers, signal }),
-
-			read: (path, signal) => readText(doFetch, rawUrl(ref, branch, path), signal),
-
-			assetUrl: (path) => rawUrl(ref, branch, path),
-			fileUrl: (path) => blobUrl(ref, branch, path),
-
-			// Read again at the price of one request, which is what the reader is
-			// asking for, and with nothing to prepare: the loader ignores the cache.
-			reread: async () => {}
-		};
-	}
+	open: (ref: RepoRef, options: OpenOptions = {}) => new GitHubRepository(ref, options)
 } satisfies SourceKind;
