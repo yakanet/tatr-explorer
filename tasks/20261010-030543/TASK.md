@@ -2,7 +2,7 @@
 
 - STATUS: OPEN
 - PRIORITY: 35
-- TAGS: data,ui,scope
+- TAGS: data,ui
 
 This viewer only reads. For a local folder, some browsers can also write, after
 asking the reader for permission. That would let the views act on the backlog
@@ -73,8 +73,8 @@ edit made here the same way as one made in an editor, and makes a file changed
 under the reader's feet rare.
 
 To decide, first: whether writing goes through the File System Access API, as
-above, or through a folder served by the dev server (20261011-150846), which
-works in every browser with no permission prompt but exists only in
-development. Then, for the browser way: whether the permission is asked when
-the folder is opened or on the first edit. And for both: whether an edit can be
-undone from the page.
+above, or through the folder the dev server serves (20261011-150846, written
+through by 20261011-152936), which works in every browser with no permission
+prompt but exists only in development. Then, for the browser way: whether the
+permission is asked when the folder is opened or on the first edit. And for
+both: whether an edit can be undone from the page.
