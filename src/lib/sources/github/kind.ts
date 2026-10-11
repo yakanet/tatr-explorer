@@ -141,7 +141,7 @@ export const githubKind: SourceKind = {
 	claims: (ref) => ref.host.includes('.'),
 
 	open(ref: RepoRef, options: OpenOptions = {}): Source {
-		const branch = options.branch ?? ref.branch ?? 'HEAD';
+		const branch = ref.branch ?? 'HEAD';
 		const doFetch = options.fetchImpl ?? fetch;
 
 		return {

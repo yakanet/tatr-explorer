@@ -66,27 +66,106 @@ describe('what moved since the last reading', () => {
 });
 
 /**
- * A refresh over a real source, and a real failure: an open folder whose grant
- * is gone, which is what every reload of a local repository produces. No mock
- * stands in for `loadRepository`, the point being what the state does when the
- * loader throws, and a source that can genuinely throw is already here.
+ * Readings of a real source: a folder on this machine, which can be rewritten
+ * between two of them and whose grant can be taken back, as every reload does.
+ * No mock stands in for `loadRepository`, the point being what the state does
+ * with what the loader answers, and a source that can genuinely answer it is
+ * already here.
  */
+const file = (path: string, text: string) => {
+	const one = new File([text], path.split('/').pop()!);
+	Object.defineProperty(one, 'webkitRelativePath', { value: `my-project/${path}` });
+	return one;
+};
+
+const task = (id: string, priority: number) =>
+	file(`tasks/${id}/TASK.md`, `# ${id}\n\n- STATUS: OPEN\n- PRIORITY: ${priority}\n`);
+
+/** Opens the folder, holding one task at that priority, as the picker would. */
+const opened = (priority = 90) => {
+	const folder = fromFileList([task('20260101-000001', priority)]);
+	if (folder) openFolder(folder);
+	return localRef();
+};
+
+describe('a refresh', () => {
+	afterEach(() => closeFolder());
+
+	it('keeps the reading on screen while it runs', async () => {
+		// Going back to `listing` unmounted every view, which render a reading
+		// only once it is ready.
+		const repo = new RepositoryState();
+		const ref = opened();
+		await repo.load(ref);
+
+		const pending = repo.refresh();
+		expect(repo.phase).toBe('ready');
+		expect(repo.refreshing).toBe(true);
+		expect(repo.tasks).toHaveLength(1);
+
+		await pending;
+		expect(repo.refreshing).toBe(false);
+	});
+
+	it('compares with the reading on screen, which a folder has too', async () => {
+		const repo = new RepositoryState();
+		const ref = opened(90);
+		await repo.load(ref);
+
+		opened(110);
+		await repo.refresh();
+
+		expect(repo.changes?.moved.get('20260101-000001')).toEqual(['repriorised']);
+	});
+
+	it('compares with the last reading, not the first', async () => {
+		const repo = new RepositoryState();
+		const ref = opened(90);
+		await repo.load(ref);
+		opened(100);
+		await repo.refresh();
+		opened(110);
+		await repo.refresh();
+
+		expect(repo.previous?.tasks[0].priority).toBe(100);
+	});
+
+	it('announces nothing when nothing moved', async () => {
+		const repo = new RepositoryState();
+		const ref = opened();
+		await repo.load(ref);
+		await repo.refresh();
+		expect(repo.changes).toBeNull();
+	});
+
+	it('reads the source the reading came from, where a new reading opens its own', async () => {
+		// The instance is what will hold a subscription or a permission, so it has
+		// to be the same one from one refresh to the next.
+		const repo = new RepositoryState();
+		const ref = opened();
+		await repo.load(ref);
+		const first = repo.source;
+
+		await repo.refresh();
+		expect(repo.source).toBe(first);
+
+		await repo.load(ref);
+		expect(repo.source).not.toBe(first);
+		expect(repo.changes).toBeNull();
+	});
+});
+
+describe('a reference no source claims', () => {
+	it('fails as a host that is not served', async () => {
+		const repo = new RepositoryState();
+		await repo.load({ host: 'intranet', owner: 'team', name: 'tasks' });
+		expect(repo.phase).toBe('failed');
+		expect(repo.failure?.kind).toBe('unsupported-host');
+		expect(repo.source).toBeNull();
+	});
+});
+
 describe('a refresh that fails', () => {
-	const file = (path: string, text: string) => {
-		const one = new File([text], path.split('/').pop()!);
-		Object.defineProperty(one, 'webkitRelativePath', { value: `my-project/${path}` });
-		return one;
-	};
-
-	const task = (id: string, priority: number) =>
-		file(`tasks/${id}/TASK.md`, `# ${id}\n\n- STATUS: OPEN\n- PRIORITY: ${priority}\n`);
-
-	const opened = () => {
-		const folder = fromFileList([task('20260101-000001', 90)]);
-		if (folder) openFolder(folder);
-		return localRef();
-	};
-
 	afterEach(() => closeFolder());
 
 	it('keeps the reading on screen and says only that it was not renewed', async () => {
@@ -98,7 +177,7 @@ describe('a refresh that fails', () => {
 		// The browser takes a folder's grant back on a reload; a spent API budget
 		// arrives at the same place from the other source.
 		closeFolder();
-		await repo.load(ref, true);
+		await repo.refresh();
 
 		expect(repo.phase).toBe('ready');
 		expect(repo.tasks.map((one) => one.id)).toEqual(['20260101-000001']);
@@ -108,20 +187,33 @@ describe('a refresh that fails', () => {
 
 	it('is fatal when there is no reading to keep', async () => {
 		const repo = new RepositoryState();
-		await repo.load(localRef(), true);
+		await repo.load(localRef());
+		await repo.refresh();
 		expect(repo.phase).toBe('failed');
 		expect(repo.failure?.kind).toBe('no-source');
 		expect(repo.refreshFailure).toBeNull();
 	});
 
-	it('gives the comparison back with the reading it belongs to', async () => {
+	it('is tried again from the source already opened, `load` being the one that opens', async () => {
+		const repo = new RepositoryState();
+		await repo.load(localRef());
+		const first = repo.source;
+		expect(repo.phase).toBe('failed');
+
+		opened();
+		await repo.refresh();
+		expect(repo.phase).toBe('ready');
+		expect(repo.source).toBe(first);
+	});
+
+	it('leaves the comparison with the reading it belongs to', async () => {
 		const repo = new RepositoryState();
 		const ref = opened();
 		await repo.load(ref);
 		repo.previous = snapshot([make('20260101-000001', 50)], 5_000);
 
 		closeFolder();
-		await repo.load(ref, true);
+		await repo.refresh();
 
 		// Same tasks on screen, so the badges that explain them stay too.
 		expect(repo.changes?.total).toBe(1);
@@ -132,11 +224,11 @@ describe('a refresh that fails', () => {
 		const ref = opened();
 		await repo.load(ref);
 		closeFolder();
-		await repo.load(ref, true);
+		await repo.refresh();
 		expect(repo.refreshFailure).not.toBeNull();
 
 		opened();
-		await repo.load(ref, true);
+		await repo.refresh();
 		expect(repo.refreshFailure).toBeNull();
 		expect(repo.phase).toBe('ready');
 	});

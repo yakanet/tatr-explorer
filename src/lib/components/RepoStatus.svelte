@@ -77,7 +77,7 @@
 			{#if isLocal(ref)}
 				<FolderPicker label="Choose a folder…" />
 			{:else}
-				<button class="action" onclick={() => repo.load(ref, true)}>Try again</button>
+				<button class="action" onclick={() => repo.refresh()}>Try again</button>
 				{#if ref.branch}
 					<a href={onBranch(ref, undefined)}>Read HEAD instead</a>
 				{/if}

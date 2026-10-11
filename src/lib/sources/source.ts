@@ -30,7 +30,8 @@ export interface Listing {
  *
  * `ListingError` rather than a source error, because listing is the operation
  * that fails this way: a spent budget, a repository that is not there, a host
- * nobody serves. Reading a file never throws (one unreadable task is listed as
+ * nobody serves (which opening a source also says, when no kind claims the
+ * reference at all). Reading a file never throws (one unreadable task is listed as
  * skipped instead of taking the whole load down), and a source with nothing
  * behind it throws {@link NoSourceError}, which is a different sentence.
  */
@@ -134,14 +135,16 @@ export interface Source {
 	fileUrl?(path: string): string;
 }
 
-/** What a caller may say about the reading it wants. */
+/**
+ * What a test may substitute when opening a source. The branch is not among
+ * them: the reference carries it, and a source opened once per reading has no
+ * other caller to hear it from.
+ */
 export interface OpenOptions {
-	/** The branch, when the reference did not carry one. */
-	branch?: string;
-	/** Substitutes for the network, for tests. */
+	/** Substitutes for the network. */
 	fetchImpl?: typeof fetch;
 	/**
-	 * Which listers to try, in order, for tests.
+	 * Which listers to try, in order.
 	 *
 	 * Spelled out rather than named: only a forge owns a chain of these, so the
 	 * type lives with the forge, and a contract that imported it would import an

@@ -59,7 +59,7 @@
 	const taskHref = (id: string) =>
 		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id });
 	const inline = (task: Task) =>
-		renderInline(task.title, { ref, branch: repo.branch, taskId: task.id });
+		renderInline(task.title, { assetUrl: repo.assetUrl, taskId: task.id });
 </script>
 
 <svelte:head>

@@ -1,42 +1,46 @@
 /**
- * Loads a repository's tasks: list once, then read the task files in parallel.
+ * Loads a source's tasks: list once, then read the task files in parallel.
  *
- * Only the listing can be rate-limited, so listers are tried in order (GitHub,
- * then ungh), and the result reports which one answered. Contents always come
- * from raw.githubusercontent, which imposes no budget.
+ * The source is handed in rather than opened here. Which source serves a
+ * reference is decided once, by whoever holds the reading, so that every later
+ * question about that reading (can it be taken again, where does a file live)
+ * goes to the same instance instead of to a copy rebuilt from the reference.
  *
- * A loaded repository is cached and never expires on its own: quota is only ever
- * spent on a first visit or on an explicit refresh, so the reader decides when
- * to pay for fresh data. {@link LoadResult.storedAt} carries the age so the UI
- * can show it next to that refresh control.
+ * A source that names a cache key is cached and never expires on its own: quota
+ * is only ever spent on a first visit or on an explicit refresh, so the reader
+ * decides when to pay for fresh data. {@link LoadResult.storedAt} carries the
+ * age so the UI can show it next to that refresh control.
  *
- * Only metadata is cached: descriptions are more than half the bytes and are
- * cheap to re-read, since raw.githubusercontent costs no quota. What the graph
- * needs from those descriptions, the referenced task ids, is extracted at parse
- * time and kept, so dropping the prose costs no feature.
+ * Only metadata is cached: descriptions are more than half the bytes and cost
+ * no quota to read again. What the graph needs from those descriptions, the
+ * referenced task ids, is extracted at parse time and kept, so dropping the
+ * prose costs no feature.
  */
 import { collectAttachments } from '../tatr/attachments.ts';
-import { snapshot, type Snapshot } from '../tatr/changes.ts';
+import type { Snapshot } from '../tatr/changes.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
-import { describeRef, type RepoRef } from '../repo/ref.ts';
-import { ListingError, NoSourceError, type OpenOptions } from './source.ts';
-import { openSource } from './open.ts';
+import type { Source } from './source.ts';
 import { openStore, type RepoStore } from './store.ts';
 
 export interface LoadOptions {
-	/** Passed through to the source; see {@link OpenOptions.listers}. */
-	listers?: OpenOptions['listers'];
-	/** Parallel reads. Polite to the CDN while still finishing in well under a second. */
+	/** Parallel reads, when the source's own preference is not the one to test. */
 	concurrency?: number;
 	signal?: AbortSignal;
 	/** Called as task files arrive, for progressive rendering. */
 	onProgress?: (done: number, total: number) => void;
-	fetchImpl?: typeof fetch;
 	/** Ignore any cached copy and fetch again. This is what the refresh control does. */
 	refresh?: boolean;
+	/**
+	 * The reading this one replaces, for the result to be compared with.
+	 *
+	 * Given by the caller, who has it on screen, rather than looked up in the
+	 * cache: a folder has no cache and changes all the same, and what the reader
+	 * last saw is what is in front of them, not what another tab last stored.
+	 */
+	previous?: Snapshot | null;
 	/** Where to cache; defaults to IndexedDB, falling back to memory. */
 	store?: RepoStore;
 	now?: () => number;
@@ -66,8 +70,8 @@ export interface LoadResult {
 }
 
 export class NoTasksFolderError extends Error {
-	constructor(ref: RepoRef) {
-		super(`${describeRef(ref)} has no tasks/ folder at its root`);
+	constructor(label: string) {
+		super(`${label} has no tasks/ folder at its root`);
 		this.name = 'NoTasksFolderError';
 	}
 }
@@ -145,12 +149,10 @@ const TASK_FILE = /^tasks\/[^/]+\/TASK\.md$/;
  * place to be cached, and the reader's quota is protected; a source that reads
  * a folder for nothing answers null, and there is no cache to go stale.
  */
-export async function loadRepository(ref: RepoRef, options: LoadOptions = {}): Promise<LoadResult> {
-	const source = openSource(ref, { fetchImpl: options.fetchImpl, listers: options.listers });
-	if (!source) {
-		throw new ListingError('unsupported-host', ref.host, `${ref.host} is not served`);
-	}
-
+export async function loadRepository(
+	source: Source,
+	options: LoadOptions = {}
+): Promise<LoadResult> {
 	// For a forge a refresh is this function ignoring the cache; for a folder it
 	// is the folder being walked again, which only the source can do.
 	if (options.refresh) await source.refresh?.();
@@ -173,17 +175,13 @@ export async function loadRepository(ref: RepoRef, options: LoadOptions = {}): P
 		}
 	}
 
-	// What the reader last saw, read before the write that loses it. Only a
-	// refresh has anything behind it: a first visit is not a comparison.
-	const seen = key && options.refresh ? await store.read<CachedLoad>(key) : null;
-
 	const listing = await source.list(options.signal);
 	const taskFiles = listing.entries.filter((entry) => TASK_FILE.test(entry.path));
 	// Free: the whole tree came down in the listing, and these are the entries
 	// that were being discarded.
 	const attachments = collectAttachments(listing.entries);
 	if (!listing.entries.some((entry) => entry.path.startsWith('tasks/'))) {
-		throw new NoTasksFolderError(ref);
+		throw new NoTasksFolderError(source.label);
 	}
 
 	let done = 0;
@@ -207,7 +205,8 @@ export async function loadRepository(ref: RepoRef, options: LoadOptions = {}): P
 		...assemble(contents, attachments),
 		tags: parseTagsFile(tagsFile ?? ''),
 		branch: listing.branch,
-		previous: seen ? snapshot(seen.value.tasks, seen.storedAt) : null
+		// Stored with the reading, so the news it brought survives a reload.
+		previous: options.previous ?? null
 	};
 
 	if (key) {
@@ -223,17 +222,10 @@ export async function loadRepository(ref: RepoRef, options: LoadOptions = {}): P
  * and roughly 30 ms, so it is cheaper to re-read than to keep every description
  * in storage.
  */
-export async function loadTaskDescription(
-	ref: RepoRef,
-	branch: string,
-	id: string,
-	options: { fetchImpl?: typeof fetch; signal?: AbortSignal } = {}
-): Promise<string | null> {
+export async function loadTaskDescription(source: Source, id: string): Promise<string | null> {
 	// One read, wherever the file is: a fetch of a raw URL, or a file already in
-	// memory. The branch is passed rather than assumed, being what the reading
-	// resolved.
-	const source = openSource(ref, { branch, fetchImpl: options.fetchImpl });
-	const text = source ? await source.read(`tasks/${id}/TASK.md`, options.signal) : null;
+	// memory.
+	const text = await source.read(`tasks/${id}/TASK.md`);
 	// `null` is a file that could not be read; an empty one is a file that says
 	// nothing, and those are not the same answer even where they look alike.
 	return text === null ? null : parseTaskMd(text).description;

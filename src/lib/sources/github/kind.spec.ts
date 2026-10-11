@@ -7,7 +7,7 @@ const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
 /** Through the contract, which is the only way the application reaches these. */
-const open = (repo = ref, branch?: string) => githubKind.open(repo, branch ? { branch } : {});
+const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
 
 describe('the URL of a file', () => {
 	it('reads it from the CDN that costs no budget', () => {

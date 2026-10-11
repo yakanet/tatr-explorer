@@ -9,7 +9,6 @@
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import FolderPicker from '#lib/components/FolderPicker.svelte';
 	import { formatRepoPath, isLocal } from '#lib/repo/ref.ts';
-	import { openSource } from '#lib/sources/open.ts';
 	import { RepositoryState, describeAge, REPOSITORY } from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
 
@@ -46,16 +45,8 @@
 	/** A folder on this machine, which has no branch to choose. */
 	const local = $derived(isLocal(ref));
 
-	/**
-	 * Whether Refresh means anything here, which only the source knows.
-	 *
-	 * Recomputed when the reference changes, and a folder being opened is not a
-	 * change of reference: it is module state, which nothing here observes. It
-	 * holds because every way of opening a folder ends in a navigation that
-	 * renews `ref`; if one ever does not, this is where it will read `Refresh`
-	 * over a folder that cannot be refreshed.
-	 */
-	const repeatable = $derived(openSource(ref)?.repeatable ?? false);
+	/** Whether Refresh means anything here, which only the source of the reading knows. */
+	const repeatable = $derived(repo.source?.repeatable ?? false);
 
 	let helping = $state(false);
 
@@ -157,7 +148,11 @@
 				{/if}
 			</span>
 			{#if repeatable}
-				<button class="action" onclick={() => repo.load(ref, true)}>Refresh</button>
+				<!-- The reading stays on screen while the next one is taken, so the
+				     button is what says one is under way. -->
+				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
+					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
+				</button>
 			{:else}
 				<!-- A reading that cannot be taken again: a directory input hands over
 				     files and no way back to the folder they came from, so refreshing

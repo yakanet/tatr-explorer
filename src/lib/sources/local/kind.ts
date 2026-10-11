@@ -21,8 +21,17 @@ import { fromDirectoryHandle, listFolder, type LocalFolder, readBranch } from '.
  */
 let opened: LocalFolder | null = null;
 let openedHandle: FileSystemDirectoryHandle | null = null;
-/** One `blob:` per file, so a body rendered twice does not leak two. */
-let assets = new Map<string, string>();
+/**
+ * One `blob:` per path, so a body rendered twice does not leak two.
+ *
+ * Kept through a reread, which hands over a new `File` for every file. One that
+ * did not change keeps its URL: the views go on showing a reading until the
+ * next one lands, and a body that is not rendered again still links to it,
+ * while one that is comes out as the same HTML. One that changed gets a new
+ * URL and the old one is revoked then, having led to a snapshot the browser
+ * refuses to read once its file changed on disk.
+ */
+let assets = new Map<string, { file: File; url: string }>();
 
 export function openFolder(folder: LocalFolder, handle?: FileSystemDirectoryHandle): void {
 	closeFolder();
@@ -40,15 +49,13 @@ function canReread(): boolean {
 }
 
 /** Rereads the folder from its handle, for the refresh control. */
-async function reread(): Promise<LocalFolder | null> {
-	if (!openedHandle) return opened;
-	const folder = await fromDirectoryHandle(openedHandle);
-	openFolder(folder, openedHandle);
-	return folder;
+async function reread(): Promise<void> {
+	// The folder alone: closing it would revoke what the reading on screen links to.
+	if (openedHandle) opened = await fromDirectoryHandle(openedHandle);
 }
 
 export function closeFolder(): void {
-	for (const url of assets.values()) URL.revokeObjectURL(url);
+	for (const { url } of assets.values()) URL.revokeObjectURL(url);
 	assets = new Map();
 	opened = null;
 	openedHandle = null;
@@ -58,17 +65,23 @@ export function closeFolder(): void {
  * A URL for one file of the folder, which is what a forge answers with a raw
  * endpoint: an image in a task's body, or a file in its Files panel.
  *
- * `blob:` URLs live until revoked, so they are made once per path and dropped
- * with the folder they came from.
+ * `blob:` URLs live until revoked, so they are made once per version of a file
+ * and dropped with the folder they came from.
  */
 function assetUrl(path: string): string | null {
 	const file = opened?.files.get(path);
 	if (!file) return null;
-	const existing = assets.get(path);
-	if (existing) return existing;
+	const known = assets.get(path);
+	if (known && unchanged(known.file, file)) return known.url;
+	if (known) URL.revokeObjectURL(known.url);
 	const url = URL.createObjectURL(file);
-	assets.set(path, url);
+	assets.set(path, { file, url });
 	return url;
+}
+
+/** One file read twice, which a reread hands over as two objects. */
+function unchanged(before: File, after: File): boolean {
+	return before.size === after.size && before.lastModified === after.lastModified;
 }
 
 /**
@@ -97,7 +110,7 @@ export const localKind: SourceKind = {
 			// Only where a handle was kept: a directory input hands over files and
 			// no way back to the folder they came from.
 			repeatable: canReread(),
-			refresh: async () => void (await reread()),
+			refresh: reread,
 
 			async list() {
 				const open = openedFolder();

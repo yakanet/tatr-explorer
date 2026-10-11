@@ -6,9 +6,15 @@
  * split is what lets the UI explain a failure instead of just spinning.
  */
 import { loadRepository, NoTasksFolderError } from '../sources/load.ts';
-import { ListingError, NoSourceError, type ListingFailure } from '../sources/source.ts';
+import { openSource } from '../sources/open.ts';
+import {
+	ListingError,
+	NoSourceError,
+	type ListingFailure,
+	type Source
+} from '../sources/source.ts';
 import { describeRef, type RepoRef } from '../repo/ref.ts';
-import { compare, type Changes, type Movement, type Snapshot } from '../tatr/changes.ts';
+import { compare, snapshot, type Changes, type Movement, type Snapshot } from '../tatr/changes.ts';
 import type { Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
@@ -24,7 +30,12 @@ export interface Failure {
 
 export class RepositoryState {
 	phase = $state<Phase>('idle');
-	tasks = $state<Task[]>([]);
+	/**
+	 * Raw, like `previous`: both are replaced whole and never edited in place.
+	 * A deep proxy would cost a signal per field read, and its arrays would end
+	 * up in the comparison the cache stores, which IndexedDB refuses to clone.
+	 */
+	tasks = $state.raw<Task[]>([]);
 	skipped = $state<{ id: string; reason: string }[]>([]);
 	tags = $state<TagDescriptions>({ descriptions: new Map(), redefined: [] });
 	/** Files read so far, and how many there are, for the progress bar. */
@@ -36,7 +47,6 @@ export class RepositoryState {
 	ref = $state<RepoRef | null>(null);
 	fromCache = $state(false);
 	storedAt = $state(0);
-	branch = $state('HEAD');
 	failure = $state<Failure | null>(null);
 	/**
 	 * A refresh that could not be taken, over a reading that stands.
@@ -48,7 +58,26 @@ export class RepositoryState {
 	 */
 	refreshFailure = $state<Failure | null>(null);
 	/** The state the reader last saw, when this reading replaced one. */
-	previous = $state<Snapshot | null>(null);
+	previous = $state.raw<Snapshot | null>(null);
+	/**
+	 * The source the reading came from, opened once per reference and kept
+	 * across its refreshes.
+	 *
+	 * Held rather than reopened from the reference wherever it is needed, so a
+	 * question about the reading (can it be taken again, where does one of its
+	 * files live) goes to the instance that produced it, and a source holding
+	 * something of its own holds it once. Raw: an object of closures, which
+	 * there is nothing to gain by proxying.
+	 */
+	source = $state.raw<Source | null>(null);
+	/**
+	 * A refresh in flight over a reading that stays on screen until it lands.
+	 *
+	 * The phase does not move for it. Every view renders a `ready` reading, and
+	 * going back to `listing` unmounted them, losing the scroll position and
+	 * whatever was being typed, while the reading they showed was still true.
+	 */
+	refreshing = $state(false);
 
 	#controller: AbortController | null = null;
 
@@ -78,41 +107,82 @@ export class RepositoryState {
 		return changes.total > 0 ? changes : null;
 	});
 
-	/** Loads a repository. Pass `refresh` to spend quota and get a fresh view. */
-	async load(ref: RepoRef, refresh = false): Promise<void> {
+	/**
+	 * Loads a reference afresh: a source of its own, and nothing kept from the
+	 * reading before, which belonged to whatever was read last.
+	 *
+	 * Reads nothing of this state. It runs inside the layout's effect, and a
+	 * read here would make that effect depend on what this method writes: it
+	 * re-ran, its cleanup aborted the reading in flight, and the page stayed on
+	 * its loading screen forever.
+	 */
+	load(ref: RepoRef): Promise<void> {
+		return this.#read(ref, { refresh: false, source: null, over: null });
+	}
+
+	/**
+	 * Takes the reading again, past the cache. The one on screen stays until the
+	 * new one lands, read from the same source, and is what it is compared with.
+	 *
+	 * Called from a click, never from an effect, which is what lets it read the
+	 * state freely.
+	 */
+	refresh(): Promise<void> {
+		const { ref, source } = this;
+		if (!ref) return Promise.resolve();
+		if (this.phase === 'ready' && source) {
+			const over = snapshot(this.tasks, this.storedAt);
+			return this.#read(ref, { refresh: true, source, over });
+		}
+		// Nothing on screen to keep, as after a failure: the loading steps again,
+		// from the source already opened, `load` being the one place that opens.
+		return this.#read(ref, { refresh: true, source, over: null });
+	}
+
+	/**
+	 * Takes a reading of `ref`, from `source` when one was opened already.
+	 *
+	 * `over` is the reading on screen when it stays there meanwhile, for the new
+	 * one to be compared with; null when there is nothing to keep, and the page
+	 * shows the loading steps instead. The two are apart because a source can
+	 * outlive its reading: a failed one leaves the source behind.
+	 */
+	async #read(
+		ref: RepoRef,
+		{ refresh, source, over }: { refresh: boolean; source: Source | null; over: Snapshot | null }
+	): Promise<void> {
 		this.#controller?.abort();
 		const controller = new AbortController();
 		this.#controller = controller;
-
-		// Only a refresh over a reading has something to protect: from `failed`, or
-		// from another repository, there is nothing on screen worth keeping.
-		//
-		// Both reads are behind `refresh` on purpose. This method is called from
-		// an effect, so a read here makes that effect depend on state this same
-		// method then writes, and `previous` is written a few lines down. Read
-		// unconditionally, it re-ran the effect, whose cleanup aborted the reading
-		// in flight, which left the page on its loading screen forever: exactly as
-		// long as a cached comparison kept the value changing.
-		const standing = refresh && this.phase === 'ready';
-		const held = standing ? this.previous : null;
+		const standing = over !== null;
 
 		this.ref = ref;
-		this.phase = 'listing';
-		this.failure = null;
+		// Before the source is opened, which throws for a reference nothing claims:
+		// the last reference's source must not stay behind for this one.
+		this.source = source;
 		this.refreshFailure = null;
-		this.done = 0;
-		this.total = 0;
-		// A comparison belongs to the reading that produced it. One state serves
-		// every view, so without this a move to another repository would announce
-		// the last one's news over the new one's tasks.
-		this.previous = null;
+		this.refreshing = standing;
+		if (!standing) {
+			this.phase = 'listing';
+			this.failure = null;
+			this.done = 0;
+			this.total = 0;
+			// A comparison belongs to the reading that produced it. One state serves
+			// every view, so without this a move to another repository would
+			// announce the last one's news over the new one's tasks.
+			this.previous = null;
+		}
 
 		try {
-			const result = await loadRepository(ref, {
+			const read = source ?? openSource(ref);
+			this.source = read;
+			const result = await loadRepository(read, {
 				refresh,
+				previous: over,
 				signal: controller.signal,
 				onProgress: (done, total) => {
-					if (controller.signal.aborted) return;
+					// The progress panel is for a page with nothing on it yet.
+					if (controller.signal.aborted || standing) return;
 					this.phase = 'reading';
 					this.done = done;
 					this.total = total;
@@ -126,24 +196,28 @@ export class RepositoryState {
 			this.label = result.label;
 			this.fromCache = result.fromCache;
 			this.storedAt = result.storedAt;
-			this.branch = result.branch;
 			this.previous = result.previous;
 			this.phase = 'ready';
+			this.refreshing = false;
 		} catch (error) {
 			if (controller.signal.aborted) return;
+			this.refreshing = false;
 			if (standing) {
-				// The comparison goes back with the reading it belongs to: the tasks
-				// were never replaced, so its badges would otherwise vanish for a
-				// reason the reader has no way to see.
-				this.previous = held;
+				// Nothing on screen was touched, the comparison explaining it
+				// included: only renewing them failed.
 				this.refreshFailure = describe(error);
-				this.phase = 'ready';
 				return;
 			}
 			this.failure = describe(error);
 			this.phase = 'failed';
 		}
 	}
+
+	/**
+	 * Where one of the reading's files loads from, for the renderer. An arrow,
+	 * being handed over as a callback.
+	 */
+	readonly assetUrl = (path: string): string | null => this.source?.assetUrl(path) ?? null;
 
 	/** What a marked row says on hover: how it moved, and since when. */
 	describeMoves(moves: Movement[]): string {

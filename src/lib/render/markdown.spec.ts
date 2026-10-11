@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseRepoPath } from '../repo/ref.ts';
 import { renderInline, renderMarkdown, resolveAttachment, splitJournal } from './markdown.ts';
 
 const options = {
-	ref: parseRepoPath('owner/repo')!,
-	branch: 'main',
+	// What a forge's source answers, spelled out: which URL a path becomes is
+	// the source's business, and what is tested here is that it is asked.
+	assetUrl: (path: string) => `https://raw.githubusercontent.com/owner/repo/main/${path}`,
 	taskId: '20260826-200847'
 };
 

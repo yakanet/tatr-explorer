@@ -109,7 +109,7 @@
 	const taskHref = (id: string) =>
 		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id });
 	const inline = (title: string, taskId: string) =>
-		renderInline(title, { ref, branch: repo.branch, taskId });
+		renderInline(title, { assetUrl: repo.assetUrl, taskId });
 	const anchor = (id: string) => `pivot-${id}`;
 
 	/**

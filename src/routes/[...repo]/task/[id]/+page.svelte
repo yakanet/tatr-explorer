@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
-	import { openSource } from '#lib/sources/open.ts';
 	import {
 		renderInline,
 		renderMarkdown,
@@ -38,9 +37,11 @@
 			loadingBody = false;
 			return;
 		}
+		const source = repo.source;
+		if (!source) return;
 		loadingBody = true;
 		let cancelled = false;
-		loadTaskDescription(ref, repo.branch, current.id).then((text) => {
+		loadTaskDescription(source, current.id).then((text) => {
 			if (cancelled) return;
 			body = text ?? '';
 			loadingBody = false;
@@ -56,8 +57,7 @@
 		resolve('/[...repo]/task/[id]', { repo: formatRepoPath(ref), id: other });
 
 	const renderOptions = $derived({
-		ref,
-		branch: repo.branch,
+		assetUrl: repo.assetUrl,
 		taskId: id,
 		// An id this repository does not have (most of the ones our tasks cite
 		// are upstream's) would lead a reader to `No such task`, and this task's
@@ -76,7 +76,7 @@
 
 	/** `null` when a path climbs out of `tasks/`, which the panel then shows inert. */
 	const attachmentUrl = (name: string) =>
-		task ? resolveAttachment({ ref, branch: repo.branch, taskId: task.id }, name) : null;
+		task ? resolveAttachment({ assetUrl: repo.assetUrl, taskId: task.id }, name) : null;
 
 	// A task citing itself is neither a task it refers to nor one referring here,
 	// which together would read "mutual": it has a line of its own.
@@ -101,9 +101,7 @@
 	 */
 	// Absent for a folder on this machine, which is the source saying there is no
 	// page anywhere to link this file to, rather than this view knowing that.
-	const fileUrl = $derived(
-		openSource(ref, { branch: repo.branch })?.fileUrl?.(`tasks/${id}/TASK.md`) ?? null
-	);
+	const fileUrl = $derived(repo.source?.fileUrl?.(`tasks/${id}/TASK.md`) ?? null);
 
 	const listHref = $derived(resolve('/[...repo]/list', { repo: formatRepoPath(ref) }));
 </script>

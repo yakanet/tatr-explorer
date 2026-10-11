@@ -10,16 +10,21 @@
  *
  * Relative links still have to be rewritten. A task refers to its attachments
  * as `./screenshot.png`, which means nothing once the markdown leaves the
- * repository, so they are resolved against the task's own folder on the CDN.
+ * repository, so they are resolved against the task's own folder, wherever the
+ * source serves it: a CDN for a forge, a `blob:` for a folder on the disk.
  */
 import MarkdownIt, { type StateCore, type Token } from 'markdown-it';
-import type { RepoRef } from '../repo/ref.ts';
-import { openSource } from '../sources/open.ts';
 import { scanHuidSpans } from '../tatr/huid.ts';
 
 export interface RenderOptions {
-	ref: RepoRef;
-	branch: string;
+	/**
+	 * Where a file of the repository loads from, or `null` for one it does not
+	 * have: a raw endpoint for a forge, a `blob:` for a file already in memory.
+	 *
+	 * Handed in, as the reading's source answers it: only the source knows, and
+	 * a source opened here again from a reference would be a second one.
+	 */
+	assetUrl: (path: string) => string | null;
 	/** The task whose folder relative links resolve against. */
 	taskId: string;
 	/**
@@ -63,9 +68,7 @@ export function resolveAttachment(options: RenderOptions, url: string): string |
 	const path = stack.join('/');
 	// Anything outside tasks/ is not an attachment of this repository's tasks.
 	if (!path.startsWith('tasks/')) return null;
-	// Only the source knows how one of its files becomes a URL: a raw endpoint
-	// for a forge, a `blob:` for a file already in memory.
-	return openSource(options.ref, { branch: options.branch })?.assetUrl(path) ?? null;
+	return options.assetUrl(path);
 }
 
 /**

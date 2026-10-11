@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
-import { fromFileList } from './local/folder.ts';
+import { ListingError } from './source.ts';
+import { directory } from './local/fake-directory.ts';
+import { fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
 const refs: RepoRef[] = [
@@ -41,24 +43,30 @@ describe('the registry', () => {
 describe('openSource', () => {
 	it('opens a repository on a forge', () => {
 		const source = openSource(parseRepoPath('owner/repo')!);
-		expect(source?.id).toBe('github');
-		expect(source?.label).toBe('owner/repo');
-		expect(source?.cacheKey).toBe('github.com/owner/repo@');
-		expect(source?.fileUrl?.('tasks/a/TASK.md')).toContain('/blob/HEAD/tasks/a/TASK.md');
+		expect(source.id).toBe('github');
+		expect(source.label).toBe('owner/repo');
+		expect(source.cacheKey).toBe('github.com/owner/repo@');
+		expect(source.fileUrl?.('tasks/a/TASK.md')).toContain('/blob/HEAD/tasks/a/TASK.md');
 	});
 
-	it('reads a forge at the branch it was asked for', () => {
-		const source = openSource(parseRepoPath('owner/repo')!, { branch: 'dev' });
-		expect(source?.assetUrl('tasks/a/shot.png')).toContain('/repo/dev/tasks/a/shot.png');
+	it('reads a forge at the branch its reference names', () => {
+		const source = openSource(parseRepoPath('owner/repo@dev')!);
+		expect(source.assetUrl('tasks/a/shot.png')).toContain('/repo/dev/tasks/a/shot.png');
+	});
+
+	it('refuses a reference no kind claims, as a host it cannot serve', () => {
+		const ref: RepoRef = { host: 'intranet', owner: 'team', name: 'tasks' };
+		expect(() => openSource(ref)).toThrow(ListingError);
+		expect(() => openSource(ref)).toThrow('intranet is not served');
 	});
 
 	it('opens the folder on this machine', () => {
 		const source = openSource(localRef());
-		expect(source?.id).toBe('local');
+		expect(source.id).toBe('local');
 		// The two members that say what a folder is: nowhere to cache it, and no
 		// page anywhere to link one of its files to.
-		expect(source?.cacheKey).toBeNull();
-		expect(source?.fileUrl).toBeUndefined();
+		expect(source.cacheKey).toBeNull();
+		expect(source.fileUrl).toBeUndefined();
 	});
 });
 
@@ -85,7 +93,7 @@ describe('reading through a forge', () => {
 			return new Response('# a task\n', { status: 200 });
 		}) as unknown as typeof fetch;
 
-		const source = openSource(ref, { fetchImpl })!;
+		const source = openSource(ref, { fetchImpl });
 		expect(await source.read('tasks/a/TASK.md')).toBe('# a task\n');
 		expect(asked).toEqual(['https://raw.githubusercontent.com/owner/repo/HEAD/tasks/a/TASK.md']);
 	});
@@ -93,7 +101,7 @@ describe('reading through a forge', () => {
 	it('answers null for a file the CDN refuses, rather than throwing', async () => {
 		const fetchImpl = (async () =>
 			new Response('nope', { status: 404 })) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl })!.read('tasks/a/TASK.md')).toBeNull();
+		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
 	});
 
 	it('answers null when the network does not answer at all', async () => {
@@ -102,11 +110,11 @@ describe('reading through a forge', () => {
 		const fetchImpl = (async () => {
 			throw new TypeError('Failed to fetch');
 		}) as unknown as typeof fetch;
-		expect(await openSource(ref, { fetchImpl })!.read('tasks/a/TASK.md')).toBeNull();
+		expect(await openSource(ref, { fetchImpl }).read('tasks/a/TASK.md')).toBeNull();
 	});
 
 	it('can be refreshed, having only a request to spend', () => {
-		const source = openSource(ref)!;
+		const source = openSource(ref);
 		expect(source.repeatable).toBe(true);
 		// Nothing for the source to do: a forge's refresh is the loader ignoring
 		// the cache.
@@ -117,7 +125,7 @@ describe('reading through a forge', () => {
 describe('reading through a folder', () => {
 	const open = (files: File[]) => {
 		openFolder(fromFileList(files)!);
-		return openSource(localRef())!;
+		return openSource(localRef());
 	};
 
 	afterEach(() => closeFolder());
@@ -147,6 +155,25 @@ describe('reading through a folder', () => {
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {
 		closeFolder();
-		await expect(openSource(localRef())!.list()).rejects.toThrow(/No folder is open/);
+		await expect(openSource(localRef()).list()).rejects.toThrow(/No folder is open/);
+	});
+
+	it('keeps the URL of an unchanged file through a refresh, until the folder goes', async () => {
+		// The views go on showing a reading until the next one lands, and a body
+		// that is not rendered again still links to what was handed out before;
+		// one that is comes out as the same HTML.
+		const handle = directory('my-project', { 'tasks/20260101-000001/shot.png': 'png' });
+		openFolder(await fromDirectoryHandle(handle), handle);
+		const source = openSource(localRef());
+		const revoke = vi.spyOn(URL, 'revokeObjectURL');
+		const before = source.assetUrl('tasks/20260101-000001/shot.png');
+
+		await source.refresh?.();
+		expect(source.assetUrl('tasks/20260101-000001/shot.png')).toBe(before);
+		expect(revoke).not.toHaveBeenCalled();
+
+		closeFolder();
+		expect(revoke).toHaveBeenCalledWith(before);
+		revoke.mockRestore();
 	});
 });
