@@ -61,26 +61,27 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
  * A name for a file attached to a task: `wanted` reduced to letters, digits,
  * `.`, `-` and `_`, so that a link to it needs no escaping, and numbered `-2`,
  * `-3` before its extension while `taken` holds it. Accents go and their
- * letters stay; a leading dot goes too, as a dotfile is not listed as an
- * attachment.
+ * letters stay. A name is never hidden, as a dotfile is not listed as an
+ * attachment, and `taken` is compared without case, as the disks of macOS and
+ * Windows compare names.
  */
 export function attachmentName(wanted: string, taken: ReadonlySet<string>): string {
-	const clean =
-		wanted
-			.normalize('NFD')
-			.replace(/\p{Mn}+/gu, '')
-			.replace(/[^A-Za-z0-9._-]+/g, '-')
-			.replace(/-+(?=\.)|^[-.]+|-+$/g, '') || 'file';
-	const [stem, extension] = splitExtension(clean);
-	let name = clean;
-	for (let n = 2; taken.has(name); n += 1) name = `${stem}-${n}${extension}`;
+	const cleaned = wanted
+		.normalize('NFD')
+		.replace(/\p{Mn}+/gu, '')
+		.replace(/[^A-Za-z0-9._-]+/g, '-');
+	const [stem, extension] = splitExtension(cleaned);
+	const base = stem.replace(/^[-.]+|[-.]+$/g, '') || 'file';
+	const held = new Set([...taken].map((name) => name.toLowerCase()));
+	let name = base + extension;
+	for (let n = 2; held.has(name.toLowerCase()); n += 1) name = `${base}-${n}${extension}`;
 	return name;
 }
 
-/** `name` cut before its extension, or whole with an empty extension when it has none. */
+/** `name` cut before its last dot, which stays with the extension; whole when there is none. */
 function splitExtension(name: string): [string, string] {
 	const dot = name.lastIndexOf('.');
-	if (dot <= 0) return [name, ''];
+	if (dot < 0) return [name, ''];
 	return [name.slice(0, dot), name.slice(dot)];
 }
 

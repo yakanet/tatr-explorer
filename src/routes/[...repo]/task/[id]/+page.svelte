@@ -90,6 +90,12 @@
 		if (saved) sheet = null;
 	}
 
+	// A sheet let go of, closed or replaced, gives back the URLs of its files.
+	$effect(() => {
+		const open = sheet;
+		return () => open?.close();
+	});
+
 	askBeforeLeaving(() => dirty, 'Leave this task without saving your changes?');
 	// The page stays mounted from one task to the next, and so would the sheet.
 	onNavigate(() => {

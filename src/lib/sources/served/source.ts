@@ -90,6 +90,11 @@ export class ServedSource implements Source, Rereadable, Writable {
 		return 'written';
 	}
 
+	/** Needs no answer: the dev server's routes write for its own page only. */
+	async allow(): Promise<boolean> {
+		return true;
+	}
+
 	/** Returns the dev server's response, whatever its status, or throws if it does not answer. */
 	async #ask(url: string, init: RequestInit): Promise<Response> {
 		// Called unbound: the browser's own `fetch` refuses any `this` but the window.

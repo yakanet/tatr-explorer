@@ -29,9 +29,12 @@ export function taskLinks(
 	};
 }
 
-/** The sheet of a new task. */
+/**
+ * The sheet of a new task: `task/new`, which no task id can be, rather than
+ * `new`, which a repository can be named.
+ */
 export function newTaskHref(ref: RepoRef): string {
-	return resolve('/[...repo]/new', { repo: formatRepoPath(ref) });
+	return resolve('/[...repo]/task/new', { repo: formatRepoPath(ref) });
 }
 
 /** The list view, before any query. */

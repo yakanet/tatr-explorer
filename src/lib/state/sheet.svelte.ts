@@ -3,7 +3,7 @@
  * task's page hold alike.
  */
 import type { Extras, FileWrite, RepositoryState } from './repository.svelte.ts';
-import { attachmentPath, type RenderOptions } from '../render/markdown.ts';
+import { attachmentPath, linkedPaths, type RenderOptions } from '../render/markdown.ts';
 import { attachmentName, wantedName } from '../tatr/attachments.ts';
 import { newTags, tagOptions } from '../tatr/stats.ts';
 import { describedTagsFile, TAGS_FILE } from '../tatr/tags-file.ts';
@@ -30,8 +30,8 @@ export class Sheet {
 	/** The files pasted or dropped, not written yet. */
 	#files = $state.raw<PendingFile[]>([]);
 	readonly #repo: Read;
-	/** The names the task's folder holds already. */
-	readonly #held: readonly string[];
+	/** The names the task's folder holds already, those the sheet wrote included. */
+	readonly #held: Set<string>;
 
 	readonly dirty = $derived.by(() => differing(this.opened, this.draft).length > 0);
 	/** The repository's tags, which the tags field offers. */
@@ -45,7 +45,7 @@ export class Sheet {
 	constructor(opened: TaskFields, repo: Read, task?: Task) {
 		this.opened = opened;
 		this.#repo = repo;
-		this.#held = (task?.attachments ?? []).map((attachment) => attachment.name);
+		this.#held = new Set((task?.attachments ?? []).map((attachment) => attachment.name));
 		// Its own tags, so that no edit of the draft reaches what it was opened on.
 		this.draft = $state({ ...opened, tags: [...opened.tags] });
 	}
@@ -76,26 +76,41 @@ export class Sheet {
 	}
 
 	/**
-	 * What Save writes besides the task's file: the files the description
-	 * still links, then the descriptions typed for new tags, blank ones left out.
+	 * What Save writes besides the task's file: the files the description still
+	 * links, as the preview finds its links, then the descriptions typed for new
+	 * tags, blank ones left out.
 	 */
 	extras(): Extras {
-		const linked = this.#files.filter((pending) => this.draft.description.includes(pending.name));
+		const description = this.draft.description;
+		const files = this.#files;
 		const tags = new Map<string, string>();
 		for (const tag of this.fresh) {
-			const description = this.described[tag]?.trim();
-			if (description) tags.set(tag, description);
+			const typed = this.described[tag]?.trim();
+			if (typed) tags.set(tag, typed);
 		}
 		return (id) => {
-			const files: FileWrite[] = linked.map(({ name, file }) => ({
-				path: `tasks/${id}/${name}`,
-				contents: file
-			}));
-			if (tags.size > 0) {
-				files.push({ path: TAGS_FILE, rewrite: (before) => describedTagsFile(before, tags) });
+			const linked = linkedPaths(description, id);
+			const writes: FileWrite[] = [];
+			for (const pending of files) {
+				const path = `tasks/${id}/${pending.name}`;
+				if (!linked.has(path)) continue;
+				writes.push({ path, contents: pending.file, onwritten: () => this.#forget(pending) });
 			}
-			return files;
+			if (tags.size > 0) {
+				writes.push({ path: TAGS_FILE, rewrite: (before) => describedTagsFile(before, tags) });
+			}
+			return writes;
 		};
+	}
+
+	/**
+	 * Lets go of a file once written, which the preview then finds where the
+	 * source has it, and keeps its name as taken.
+	 */
+	#forget(pending: PendingFile): void {
+		URL.revokeObjectURL(pending.url);
+		this.#files = this.#files.filter((other) => other !== pending);
+		this.#held.add(pending.name);
 	}
 
 	/** Lets go of the previews' URLs, once the sheet is closed. */

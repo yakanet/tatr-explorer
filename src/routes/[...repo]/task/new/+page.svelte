@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Creates a task from the editing sheet opened empty, where the source writes.
-	import { getContext } from 'svelte';
+	import { getContext, onDestroy } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import EditSheet from '#lib/components/EditSheet.svelte';
 	import Properties from '#lib/components/Properties.svelte';
@@ -50,6 +50,7 @@
 	});
 
 	askBeforeLeaving(() => sheet.dirty && !settled, 'Leave this new task without saving it?');
+	onDestroy(() => sheet.close());
 </script>
 
 <svelte:head>

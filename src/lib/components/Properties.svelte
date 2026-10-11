@@ -55,11 +55,15 @@
 		else input.value = String(fields.priority);
 	}
 
-	function tagTyped(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
-		if (!fields || event.key !== 'Enter') return;
-		const input = event.currentTarget;
+	/** Adds the tags typed in `input` to the draft, and empties it. */
+	function addTags(input: HTMLInputElement) {
+		if (!fields) return;
 		fields.tags = parseTags(input.value).reduce(tagged, fields.tags);
 		input.value = '';
+	}
+
+	function tagTyped(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (event.key === 'Enter') addTags(event.currentTarget);
 	}
 
 	function untag(tag: string) {
@@ -101,6 +105,7 @@
 							placeholder="add a tag"
 							list="{id}-tags"
 							onkeydown={tagTyped}
+							onchange={(event) => addTags(event.currentTarget)}
 						/>
 						<datalist id="{id}-tags">
 							{#each known.filter((one) => !fields.tags.includes(one.name)) as tag (tag.name)}

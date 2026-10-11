@@ -61,7 +61,9 @@ between. A creation leaves nothing for Undo, which only writes a file back.
 The New task button and `n` show where `repo.editable` holds, `n` in the key
 help too. A key that opens something (`n`, `b`, `1` to `9`) now works from the
 help, which it closes first; behind the panel only `?` and Escape acted, so `n`
-read there did nothing. The page is `new` under the repository; Cancel goes back where the
-reader came from, and leaving a typed draft asks first. The sheet's components
-moved to `src/lib/components`, two pages using them now, and `Properties` takes
-the properties rather than a task, which a new one does not have yet.
+read there did nothing. The page is `task/new` under the repository, which no
+task id can be, as `new` would take the overview of a repository of that name;
+Cancel goes back where the reader came from, and leaving a typed draft asks
+first. The sheet's components moved to `src/lib/components`, two pages using
+them now, and `Properties` takes the properties rather than a task, which a new
+one does not have yet.

@@ -41,14 +41,19 @@ export function parseTagsFile(source: string): TagDescriptions {
  * The tags file with one line appended per tag of `described`, as
  * `<tag> , <description>`, which `parseTagsFile` reads back. `text` is null for
  * a repository that has none. The lines there stay byte for byte, a line feed
- * ending the last one when it lacks it.
+ * ending the last one when it lacks it. A tag the file defines already, since
+ * the reading that found it new, is left as defined there, as a second
+ * definition would make the CLI warn.
  */
 export function describedTagsFile(
 	text: string | null,
 	described: ReadonlyMap<string, string>
 ): string {
 	let extended = text ?? '';
+	const defined = parseTagsFile(extended).descriptions;
 	if (extended !== '' && !extended.endsWith('\n')) extended += '\n';
-	for (const [tag, description] of described) extended += `${tag} , ${description}\n`;
+	for (const [tag, description] of described) {
+		if (!defined.has(tag)) extended += `${tag} , ${description}\n`;
+	}
 	return extended;
 }

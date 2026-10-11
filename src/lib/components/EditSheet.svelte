@@ -3,7 +3,6 @@
 	// pasted or dropped into it. The page holds the sheet, whose status,
 	// priority and tags the properties panel edits, and decides what Save and
 	// Cancel do.
-	import { onDestroy } from 'svelte';
 	import type { RenderOptions } from '#lib/render/markdown.ts';
 	import type { Sheet } from '#lib/state/sheet.svelte.ts';
 	import Journal from './Journal.svelte';
@@ -38,11 +37,11 @@
 	function keyed(event: KeyboardEvent) {
 		if (event.key !== 's' || !(event.metaKey || event.ctrlKey)) return;
 		event.preventDefault();
+		// Blurs the focused field, as a click on Save would, so that a priority or
+		// a tag being typed reaches the draft.
+		if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
 		if (saveable) onsave();
 	}
-
-	// The sheet is shown for as long as it is open, so its files go with it.
-	onDestroy(() => sheet.close());
 </script>
 
 <svelte:window onkeydown={keyed} />

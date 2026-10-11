@@ -73,11 +73,14 @@ export function canWriteThrough(handle: FileSystemDirectoryHandle): boolean {
 	return typeof handle.requestPermission === 'function';
 }
 
-/** Whether the reader allows writing through `handle`, asking only when it is not yet allowed. */
-export async function askToWrite(handle: FileSystemDirectoryHandle): Promise<boolean> {
+/**
+ * Whether the reader allows writing through `handle`, asking only when it is
+ * not yet allowed: `granted`, `denied`, or `prompt` for a question dismissed.
+ */
+export async function askToWrite(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
 	const descriptor = { mode: 'readwrite' } as const;
-	if ((await handle.queryPermission!(descriptor)) === 'granted') return true;
-	return (await handle.requestPermission!(descriptor)) === 'granted';
+	if ((await handle.queryPermission!(descriptor)) === 'granted') return 'granted';
+	return handle.requestPermission!(descriptor);
 }
 
 /**

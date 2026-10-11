@@ -89,13 +89,49 @@ describe('the files of a sheet', () => {
 		expect(opened().attach(pdf, NOW)).toBe('[notes.pdf](./notes.pdf)');
 	});
 
+	/** The paths and contents of what Save writes into the folder of task `id`. */
+	const written = (sheet: Sheet, id = '20261012-083000') =>
+		sheet
+			.extras()(id)
+			.map((file) => [file.path, 'contents' in file && file.contents]);
+
 	it('writes into the folder of the id it is given the files the description still links', () => {
 		const sheet = opened();
 		const kept = png('kept.png');
 		sheet.draft.description = sheet.attach(kept, NOW);
 		sheet.attach(png('dropped.png'), NOW);
-		expect(sheet.extras()('20261012-083000')).toEqual([
-			{ path: 'tasks/20261012-083000/kept.png', contents: kept }
-		]);
+		expect(written(sheet)).toEqual([['tasks/20261012-083000/kept.png', kept]]);
+	});
+
+	it('tells a link from a name that holds it', () => {
+		const sheet = opened();
+		sheet.attach(png('b.png'), NOW);
+		const kept = png('ab.png');
+		sheet.draft.description = sheet.attach(kept, NOW);
+		expect(written(sheet)).toEqual([['tasks/20261012-083000/ab.png', kept]]);
+	});
+
+	it('finds a link the reader rewrote, as the preview finds it', () => {
+		const sheet = opened();
+		const kept = png('plan.png');
+		sheet.attach(kept, NOW);
+		sheet.draft.description = 'See [the plan](plan.png).';
+		expect(written(sheet)).toEqual([['tasks/20261012-083000/plan.png', kept]]);
+	});
+
+	it('names no file after one it wrote, though it no longer holds it', () => {
+		const sheet = opened();
+		sheet.draft.description = sheet.attach(png('one.png'), NOW);
+		const [file] = sheet.extras()('20261012-083000');
+		if ('onwritten' in file) file.onwritten?.();
+		expect(sheet.attach(png('one.png'), NOW)).toBe('![one-2.png](./one-2.png)');
+	});
+
+	it('writes a file once, so that a save tried again leaves out what it wrote', () => {
+		const sheet = opened();
+		sheet.draft.description = sheet.attach(png('one.png'), NOW);
+		const [file] = sheet.extras()('20261012-083000');
+		if ('onwritten' in file) file.onwritten?.();
+		expect(written(sheet)).toEqual([]);
 	});
 });

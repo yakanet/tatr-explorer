@@ -71,6 +71,12 @@ export interface Linked {
 export interface Writable {
 	/** `contents` is text, or a `Blob` for an image. */
 	write(path: string, contents: string | Blob, expected: string | null): Promise<WriteAnswer>;
+	/**
+	 * Resolves to whether the reader allows writing, asking where the source
+	 * must. A write asks too; this lets a save ask before the reading that
+	 * precedes its write, as a browser asks only right after a click.
+	 */
+	allow(): Promise<boolean>;
 }
 
 export type WriteAnswer = 'written' | 'changed' | 'refused';

@@ -215,6 +215,20 @@ function createRenderer(options: RenderOptions): InstanceType<typeof MarkdownIt>
 	return md;
 }
 
+/**
+ * The paths from the repository root that the relative links and images of
+ * `source` name, as the renderer resolves them for task `taskId`.
+ */
+export function linkedPaths(source: string, taskId: string): Set<string> {
+	const paths = new Set<string>();
+	const assetUrl = (path: string) => {
+		paths.add(path);
+		return null;
+	};
+	renderMarkdown(source, { taskId, assetUrl });
+	return paths;
+}
+
 /** Renders markdown to HTML, with attachment links resolved. */
 export function renderMarkdown(source: string, options: RenderOptions): string {
 	return createRenderer(options).render(source);

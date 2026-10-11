@@ -55,6 +55,12 @@ describe('describedTagsFile', () => {
 		);
 	});
 
+	it('leaves a tag defined since as it is, rather than define it twice', () => {
+		expect(describedTagsFile('data , already\n', new Map([['data', 'again']]))).toBe(
+			'data , already\n'
+		);
+	});
+
 	it('writes the whole file for a repository that has none', () => {
 		expect(describedTagsFile(null, new Map([['ui', 'screens']]))).toBe('ui , screens\n');
 	});

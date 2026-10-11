@@ -446,7 +446,8 @@ describe('editing a task', () => {
 		it('says the save was made but not the description, when tasks/tags cannot be written', async () => {
 			const repo = await editing();
 			disk['tasks/tags/oops'] = 'a folder where the file belongs';
-			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+			// Not done, so that the sheet stays open to try again.
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(false);
 
 			expect(repo.notice?.failed).toBe(true);
 			expect(repo.notice?.text).toMatch(
@@ -455,16 +456,62 @@ describe('editing a task', () => {
 		});
 	});
 
-	it('says which image was not written, rather than replace a file it did not read', async () => {
+	it('says which file was not written, rather than replace one it did not read', async () => {
 		const repo = await editing();
 		disk[`tasks/${ID}/shot.png`] = 'there already';
-		const image = () => [{ path: `tasks/${ID}/shot.png`, contents: new Blob(['new']) }];
-		expect(await repo.edit(ID, close, 'closed', image)).toBe(true);
+		const onwritten = vi.fn();
+		const files = () => [
+			{ path: `tasks/${ID}/shot.png`, contents: new Blob(['new']) },
+			{ path: `tasks/${ID}/other.png`, contents: new Blob(['other']), onwritten }
+		];
+		expect(await repo.edit(ID, close, 'closed', files)).toBe(false);
 
 		expect(disk[`tasks/${ID}/shot.png`]).toBe('there already');
+		expect(disk[`tasks/${ID}/other.png`]).toBe('other');
+		expect(onwritten).toHaveBeenCalledTimes(1);
 		expect(repo.notice?.text).toBe(
 			`${ID}: closed. tasks/${ID}/shot.png was not written, as a file is there already.`
 		);
+	});
+
+	it('offers no Undo for a write that left the task file as it was', async () => {
+		const repo = await editing();
+		await repo.edit(ID, close, 'closed');
+		const closed = disk[TASK];
+		const file = () => [{ path: `tasks/${ID}/new.png`, contents: new Blob(['png']) }];
+		await repo.edit(ID, close, 'closed', file);
+
+		expect(repo.notice?.undoable).toBe(false);
+		expect(await repo.undo()).toBe(false);
+		expect(disk[TASK]).toBe(closed);
+	});
+
+	it('asks again after a question dismissed, and stays editable', async () => {
+		const ask = vi
+			.fn<() => Promise<PermissionState>>()
+			.mockResolvedValueOnce('prompt')
+			.mockResolvedValue('granted');
+		const repo = await editing(ask);
+		expect(await repo.edit(ID, close, 'closed')).toBe(false);
+		expect(repo.notice?.text).toMatch(/dismissed/);
+		expect(repo.editable).toBe(true);
+
+		expect(await repo.edit(ID, close, 'closed')).toBe(true);
+		expect(ask).toHaveBeenCalledTimes(2);
+	});
+
+	it('leaves alone a repository opened while an edit waited for its answer', async () => {
+		let answer: (state: PermissionState) => void = () => {};
+		const repo = await editing(() => new Promise((resolve) => (answer = resolve)));
+		const first = disk;
+		const waiting = repo.edit(ID, close, 'closed');
+		await repo.load(await picked({ [TASK]: taskAt(40) }));
+		answer('granted');
+
+		expect(await waiting).toBe(false);
+		expect(first[TASK]).toBe(taskAt(90));
+		expect(disk[TASK]).toBe(taskAt(40));
+		expect(repo.notice).toBeNull();
 	});
 
 	describe('creating a task', () => {

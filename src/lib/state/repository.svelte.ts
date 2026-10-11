@@ -67,8 +67,12 @@ export interface EditNotice {
 
 /** A file a save writes besides the task's own, by its path from the repository root. */
 export type FileWrite =
-	/** A file created, such as an image; one there already is not replaced. */
-	| { path: string; contents: Blob }
+	/**
+	 * A file created, such as an image; one there already is not replaced.
+	 * `onwritten` hears that it was written, so that a save tried again after a
+	 * failure further on does not write it twice.
+	 */
+	| { path: string; contents: Blob; onwritten?: () => void }
 	/** A file rewritten from what it holds, or from null where there is none. */
 	| { path: string; rewrite: (before: string | null) => string };
 
@@ -277,26 +281,27 @@ export class RepositoryState {
 	 * reading on screen holds it, which may be minutes old, then reads the
 	 * repository again. `what` says what the edit did, for the notice. It never
 	 * throws: a failure leaves the reading as it was, with a sentence saying why.
-	 * Resolves to whether the file now holds the edit. `extras` are written once
-	 * the file is.
+	 * `extras` are written once the file is. Resolves to whether the file now
+	 * holds the edit and every extra was written.
 	 */
 	edit(id: string, edit: Edit, what: string, extras = NO_EXTRAS): Promise<boolean> {
-		return this.#queue(() => this.#edit(id, edit, what, extras), false);
+		return this.#queue((source) => this.#edit(source, id, edit, what, extras), false);
 	}
 
 	/** Writes back the text the last edit replaced, unless the file changed since. */
 	undo(): Promise<boolean> {
-		return this.#queue(() => this.#undo(), false);
+		return this.#queue((source) => this.#undo(source), false);
 	}
 
 	/**
 	 * Creates a task holding `fields`, as `tatr new` would and under an id it
 	 * reads from the clock, then reads the repository again. It never throws, as
-	 * `edit` does not. Resolves to the task's id, or to null when nothing was
-	 * created. `extras` are written once the file is.
+	 * `edit` does not. `extras` are written once the file is. Resolves to the
+	 * task's id once its file is created, whatever became of the extras, or to
+	 * null when it was not.
 	 */
 	create(fields: TaskFields, extras = NO_EXTRAS): Promise<string | null> {
-		return this.#queue(() => this.#create(fields, extras), null);
+		return this.#queue((source) => this.#create(source, fields, extras), null);
 	}
 
 	/**
@@ -308,25 +313,60 @@ export class RepositoryState {
 	}
 
 	/**
-	 * Runs `step` once the edits under way are over. When it throws, it says why
-	 * and resolves to `failure` instead.
+	 * Runs `step` with the source read now, once the edits under way are over,
+	 * if that source may still write then: an edit queued before another
+	 * repository was opened must not reach it, and a refusal holds. When `step`
+	 * throws, it says why and resolves to `failure` instead.
 	 */
-	#queue<T>(step: () => Promise<T>, failure: T): Promise<T> {
-		const run = this.#edits.then(step).catch((error: unknown) => {
-			this.notice = failed(messageOf(error));
-			return failure;
-		});
+	#queue<T>(step: (source: Source & Writable) => Promise<T>, failure: T): Promise<T> {
+		const source = this.source;
+		const run = this.#edits
+			.then(() => {
+				if (source !== this.source || !isWritable(source) || this.#refused) return failure;
+				return step(source);
+			})
+			.catch((error: unknown) => {
+				this.notice = failed(messageOf(error));
+				return failure;
+			});
 		this.#edits = run;
 		return run;
 	}
 
-	async #edit(id: string, edit: Edit, what: string, extras: Extras): Promise<boolean> {
-		const source = this.source;
-		if (!isWritable(source) || this.#refused) return false;
+	/**
+	 * Asks the reader whether this page may write before the walk that comes
+	 * ahead of a write, which may outlast the moment a browser asks in. Resolves
+	 * to whether the step goes on: allowed, and the source still the one read,
+	 * as the question may stay open while another repository is opened.
+	 */
+	async #asked(source: Source & Writable): Promise<boolean> {
+		const allowed = await source.allow();
+		if (source !== this.source) return false;
+		if (!allowed) this.#refuse();
+		return allowed;
+	}
+
+	/** Leaves the folder read-only, the reader having refused to let this page write. */
+	#refuse(): void {
+		this.#refused = true;
+		this.notice = failed(
+			'Editing was not allowed, so this folder stays read-only until it is opened again.'
+		);
+	}
+
+	async #edit(
+		source: Source & Writable,
+		id: string,
+		edit: Edit,
+		what: string,
+		extras: Extras
+	): Promise<boolean> {
+		if (!(await this.#asked(source))) return false;
 		const path = taskPath(id);
 		// A folder holds the files of its last walk, so it walks again first.
 		if (isRereadable(source)) await source.reread();
 		const before = await source.read(path);
+		if (source !== this.source) return false;
 		if (before === null) {
 			this.notice = failed(`${id} could not be read, so nothing was written.`);
 			return false;
@@ -342,22 +382,28 @@ export class RepositoryState {
 			return false;
 		}
 		const files = extras(id);
-		if (after === before && files.length === 0) {
+		if (after === before) {
 			// The file already says so: the reading on screen is the stale part.
+			if (files.length > 0) {
+				// Undo would take back an earlier edit, which this notice is not about.
+				this.#written = null;
+				return this.#settle(source, 'written', id, what, files);
+			}
 			this.notice = null;
 			await this.refresh();
 			return true;
 		}
-		// Written even unchanged when there are extras, so that the reader is
-		// asked whether this page may write before anything else is.
 		const answer = await source.write(path, after, before);
-		if (answer === 'written' && after !== before) this.#written = { id, before, after };
-		return this.#settle(answer, id, what, files);
+		if (answer === 'written') this.#written = { id, before, after };
+		return this.#settle(source, answer, id, what, files);
 	}
 
-	async #create(fields: TaskFields, extras: Extras): Promise<string | null> {
-		const source = this.source;
-		if (!isWritable(source) || this.#refused) return null;
+	async #create(
+		source: Source & Writable,
+		fields: TaskFields,
+		extras: Extras
+	): Promise<string | null> {
+		if (!(await this.#asked(source))) return null;
 		const id = formatHuid(new Date());
 		if (await holdsFolder(source, id)) return this.#taken(id);
 		const answer = await source.write(taskPath(id), newTaskMd(fields), null);
@@ -365,18 +411,13 @@ export class RepositoryState {
 		if (answer === 'changed') return this.#taken(id);
 		// Undo writes a file back, and has no file to write back here.
 		this.#written = null;
-		if (!(await this.#settle(answer, id, 'created', extras(id)))) return null;
+		await this.#settle(source, answer, id, 'created', extras(id));
+		if (answer !== 'written') return null;
 		return id;
 	}
 
-	/**
-	 * Writes each of `files`, and resolves to a sentence for each that was not
-	 * written, saying why. It follows a write of the task's file, so the reader
-	 * has allowed writing already.
-	 */
-	async #writeAll(files: readonly FileWrite[]): Promise<string[]> {
-		const source = this.source;
-		if (!isWritable(source)) return [];
+	/** Writes each of `files`, and resolves to a sentence for each that was not written, saying why. */
+	async #writeAll(source: Source & Writable, files: readonly FileWrite[]): Promise<string[]> {
 		const missed: string[] = [];
 		for (const file of files) {
 			try {
@@ -397,31 +438,34 @@ export class RepositoryState {
 		return null;
 	}
 
-	async #undo(): Promise<boolean> {
-		const source = this.source;
+	async #undo(source: Source & Writable): Promise<boolean> {
 		const last = this.#written;
-		if (!isWritable(source) || !last) return false;
+		if (!last) return false;
 		this.#written = null;
 		const answer = await source.write(taskPath(last.id), last.before, last.after);
-		return this.#settle(answer, last.id, 'undone');
+		return this.#settle(source, answer, last.id, 'undone');
 	}
 
 	/**
 	 * Says what a write's answer means, and reads again wherever the disk may
 	 * now differ from the screen. `what` says what a write made did. A write made
-	 * is followed by `files`. Resolves to whether the write was made.
+	 * is followed by `files`. Resolves to whether the write was made, and every
+	 * file after it.
 	 */
 	async #settle(
+		source: Source & Writable,
 		answer: WriteAnswer,
 		id: string,
 		what: string,
 		files: readonly FileWrite[] = []
 	): Promise<boolean> {
+		let missed: string[] = [];
+		if (answer === 'written') missed = await this.#writeAll(source, files);
+		const done = answer === 'written' && missed.length === 0;
+		// Another repository is on screen now, which this does not concern.
+		if (source !== this.source) return done;
 		if (answer === 'refused') {
-			this.#refused = true;
-			this.notice = failed(
-				'Editing was not allowed, so this folder stays read-only until it is opened again.'
-			);
+			this.#refuse();
 			return false;
 		}
 		if (answer === 'changed') {
@@ -429,7 +473,6 @@ export class RepositoryState {
 				`${id} changed on disk since it was read, so it was left as it is and read again.`
 			);
 		} else {
-			const missed = await this.#writeAll(files);
 			// Undo is offered while the last write can still be taken back.
 			this.notice = {
 				text: [`${id}: ${what}.`, ...missed].join(' '),
@@ -438,7 +481,7 @@ export class RepositoryState {
 			};
 		}
 		await this.refresh();
-		return answer === 'written';
+		return done;
 	}
 
 	/**
@@ -482,8 +525,11 @@ export class RepositoryState {
  */
 async function writeFile(source: Source & Writable, file: FileWrite): Promise<string | null> {
 	if ('contents' in file) {
-		if ((await source.write(file.path, file.contents, null)) === 'written') return null;
-		return 'as a file is there already';
+		if ((await source.write(file.path, file.contents, null)) !== 'written') {
+			return 'as a file is there already';
+		}
+		file.onwritten?.();
+		return null;
 	}
 	const before = await source.read(file.path);
 	if ((await source.write(file.path, file.rewrite(before), before)) === 'written') return null;

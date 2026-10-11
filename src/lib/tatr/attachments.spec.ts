@@ -102,6 +102,8 @@ describe('formatSize', () => {
 describe('attachmentName', () => {
 	it.each([
 		['Capture d’écran 2026.png', 'Capture-d-ecran-2026.png'],
+		['截图.png', 'file.png'],
+		['.png', 'file.png'],
 		['Mon schéma (v2).png', 'Mon-schema-v2.png'],
 		['.hidden.png', 'hidden.png'],
 		['--odd--.png', 'odd.png'],
@@ -114,6 +116,10 @@ describe('attachmentName', () => {
 		const taken = new Set(['shot.png', 'shot-2.png', 'notes']);
 		expect(attachmentName('shot.png', taken)).toBe('shot-3.png');
 		expect(attachmentName('notes', taken)).toBe('notes-2');
+	});
+
+	it('takes a name that differs only in case for the same, as the disk does', () => {
+		expect(attachmentName('screenshot.png', new Set(['Screenshot.png']))).toBe('screenshot-2.png');
 	});
 });
 
