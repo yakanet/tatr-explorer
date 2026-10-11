@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { wordRef } from '../../repo/ref.ts';
-import { KINDS, kindOf, openSource, parseRepoPath } from '../open.ts';
+import { SOURCES, sourceIdOf, openSource, parseRepoPath } from '../open.ts';
+import { ServedSource } from './source.ts';
 
 /**
  * A dev server serving a folder, which the rest of the suite runs without: the
@@ -15,13 +16,13 @@ describe('a dev server that serves a folder', () => {
 	});
 
 	it('registers the source, named after the folder', () => {
-		expect(KINDS.served?.id).toBe('served');
+		expect(SOURCES.served).toBe(ServedSource);
 		expect(openSource(wordRef('served')).label).toBe('my-project');
 	});
 
-	it('leaves every reference to its own kind', () => {
-		expect(kindOf(wordRef('served'))?.id).toBe('served');
-		expect(kindOf(parseRepoPath('local')!)?.id).toBe('local');
-		expect(kindOf(parseRepoPath('owner/repo')!)?.id).toBe('github');
+	it('leaves every reference to its own source', () => {
+		expect(sourceIdOf(wordRef('served'))).toBe('served');
+		expect(sourceIdOf(parseRepoPath('local')!)).toBe('local');
+		expect(sourceIdOf(parseRepoPath('owner/repo')!)).toBe('github');
 	});
 });

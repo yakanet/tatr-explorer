@@ -3,14 +3,14 @@
  * capability, and a guard beside each for the views to ask.
  *
  * A view asks whether the source of its reading can do a thing, never which
- * source it holds: that second question is how a kind's knowledge leaked into
- * the pages, one test of a reference's host at a time. And a capability is there with every
+ * source it holds: that second question is how one source's knowledge leaked
+ * into the pages, one test of a reference's host at a time. And a capability is there with every
  * member it needs, or absent, so a source cannot half-declare one: a Refresh
  * with nothing behind it, or a key that means "do not cache".
  *
- * Contract only, as `source.ts` is: no implementation is imported here.
+ * Contract only, as `contract.ts` is: no implementation is imported here.
  */
-import type { Source } from './source.ts';
+import type { Source } from './contract.ts';
 
 /**
  * A source whose readings are kept, under this key.

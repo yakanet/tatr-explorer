@@ -1,8 +1,8 @@
 # Leave a kind its address and the way to open a source
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 40
-- TAGS: data,scope
+- TAGS: data
 
 A `SourceKind` says five things: its address, how a reference reads on screen,
 whether it has branches, what a reading costs, and how a source is opened. Only
@@ -31,3 +31,26 @@ where more than a list of hosts will be needed.
 Done when `SourceKind` is an id, an address and `open`, the page asks the
 source for its name, its branches and its cost, and every source folder's
 entry is its `source.ts`.
+
+---
+
+Done in two commits. The first left a kind its address and `open`, and moved
+the rest to the source as planned; the loader's own copy of the label went with
+it, nothing reading it any more.
+
+The second went further than the plan: what was a kind beside the class is the
+class's static side. `address` and `open` are static members of
+`GitHubRepositorySource`, `LocalFolderSource` and `ServedSource`, which the
+type `SourceClass` describes; the registry, `SOURCES`, holds the classes and
+knows each by its key, which `sourceIdOf` answers with, so the page's tables
+(`REOPENERS`) are looked up without a cast. With that key, `Source.id` said the
+same thing a second time, and went. "Kind" went with the objects: the word no
+longer named anything a reader could find. Every class implementing `Source`
+ends in `Source`, the one registered for a folder being named for the folder
+rather than for its snapshot; each folder's entry is `source.ts`, and the
+shared contract is `contract.ts`.
+
+`noImplicitOverride` is on: `strict` does not include it, and with sources
+built by extending one another, a subclass replacing a member by accident
+should not compile. It changes nothing for interfaces, which `implements`
+already checks.

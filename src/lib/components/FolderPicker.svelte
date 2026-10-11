@@ -22,7 +22,7 @@
 		type LocalFolder,
 		type WayBack
 	} from '#lib/sources/local/folder.ts';
-	import { LOCAL_WORD, openFolder } from '#lib/sources/local/kind.ts';
+	import { LOCAL_WORD, openFolder } from '#lib/sources/local/source.ts';
 
 	let { label = 'Open a folder…' }: { label?: string } = $props();
 

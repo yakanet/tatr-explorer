@@ -1,7 +1,6 @@
 /**
  * The folder the dev server serves, as a source. This folder's entry, as
- * `kind.ts` is in every source folder: the file that builds the
- * {@link SourceKind} the registry holds.
+ * `source.ts` is in every source folder.
  *
  * The page half. The other is `folder.server.ts`, which reads the folder from
  * the disk; they meet only through `protocol.ts`. Registered only when the dev
@@ -15,10 +14,11 @@
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import type { Followable, Rereadable, Writable } from '../capabilities.ts';
 import { encodePath, readJson, readText } from '../http.ts';
-import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
+import { SourceError, type Address, type Listing, type Source } from '../contract.ts';
+import { SERVED } from './enabled.ts';
 import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
-/** The kind's id, and the word that is its address. */
+/** The word that is the served folder's address, `/served`. */
 export const SERVED_WORD = 'served';
 
 /** A route of the dev server, which is always at the root. */
@@ -34,7 +34,23 @@ const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
  * editing would be wrong before it was written.
  */
 export class ServedSource implements Source, Rereadable, Writable {
-	readonly id = SERVED_WORD;
+	// A word, as for a folder opened in the browser: no URL anyone else follows
+	// reaches it, though it survives a reload.
+	static readonly address: Address = { word: SERVED_WORD };
+
+	/**
+	 * Under the name the dev server gives the folder. It is registered only where
+	 * one is served; a spec, which runs with none, opens it under its word.
+	 */
+	static open(): ServedSource {
+		const name = SERVED || SERVED_WORD;
+		// The dev channel is there whenever the dev server is; the specs open it
+		// without one.
+		const channel = import.meta.hot;
+		if (!channel) return new ServedSource(name);
+		return new FollowedServedSource(name, channel);
+	}
+
 	// The dev server is this machine.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly cost = {
@@ -110,26 +126,4 @@ export class FollowedServedSource extends ServedSource implements Followable {
 		this.#channel.on(CHANGED, onChange);
 		return () => this.#channel.off(CHANGED, onChange);
 	}
-}
-
-/**
- * The kind, for the folder of that name: the dev server knows it when it
- * starts, and the page has nowhere else to learn it before the first reading.
- */
-export function servedKind(name: string): SourceKind {
-	return {
-		id: SERVED_WORD,
-
-		// A word, as for a folder opened in the browser: no URL anyone else follows
-		// reaches it, though it survives a reload.
-		address: { word: SERVED_WORD },
-
-		open(): Source {
-			// The dev channel is there whenever the dev server is, which is the only
-			// place this kind is registered; the specs open it without one.
-			const channel = import.meta.hot;
-			if (!channel) return new ServedSource(name);
-			return new FollowedServedSource(name, channel);
-		}
-	};
 }

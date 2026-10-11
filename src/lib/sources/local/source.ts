@@ -1,7 +1,6 @@
 /**
  * The folder the reader has open, as a source. This folder's entry, as
- * `kind.ts` is in every source folder: the file that builds the
- * {@link SourceKind} the registry holds.
+ * `source.ts` is in every source folder.
  *
  * A local source is a session where a forge is an address: the browser grants
  * access on a gesture and takes it back on a reload, so nothing here could be
@@ -11,7 +10,7 @@
  */
 import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
-import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
+import { SourceError, type Address, type Listing, type Source } from '../contract.ts';
 import {
 	fromWayBack,
 	listFolder,
@@ -21,10 +20,15 @@ import {
 	type WayBack
 } from './folder.ts';
 
+/** The local folder's address, and all of it. */
+export const LOCAL_WORD = 'local';
+
 /**
- * A folder handed over once, as files: the directory input, which gives no way
- * back to the folder they came from. Read, and nothing more; refreshing it
- * means picking it again.
+ * A folder on this machine, as a source, and the class the registry holds for
+ * one. On its own it reads a folder handed over once, as files, by the
+ * directory input, which gives no way back to it: refreshing means picking it
+ * again. A folder handed over with a way back is read by its subclass,
+ * {@link LiveFolderSource}.
  *
  * Without a folder, it is the source every reload leaves, and the source of a
  * folder let go of when another was picked: the reference still resolves, and
@@ -36,8 +40,19 @@ import {
  * would be wrong before it was written, and not `Linked`, because there is no
  * page anywhere to link a file to.
  */
-class FolderSnapshot implements Source {
-	readonly id = LOCAL_WORD;
+export class LocalFolderSource implements Source {
+	// One word, and nothing else: the folder's name would read as an address,
+	// and nobody else's machine can follow it.
+	static readonly address: Address = { word: LOCAL_WORD };
+
+	/**
+	 * The source of the folder last handed over, or, with nothing handed over,
+	 * the source every reload leaves.
+	 */
+	static open(): LocalFolderSource {
+		return current ?? new LocalFolderSource(null);
+	}
+
 	// A disk has no CDN to be polite to.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly cost = {
@@ -82,7 +97,9 @@ class FolderSnapshot implements Source {
 	/** One file, the way a fetch of a raw URL would read it. */
 	async read(path: string): Promise<string | null> {
 		const file = this.folder?.files.get(path);
-		if (!file) return null;
+		if (!file) {
+			return null;
+		}
 		return file.text();
 	}
 
@@ -117,7 +134,7 @@ class FolderSnapshot implements Source {
  * A folder with a way back to it, the picker's handle or the entry tree of a
  * drop: read again on demand, and followed as it changes.
  */
-class LiveFolder extends FolderSnapshot implements Followable {
+class LiveFolderSource extends LocalFolderSource implements Followable {
 	readonly #back: WayBack;
 
 	constructor(folder: LocalFolder, back: WayBack) {
@@ -191,7 +208,7 @@ function onFocus(onChange: () => void): () => void {
  * reading of that folder is a reading of this source, so coming back to it
  * finds the folder as it was last read, and the URLs it handed out still good.
  */
-let current: FolderSnapshot | null = null;
+let current: LocalFolderSource | null = null;
 
 /** Opens a source on a folder a gesture handed over, letting go of the last one. */
 export function openFolder(folder: LocalFolder, back?: WayBack): void {
@@ -206,21 +223,9 @@ export function closeFolder(): void {
 }
 
 /** A source of the class the way back allows: read again and followed only by one. */
-function sourceOver(folder: LocalFolder, back: WayBack | undefined): FolderSnapshot {
-	if (back === undefined) return new FolderSnapshot(folder);
-	return new LiveFolder(folder, back);
+function sourceOver(folder: LocalFolder, back: WayBack | undefined): LocalFolderSource {
+	if (back === undefined) {
+		return new LocalFolderSource(folder);
+	}
+	return new LiveFolderSource(folder, back);
 }
-
-/** The local folder's address, and all of it. */
-export const LOCAL_WORD = 'local';
-
-export const localKind: SourceKind = {
-	id: LOCAL_WORD,
-
-	// One word, and nothing else: the folder's name would read as an address,
-	// and nobody else's machine can follow it.
-	address: { word: LOCAL_WORD },
-
-	// With nothing handed over, the source every reload leaves.
-	open: () => current ?? new FolderSnapshot(null)
-};

@@ -2,7 +2,7 @@
  * Reading over HTTP, as the sources that have a server do: a forge's API and
  * CDN, and the dev server serving a folder.
  */
-import { SourceError } from './source.ts';
+import { SourceError } from './contract.ts';
 
 /** Encodes a path one segment at a time, so the slashes between them survive. */
 export function encodePath(path: string): string {

@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { unreachable } from '#tests/support/network.ts';
-import { GitHubRepository, githubKind } from './kind.ts';
+import { GitHubRepositorySource } from './source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
 const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
-/** Through the kind, which is how the application reaches these. */
-const open = (repo = ref, branch?: string) => githubKind.open({ ...repo, branch });
+/** Through `open`, which is how the application reaches these. */
+const open = (repo = ref, branch?: string) => GitHubRepositorySource.open({ ...repo, branch });
 
 /** GitHub's CDN answering every read with what `answer` makes. */
 const answering = (answer: () => Response) =>
-	new GitHubRepository(ref, (async () => answer()) as unknown as typeof fetch);
+	new GitHubRepositorySource(ref, (async () => answer()) as unknown as typeof fetch);
 
 describe('reading a file', () => {
 	it('reads it from the CDN', async () => {
@@ -21,7 +21,7 @@ describe('reading a file', () => {
 			return new Response('# a task\n', { status: 200 });
 		}) as unknown as typeof fetch;
 
-		expect(await new GitHubRepository(ref, network).read(path)).toBe('# a task\n');
+		expect(await new GitHubRepositorySource(ref, network).read(path)).toBe('# a task\n');
 		expect(asked).toEqual([`https://raw.githubusercontent.com/owner/repo/HEAD/${path}`]);
 	});
 
@@ -32,7 +32,7 @@ describe('reading a file', () => {
 	it('answers null when the network does not answer at all', async () => {
 		// A read that throws would take the whole load down; one task that cannot
 		// be read is listed as skipped instead.
-		expect(await new GitHubRepository(ref, unreachable).read(path)).toBeNull();
+		expect(await new GitHubRepositorySource(ref, unreachable).read(path)).toBeNull();
 	});
 });
 
@@ -76,7 +76,7 @@ describe('listing, falling back on ungh', () => {
 			asked.push(hostname);
 			return answers[hostname as keyof typeof answers]();
 		}) as unknown as typeof fetch;
-		return { source: new GitHubRepository(ref, network), asked };
+		return { source: new GitHubRepositorySource(ref, network), asked };
 	};
 
 	const tree = () => Response.json({ tree: [{ path, type: 'blob' }], truncated: false });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readJson } from './http.ts';
-import { SourceError } from './source.ts';
+import { SourceError } from './contract.ts';
 
 describe('an answer read as JSON', () => {
 	it('is its body, parsed', async () => {

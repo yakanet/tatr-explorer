@@ -12,7 +12,7 @@
  * foreign page cannot read.
  *
  * `.server.ts`, so that SvelteKit refuses to let browser code import it: the
- * page half is `kind.ts`, and the two meet only through `protocol.ts`.
+ * page half is `source.ts`, and the two meet only through `protocol.ts`.
  */
 import { watch } from 'node:fs';
 import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
@@ -23,7 +23,7 @@ import { TLSSocket } from 'node:tls';
 import type { Connect, Plugin } from 'vite';
 import { branchFromHead } from '../local/folder.ts';
 import { settle } from '../settle.ts';
-import type { Listing } from '../source.ts';
+import type { Listing } from '../contract.ts';
 import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
 /** A folder found on the disk, and where its task folders are. */

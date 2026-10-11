@@ -2,12 +2,11 @@ import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
-import { wordRef } from '../../repo/ref.ts';
 import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
-import { SourceError } from '../source.ts';
-import { FollowedServedSource, ServedSource, servedKind } from './kind.ts';
+import { SourceError } from '../contract.ts';
+import { FollowedServedSource, ServedSource } from './source.ts';
 import { CHANGED } from './protocol.ts';
 
 /**
@@ -83,6 +82,6 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('follows nothing outside a dev server, there being no channel to hear from', async () => {
-		expect(isFollowable(servedKind('my-project').open(wordRef('served')))).toBe(false);
+		expect(isFollowable(ServedSource.open())).toBe(false);
 	});
 });

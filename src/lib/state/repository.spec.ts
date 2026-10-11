@@ -5,7 +5,7 @@ import { snapshot } from '../tatr/changes.ts';
 import { wordRef } from '../repo/ref.ts';
 import { parseRepoPath } from '../sources/open.ts';
 import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
-import { closeFolder, openFolder } from '../sources/local/kind.ts';
+import { closeFolder, openFolder } from '../sources/local/source.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 
 /**
@@ -211,7 +211,7 @@ describe('following', () => {
 	});
 });
 
-describe('a reference no kind reads', () => {
+describe('a reference nothing reads', () => {
 	it('fails as a host nothing reads', async () => {
 		const repo = new RepositoryState();
 		await repo.load(parseRepoPath('gitlab.com/group/project')!);

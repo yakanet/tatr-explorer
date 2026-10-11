@@ -2,19 +2,19 @@
  * A reference to a repository that holds a `tasks/` folder.
  *
  * References round-trip through the site's own URLs, so that every repository
- * gets a unique, shareable address. Two shapes, and this file knows no kind of
- * source by name:
+ * gets a unique, shareable address. Two shapes, and this file knows no source
+ * by name:
  *
  * - a forge address, `/{owner}/{name}`, optionally prefixed with a forge host
  *   and suffixed with `@{branch}`, on any host, so that one on a host nothing
  *   reads still opens a page that says so;
- * - a word, for a kind whose sources no URL anyone else follows can reach (a
- *   folder on this machine is a session, not an address). The kind that owns
- *   the word says so in the registry, which is where the word is recognised.
+ * - a word, for a source no URL anyone else follows can reach (a folder on
+ *   this machine is a session, not an address). The source that owns the word
+ *   says so in the registry, which is where the word is recognised.
  */
 
 export type RepoRef = {
-	/** Forge host, e.g. `github.com`, or the word of a kind that has one. */
+	/** Forge host, e.g. `github.com`, or the word of a source that has one. */
 	host: string;
 	/** Empty for a word, which has no owner to qualify it. */
 	owner: string;
@@ -58,7 +58,7 @@ function build(host: string, owner: string, name: string, branch?: string): Repo
  * Accepts `owner/name`, `host/owner/name`, and either form suffixed with
  * `@branch`. Branch names may contain slashes. One segment is never a forge
  * address, which needs an owner too: that is what leaves a word free to be a
- * kind's.
+ * source's.
  */
 export function parseForgePath(path: string): RepoRef | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');

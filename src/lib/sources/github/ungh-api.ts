@@ -7,7 +7,7 @@
  */
 import type { RepoRef } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
-import { SourceError, type TreeEntry } from '../source.ts';
+import { SourceError, type TreeEntry } from '../contract.ts';
 
 const API = 'https://ungh.cc';
 

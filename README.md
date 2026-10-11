@@ -270,11 +270,11 @@ fallback.
 
 ### Adding a source
 
-GitHub, a local folder and the folder the dev server serves are three kinds of
-source, each in its own folder under `src/lib/sources/`. A fourth is one more
-folder, written in this order:
+GitHub, a local folder and the folder the dev server serves are three sources,
+each in its own folder under `src/lib/sources/`, whose `source.ts` is its
+entry. A fourth is one more folder, written in this order:
 
-1. **A class implementing `Source`** (`source.ts`): what the page calls it,
+1. **A class implementing `Source`** (`contract.ts`): what the page calls it,
    what reading it costs, how many files to read at once, a listing, a read,
    and a URL per file. A listing that fails throws a `SourceError`, whose
    sentence the page shows as it is; a file that cannot be read answers null,
@@ -286,12 +286,12 @@ folder, written in this order:
    `Linked` links a file to its page, and `Writable` lets a task file be
    replaced. Leave one out and the page offers nothing in its place, which is
    the point.
-3. **A `SourceKind`** in the folder's `kind.ts`: its address (the hosts a forge
-   reads, or one word such as `/local`), and how a source is opened for a
-   reference.
-4. **One line in `KINDS`** (`open.ts`). The compiler then asks for the two
-   others: its controls in `KIND_UI` (`src/lib/components/kinds.ts`), null
-   unless a gesture is the only way back to it, and how to build it in
+3. **Two static members** on the class, which make it a `SourceClass`: its
+   `address` (the hosts a forge reads, or one word such as `/local`), and
+   `open`, which builds a source for a reference.
+4. **One line in `SOURCES`** (`open.ts`). The compiler then asks for the two
+   others: its control in `REOPENERS` (`src/lib/components/reopeners.ts`),
+   null unless a gesture is the only way back to it, and how to build it in
    `contract.spec.ts`, which runs every source through the same tests.
 
 ## It tracks itself

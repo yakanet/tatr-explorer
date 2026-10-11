@@ -7,7 +7,7 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
-	import { reopenerOf } from '#lib/components/kinds.ts';
+	import { reopenerOf } from '#lib/components/reopeners.ts';
 	import { formatRepoPath } from '#lib/repo/ref.ts';
 	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {

@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { fileList } from '#tests/support/fake-directory.ts';
-import { wordRef } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { loadRepository } from './load.ts';
 import type { Cached, Rereadable } from './capabilities.ts';
 import { fromFileList } from './local/folder.ts';
-import { closeFolder, localKind, openFolder } from './local/kind.ts';
+import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 import type { Snapshot } from '../tatr/changes.ts';
-import type { Listing, Source } from './source.ts';
+import type { Listing, Source } from './contract.ts';
 
 const sources = rawTasks as Record<string, string>;
 
@@ -28,7 +27,6 @@ const TREE: Readonly<Record<string, string>> = {
  * again on demand. It counts its listings, the one call a forge pays for.
  */
 class Holding implements Source, Cached, Rereadable {
-	readonly id = 'holding';
 	readonly label = 'tsoding/tatr';
 	readonly cacheKey = 'holding/tsoding/tatr';
 	readonly concurrency = 12;
@@ -307,7 +305,7 @@ describe('a folder on this machine', () => {
 	const open = (files: File[]) => {
 		const folder = fromFileList(files);
 		if (folder) openFolder(folder);
-		return localKind.open(wordRef('local'));
+		return LocalFolderSource.open();
 	};
 
 	const task = (id: string, priority: number, status = 'OPEN') =>
@@ -373,10 +371,8 @@ describe('a folder on this machine', () => {
 
 	it('says so when there is no folder open at all, as after a reload', async () => {
 		closeFolder();
-		await expect(loadRepository(localKind.open(wordRef('local')), { store })).rejects.toMatchObject(
-			{
-				failure: 'no-source'
-			}
-		);
+		await expect(loadRepository(LocalFolderSource.open(), { store })).rejects.toMatchObject({
+			failure: 'no-source'
+		});
 	});
 });

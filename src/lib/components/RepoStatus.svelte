@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { reopenerOf } from '#lib/components/kinds.ts';
+	import { reopenerOf } from '#lib/components/reopeners.ts';
 	import { onBranch } from '#lib/repo/branch.ts';
 	import type { RepoRef } from '#lib/repo/ref.ts';
 	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';

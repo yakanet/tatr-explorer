@@ -1,20 +1,20 @@
 /**
- * What every source does, asked of every kind over the same tree.
+ * What every source does, asked of each one over the same tree.
  *
- * `source.ts` says what a source has; this says what it must do with it, which
+ * `contract.ts` says what a source has; this says what it must do with it, which
  * is what the author of a new source most needs to be told, and in a form that
- * fails when they get it wrong. What only one kind does stays in that kind's
- * own spec.
+ * fails when they get it wrong. What only one source does stays in its own
+ * spec.
  *
- * How each kind's sources are built for it is said here too, in a table keyed
- * like the registry: a kind added to `KINDS` and not here does not compile,
- * where a contract each kind had to remember to call would let a new one go
+ * How each source is built for it is said here too, in a table keyed like the
+ * registry: a source added to `SOURCES` and not here does not compile, where a
+ * contract each source had to remember to call would let a new one go
  * unchecked in silence. Here rather than with the fakes the specs share,
  * because nothing but this contract builds them.
  *
  * Only what every source does is asked. A forge cannot tell a missing file's
  * URL from a present one's without a listing, so what `assetUrl` answers for a
- * file that is not there is left to each kind's own spec, and so is the branch
+ * file that is not there is left to each source's own spec, and so is the branch
  * a listing names, which a folder reads out of `.git/HEAD` and a forge does not.
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
@@ -22,9 +22,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
-import { wordRef, parseForgePath } from '../repo/ref.ts';
+import { parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
-import { GitHubRepository } from './github/kind.ts';
+import { GitHubRepositorySource } from './github/source.ts';
 import { loadRepository } from './load.ts';
 import {
 	fromDirectoryEntry,
@@ -33,13 +33,13 @@ import {
 	type LocalFolder,
 	type WayBack
 } from './local/folder.ts';
-import { closeFolder, localKind, openFolder } from './local/kind.ts';
-import type { KINDS } from './open.ts';
-import { FollowedServedSource, ServedSource } from './served/kind.ts';
-import { SourceError, type Listing, type Source } from './source.ts';
+import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
+import type { SourceId } from './open.ts';
+import { FollowedServedSource, ServedSource } from './served/source.ts';
+import { SourceError, type Listing, type Source } from './contract.ts';
 import { memoryStore } from './store.ts';
 
-/** One of a kind's sources, as the contract builds it. */
+/** One way a source comes to be, as the contract builds it. */
 interface Subject {
 	/** How the source came to be, which names its tests. */
 	name: string;
@@ -49,13 +49,13 @@ interface Subject {
 	 * on a repository that moves.
 	 */
 	holding(tree: Record<string, string>): Promise<Source>;
-	/** A source whose listing fails, the way this kind's fails in practice. */
+	/** A source whose listing fails, the way this one's fails in practice. */
 	broken(): Source;
 	/** Carries a change to `tree` where the source reads, when that is not `tree` itself. */
 	sync?(tree: Record<string, string>): Promise<unknown>;
 }
 
-/** A repository every kind can hold: two tasks, an attachment and a tags file. */
+/** A repository every source can hold: two tasks, an attachment and a tags file. */
 const TREE: Readonly<Record<string, string>> = {
 	'tasks/20260101-000001/TASK.md':
 		'# Open\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: ui\n\nA body.\n',
@@ -160,7 +160,7 @@ function honoursTheContract(subject: Subject): void {
 			// A change is answered by the same refresh a click takes, which a
 			// reading that cannot be taken again would answer with nothing: a
 			// `follow` without a `reread` is no capability, and is never followed.
-			// What following does is each kind's own, and its spec says it.
+			// What following does is each source's own, and its spec says it.
 			const source = await holding();
 			expect(isFollowable(source)).toBe('follow' in source);
 		});
@@ -220,7 +220,7 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 }
 
 function openGitHubOver(network: typeof fetch): Source {
-	return new GitHubRepository(parseForgePath('owner/repo')!, network);
+	return new GitHubRepositorySource(parseForgePath('owner/repo')!, network);
 }
 
 /** What a door hands over for a folder: the folder, and a way back to it when it has one. */
@@ -232,7 +232,7 @@ function through(name: string, door: Door): Subject {
 		name,
 		async holding(tree) {
 			openFolder(...(await door(tree)));
-			return localKind.open(wordRef('local'));
+			return LocalFolderSource.open();
 		},
 		broken: forgotten
 	};
@@ -241,16 +241,16 @@ function through(name: string, door: Door): Subject {
 /** Nothing open: where every reload leaves a folder, the browser taking its grant back. */
 function forgotten(): Source {
 	closeFolder();
-	return localKind.open(wordRef('local'));
+	return LocalFolderSource.open();
 }
 
 /** The dev channel, with nothing said on it: the contract only asks that it is there. */
 const SILENT = { on() {}, off() {} } as unknown as ViteHotContext;
 
 /**
- * Every kind's sources, one per way a source of that kind comes to be. Each
- * entry is called inside its kind's own `describe`, so the hooks a kind needs
- * (a folder to close, a scratch folder) are its own.
+ * Every source, once per way it comes to be. Each entry is called inside its
+ * own `describe`, so the hooks a source needs (a folder to close, a scratch
+ * folder) are its own.
  */
 const SUBJECTS = {
 	github: () => [
@@ -305,10 +305,10 @@ const SUBJECTS = {
 			)
 		];
 	}
-} satisfies Record<keyof typeof KINDS, () => Subject[]>;
+} satisfies Record<SourceId, () => Subject[]>;
 
-for (const [kind, subjectsOf] of Object.entries(SUBJECTS)) {
-	describe(kind, () => {
+for (const [id, subjectsOf] of Object.entries(SUBJECTS)) {
+	describe(id, () => {
 		for (const subject of subjectsOf()) honoursTheContract(subject);
 	});
 }

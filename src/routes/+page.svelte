@@ -8,7 +8,7 @@
 	import { formatRepoPath, parseRepoInput } from '#lib/repo/ref.ts';
 	import { toSuggestions, type CachedShape, type Suggestion } from '#lib/repo/recent.ts';
 	import { SERVED } from '#lib/sources/served/enabled.ts';
-	import { SERVED_WORD } from '#lib/sources/served/kind.ts';
+	import { SERVED_WORD } from '#lib/sources/served/source.ts';
 	import { folderAccess } from '#lib/sources/local/folder.ts';
 	import { openStore } from '#lib/sources/store.ts';
 	import { describeAge } from '#lib/state/repository.svelte.ts';

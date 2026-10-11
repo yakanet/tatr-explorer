@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
-import { KINDS, kindOf, openSource, parseRepoPath } from './open.ts';
+import { SOURCES, sourceIdOf, openSource, parseRepoPath } from './open.ts';
 import { parseForgePath, wordRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
-import { SourceError, type Source } from './source.ts';
+import { SourceError, type Source } from './contract.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
-import { closeFolder, openFolder } from './local/kind.ts';
+import { GitHubRepositorySource } from './github/source.ts';
+import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 
 /** `source`, which a spec has just made sure has the capability `is` tests for. */
 function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
@@ -14,28 +15,22 @@ function having<T>(source: Source, is: (source: Source) => source is Source & T)
 }
 
 describe('the registry', () => {
-	it('keys every kind by its own id', () => {
-		// The one thing a literal cannot check itself: that the key written out
-		// is the id the kind answers to.
-		for (const [key, kind] of Object.entries(KINDS)) expect(key).toBe(kind.id);
+	it('holds the sources this app has, named', () => {
+		expect(Object.keys(SOURCES).toSorted()).toEqual(['github', 'local']);
 	});
 
-	it('holds the kinds this app has, named', () => {
-		expect(Object.keys(KINDS).toSorted()).toEqual(['github', 'local']);
-	});
-
-	it('is closed to writing, so nothing can register a kind at runtime', () => {
+	it('is closed to writing, so nothing can register a source at runtime', () => {
 		expect(() => {
-			(KINDS as Record<string, unknown>).sneaky = {};
+			(SOURCES as Record<string, unknown>).sneaky = {};
 		}).toThrow();
 	});
 
-	it('gives no word and no host to two kinds', () => {
+	it('gives no word and no host to two sources', () => {
 		// The property a record depends on: with disjoint addresses there is no
 		// precedence to encode, so nothing rests on the order of the keys.
-		const addresses = Object.values(KINDS).flatMap((kind) => {
-			if ('word' in kind.address) return [kind.address.word];
-			return [...kind.address.hosts];
+		const addresses = Object.values(SOURCES).flatMap((sourceClass) => {
+			if ('word' in sourceClass.address) return [sourceClass.address.word];
+			return [...sourceClass.address.hosts];
 		});
 		expect(new Set(addresses).size).toBe(addresses.length);
 	});
@@ -46,12 +41,12 @@ describe('our own addresses', () => {
 		// So that a link to one opens a page that says so, rather than a 404.
 		expect(parseRepoPath('owner/repo')).toEqual(parseForgePath('owner/repo'));
 		expect(parseRepoPath('gitlab.com/group/project')?.host).toBe('gitlab.com');
-		expect(kindOf(parseRepoPath('gitlab.com/group/project')!)).toBeUndefined();
+		expect(sourceIdOf(parseRepoPath('gitlab.com/group/project')!)).toBeUndefined();
 	});
 
-	it("read a kind's word as its address, and nothing else as one", () => {
+	it("read a source's word as its address, and nothing else as one", () => {
 		expect(parseRepoPath('local')).toEqual(wordRef('local'));
-		expect(kindOf(wordRef('local'))?.id).toBe('local');
+		expect(sourceIdOf(wordRef('local'))).toBe('local');
 		expect(parseRepoPath('nothing')).toBeNull();
 	});
 
@@ -64,7 +59,7 @@ describe('our own addresses', () => {
 describe('openSource', () => {
 	it('opens a repository on a forge', () => {
 		const source = openSource(parseForgePath('owner/repo')!);
-		expect(source.id).toBe('github');
+		expect(source).toBeInstanceOf(GitHubRepositorySource);
 		expect(source.label).toBe('owner/repo');
 		expect(having(source, isCached).cacheKey).toBe('github.com/owner/repo@');
 		expect(having(source, isLinked).fileUrl('tasks/a/TASK.md')).toContain(
@@ -88,7 +83,7 @@ describe('openSource', () => {
 	it('opens the folder on this machine', () => {
 		closeFolder();
 		const source = openSource(wordRef('local'));
-		expect(source.id).toBe('local');
+		expect(source).toBeInstanceOf(LocalFolderSource);
 		// With no folder behind it, as after a reload, it still names the reading.
 		expect(source.label).toBe('a folder on this machine');
 		// The two capabilities whose absence says what a folder is: nowhere to

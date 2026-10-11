@@ -68,9 +68,6 @@ export class SourceError extends Error {
  * What a source may do besides is a capability of its own, in `capabilities.ts`.
  */
 export interface Source {
-	/** `github`, `local`. The UI picks a mark by it; nothing else may. */
-	readonly id: string;
-
 	/**
 	 * What the page calls the reading, from the moment it starts: `owner/name`,
 	 * a folder's name, or what a source with nothing behind it is.
@@ -107,7 +104,7 @@ export interface Source {
 }
 
 /**
- * Where a kind's sources are found: on the forge hosts it reads, at
+ * Which references a source reads: on the forge hosts it reads, at
  * `[host/]owner/name`, or under one word of its own, for sources no URL anyone
  * else follows can reach (a folder on this machine).
  *
@@ -125,20 +122,17 @@ export interface Cost {
 }
 
 /**
- * A kind of source: which references it opens, and how.
- *
- * Recognising a reference is not something an instance can do (it is what
- * decides which instance to build), so it sits one storey up. Everything else
- * the page asks, it asks the source, which is opened as a reading starts.
+ * A source's class, as the registry holds it: its static side says which
+ * references it reads and opens a source for one. Static, recognising a
+ * reference being nothing an instance can do: it decides which one to build.
  */
-export interface SourceKind {
-	readonly id: string;
-	/** Which references it opens; the registry finds a reference's kind by it. */
+export interface SourceClass {
+	/** Which references it reads; the registry finds a reference's source by it. */
 	readonly address: Address;
 	/**
 	 * The source for `ref`, from the reference alone. What a spec substitutes
-	 * (the network, a channel) goes to a source's own constructor, each kind
-	 * having its own, rather than through every kind's contract.
+	 * (the network, a channel) goes to the constructor instead, each class
+	 * having its own.
 	 */
 	open(ref: RepoRef): Source;
 }

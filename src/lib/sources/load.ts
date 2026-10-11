@@ -25,7 +25,7 @@ import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
 import { isCached, isRereadable } from './capabilities.ts';
-import { SourceError, type Source } from './source.ts';
+import { SourceError, type Source } from './contract.ts';
 import { openStore, type RepoStore } from './store.ts';
 
 export interface LoadOptions {

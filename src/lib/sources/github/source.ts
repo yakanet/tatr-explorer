@@ -1,7 +1,6 @@
 /**
- * A repository on GitHub, as a source. This folder's entry, as `kind.ts` is in
- * every source folder: the file that builds the {@link SourceKind} the
- * registry holds.
+ * A repository on GitHub, as a source. This folder's entry, as `source.ts` is
+ * in every source folder.
  *
  * Listing a repository spends the reader's budget of 60 API requests an hour;
  * reading its files does not, as they come from raw.githubusercontent.com, a
@@ -13,19 +12,26 @@ import type { Branched, Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import {
 	SourceError,
+	type Address,
 	type Listing,
 	type Source,
-	type SourceKind,
 	type TreeEntry
-} from '../source.ts';
+} from '../contract.ts';
 import { listViaGitHubApi } from './github-api.ts';
 import { listViaUnghApi } from './ungh-api.ts';
 
 const HOST = 'github.com';
 const RAW = 'https://raw.githubusercontent.com';
 
-export class GitHubRepository implements Source, Cached, Rereadable, Linked, Branched {
-	readonly id = 'github';
+export class GitHubRepositorySource implements Source, Cached, Rereadable, Linked, Branched {
+	// A forge address on any other host parses all the same, and is refused when
+	// opened, as a host nothing reads.
+	static readonly address: Address = { hosts: [HOST] };
+
+	static open(ref: RepoRef): GitHubRepositorySource {
+		return new GitHubRepositorySource(ref);
+	}
+
 	// Polite to the CDN while still finishing in well under a second.
 	readonly concurrency = 12;
 	readonly cost = {
@@ -121,13 +127,3 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked, Bra
 function isSpentBudget(error: unknown): boolean {
 	return error instanceof SourceError && error.failure === 'rate-limited';
 }
-
-export const githubKind = {
-	id: 'github',
-
-	// A forge address on any other host parses all the same, and is refused when
-	// opened, as a host nothing reads.
-	address: { hosts: [HOST] },
-
-	open: (ref) => new GitHubRepository(ref)
-} satisfies SourceKind;
