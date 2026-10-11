@@ -150,7 +150,7 @@ export async function loadRepository(
 ): Promise<LoadResult> {
 	// For a forge a refresh is this function ignoring the cache; for a folder it
 	// is the folder being walked again, which only the source can do.
-	if (options.refresh && isRereadable(source)) await source.reread();
+	if (options.refresh && isRereadable(source)) await source.reread(options.signal);
 
 	const store = options.store ?? openStore();
 

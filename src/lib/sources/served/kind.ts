@@ -13,7 +13,7 @@
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import type { Followable, Rereadable } from '../capabilities.ts';
-import { encodePath, readText } from '../http.ts';
+import { encodePath, readJson, readText } from '../http.ts';
 import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { CHANGED, ROUTES } from './protocol.ts';
 
@@ -57,7 +57,7 @@ export class ServedSource implements Source, Rereadable {
 		if (!response.ok) {
 			throw new SourceError('network', `The dev server answered ${response.status}.`);
 		}
-		return (await response.json()) as Listing;
+		return (await readJson(response, 'The dev server')) as Listing;
 	}
 
 	read(path: string, signal?: AbortSignal): Promise<string | null> {

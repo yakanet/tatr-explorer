@@ -207,6 +207,38 @@ describe('reading through a folder', () => {
 		await having(source, isRereadable).reread();
 		expect(await source.read('tasks/20260101-000001/TASK.md')).toBe('# after\n');
 	});
+
+	it('keeps the later of two overlapping refreshes, whichever finishes last', async () => {
+		// A change followed and a click overlap; the walk started first, holding
+		// the older tree, may well be the last one done. The later reading aborts
+		// the earlier one's signal, as the page does.
+		const path = 'tasks/20260101-000001/TASK.md';
+		const older = directory('my-project', { [path]: '# older\n' });
+		const newer = directory('my-project', { [path]: '# newer\n' });
+		const { promise: held, resolve: release } = Promise.withResolvers<void>();
+		let holding = true;
+		// The walk starts at `tasks/`, which the first one reaches late and old.
+		const handle = {
+			...newer,
+			async getDirectoryHandle(name: string) {
+				if (!holding) return newer.getDirectoryHandle(name);
+				holding = false;
+				await held;
+				return older.getDirectoryHandle(name);
+			}
+		} as FileSystemDirectoryHandle;
+		openFolder(await fromDirectoryHandle(newer), handle);
+		const source = having(openSource(wordRef('local')), isRereadable);
+
+		const earlier = new AbortController();
+		const first = source.reread(earlier.signal);
+		earlier.abort();
+		await source.reread();
+		release();
+
+		await expect(first).rejects.toThrow();
+		expect(await source.read(path)).toBe('# newer\n');
+	});
 });
 
 describe('following a folder', () => {

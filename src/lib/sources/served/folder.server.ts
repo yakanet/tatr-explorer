@@ -121,7 +121,7 @@ export async function answer(served: ServedFolder, request: Request): Promise<Re
  * on it. Without the variable, or in a build, it installs nothing, and the
  * constant it defines keeps the page half out of the bundle.
  */
-export function servedFolder(folder = process.env.TATR_FOLDER): Plugin {
+export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 	return {
 		name: 'tatr-served-folder',
 

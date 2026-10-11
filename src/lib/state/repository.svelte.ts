@@ -87,8 +87,9 @@ export class RepositoryState {
 	 * Held rather than reopened from the reference wherever it is needed, so a
 	 * question about the reading (can it be taken again, where does one of its
 	 * files live) goes to the instance that produced it, and a source holding
-	 * something of its own holds it once. Raw: an object of closures, which
-	 * there is nothing to gain by proxying.
+	 * something of its own holds it once. Raw: a class instance keeps its state
+	 * in private fields, which a proxy cannot reach, and nothing in it is read
+	 * reactively anyway.
 	 */
 	source = $state.raw<Source | null>(null);
 	/**

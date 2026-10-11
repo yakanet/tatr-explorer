@@ -19,13 +19,7 @@
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
 import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import {
-	SourceError,
-	type Listing,
-	type Source,
-	type SourceFailure,
-	type SourceKind
-} from '../source.ts';
+import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { listViaApi } from './api.ts';
 import { listViaUngh } from './ungh.ts';
 
@@ -64,13 +58,17 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
 /**
  * One way of listing a repository: a function, there being nothing else to a
  * lister. It asks the network it is handed, so that a repository opened over
- * a substitute lists over it too.
+ * a substitute lists over it too, and answers null where the repository or the
+ * branch does not exist, which the forge then words once for all of them.
  */
 export type Lister = (
 	ref: RepoRef,
 	network: typeof fetch,
 	signal?: AbortSignal
-) => Promise<Listing>;
+) => Promise<Listing | null>;
+
+/** Listers in fallback order, at least one: with none, nothing would be asked. */
+export type Listers = readonly [Lister, ...Lister[]];
 
 /**
  * The listers this forge falls back through, in order. GitHub first so the
@@ -82,7 +80,7 @@ export type Lister = (
  * repository's 64 tasks when measured, missing the newest). Two third parties
  * for that last case was more machinery than a reader of task folders needs.
  */
-const LISTERS: Lister[] = [listViaApi, listViaUngh];
+const LISTERS: Listers = [listViaApi, listViaUngh];
 
 /**
  * Lists a repository, falling back through the listers in order.
@@ -95,7 +93,7 @@ const LISTERS: Lister[] = [listViaApi, listViaUngh];
  */
 async function listRepository(
 	ref: RepoRef,
-	listers: readonly Lister[],
+	listers: Listers,
 	network: typeof fetch,
 	signal?: AbortSignal
 ): Promise<Listing> {
@@ -103,20 +101,19 @@ async function listRepository(
 	let spent: SourceError | undefined;
 
 	for (const lister of listers) {
+		let listing: Listing | null;
 		try {
-			return await lister(ref, network, signal);
+			listing = await lister(ref, network, signal);
 		} catch (error) {
-			// A missing repository is the same everywhere; do not ask the others.
-			if (failedWith(error, 'not-found')) throw new SourceError('not-found', missing(ref));
-			if (failedWith(error, 'rate-limited')) spent = error;
+			if (error instanceof SourceError && error.failure === 'rate-limited') spent = error;
 			lastError = error;
+			continue;
 		}
+		// A missing repository is the same everywhere; do not ask the others.
+		if (!listing) throw new SourceError('not-found', missing(ref));
+		return listing;
 	}
-	throw spent ?? lastError ?? new Error('No lister could list the repository');
-}
-
-function failedWith(error: unknown, failure: SourceFailure): error is SourceError {
-	return error instanceof SourceError && error.failure === failure;
+	throw spent ?? lastError;
 }
 
 /**
@@ -137,7 +134,7 @@ export interface Seams {
 	/** The network, which the reads and the listers alike go through. */
 	network?: typeof fetch;
 	/** The listers this forge falls back through, in order. */
-	listers?: readonly Lister[];
+	listers?: Listers;
 }
 
 /**
@@ -156,7 +153,7 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	readonly #ref: RepoRef;
 	readonly #branch: string;
 	readonly #network: typeof fetch;
-	readonly #listers: readonly Lister[];
+	readonly #listers: Listers;
 
 	constructor(ref: RepoRef, seams: Seams = {}) {
 		this.#ref = ref;

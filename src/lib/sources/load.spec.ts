@@ -4,7 +4,7 @@ import { fileList } from '#tests/support/fake-directory.ts';
 import { wordRef, parseForgePath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { loadRepository } from './load.ts';
-import { GitHubRepository, type Lister, type Seams } from './github/kind.ts';
+import { GitHubRepository, type Listers, type Seams } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { Snapshot } from '../tatr/changes.ts';
@@ -27,10 +27,12 @@ function fakeLister(overrides: Partial<Listing> = {}) {
 }
 
 const failing =
-	(name: string, failure: 'rate-limited' | 'not-found' | 'network') =>
-	async (): Promise<Listing> => {
+	(name: string, failure: 'rate-limited' | 'network') => async (): Promise<Listing> => {
 		throw new SourceError(failure, `${name}: ${failure}`);
 	};
+
+/** A lister that finds no such repository. */
+const nowhere = async (): Promise<null> => null;
 
 /** Serves task files, and the tags file, from the fixture. */
 const fetchFixture = vi.fn(async (input: RequestInfo | URL) => {
@@ -65,7 +67,7 @@ describe('lister fallback', () => {
 	 * Through the door the application uses: the chain is the forge's own
 	 * business, reached by opening the source and asking it to list.
 	 */
-	const list = (listers: Lister[]) => github({ listers }).list();
+	const list = (listers: Listers) => github({ listers }).list();
 
 	// A listing no longer says who produced it, so the question is put to the
 	// listers themselves, which is the stronger form of it anyway: that the
@@ -91,14 +93,12 @@ describe('lister fallback', () => {
 
 	it('does not ask the others when the repository does not exist', async () => {
 		const second = vi.fn(fakeLister());
-		await expect(list([failing('github', 'not-found'), second])).rejects.toMatchObject({
-			failure: 'not-found'
-		});
+		await expect(list([nowhere, second])).rejects.toMatchObject({ failure: 'not-found' });
 		expect(second).not.toHaveBeenCalled();
 	});
 
 	it("says what is missing in the forge's words, whichever lister found it missing", async () => {
-		await expect(list([failing('ungh', 'not-found')])).rejects.toThrow(
+		await expect(list([failing('github', 'network'), nowhere])).rejects.toThrow(
 			'No repository tsoding/tatr on github.com, or it is private.'
 		);
 	});

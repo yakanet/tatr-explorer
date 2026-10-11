@@ -158,6 +158,19 @@ describe('repoKey', () => {
 		const explicit = repoKey(parseForgePath('owner/repo@main')!);
 		expect(implicit).not.toBe(explicit);
 	});
+
+	it('reads back as the forge path it is, branch and all', () => {
+		// The recent repositories are cached under these keys, and listed from them.
+		for (const path of ['owner/repo', 'owner/repo@dev', 'owner/repo@feature/web-ui']) {
+			const ref = parseForgePath(path)!;
+			expect(parseForgePath(repoKey(ref))).toEqual(ref);
+		}
+	});
+
+	it('gives up on a key it cannot read', () => {
+		expect(parseForgePath('nonsense')).toBeNull();
+		expect(parseForgePath('')).toBeNull();
+	});
 });
 
 describe('a word for an address', () => {

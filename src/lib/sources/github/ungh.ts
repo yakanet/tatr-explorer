@@ -10,6 +10,7 @@
  * depend on someone else's goodwill.
  */
 import type { RepoRef } from '../../repo/ref.ts';
+import { readJson } from '../http.ts';
 import { SourceError, type Listing } from '../source.ts';
 
 const API = 'https://ungh.cc';
@@ -23,7 +24,7 @@ export async function listViaUngh(
 	ref: RepoRef,
 	network: typeof fetch,
 	signal?: AbortSignal
-): Promise<Listing> {
+): Promise<Listing | null> {
 	const branch = ref.branch ?? 'HEAD';
 	const url = `${API}/repos/${ref.owner}/${ref.name}/files/${encodeURIComponent(branch)}`;
 
@@ -33,14 +34,12 @@ export async function listViaUngh(
 	} catch {
 		throw new SourceError('network', `Could not reach ${url}.`);
 	}
-	if (response.status === 404) {
-		throw new SourceError('not-found', 'ungh has no such repository or branch.');
-	}
+	if (response.status === 404) return null;
 	if (!response.ok) {
 		throw new SourceError('network', `ungh answered ${response.status}.`);
 	}
 
-	const body = (await response.json()) as UnghResponse;
+	const body = (await readJson(response, 'ungh')) as UnghResponse;
 	if (!Array.isArray(body.files)) {
 		throw new SourceError('malformed', 'ungh answered with no files in its response.');
 	}

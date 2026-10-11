@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { servedFolder } from './src/lib/sources/served/folder.server.ts';
+import { tatrServedFolder } from './src/lib/sources/served/folder.server.ts';
 
 /**
  * The site is served from https://github.broutin.dev/<repository name> rather
@@ -30,7 +30,7 @@ function basePath(): '' | `/${string}` {
 export default defineConfig({
 	plugins: [
 		// `TATR_FOLDER=../my-project pnpm run dev` serves that folder and opens on it.
-		servedFolder(),
+		tatrServedFolder(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

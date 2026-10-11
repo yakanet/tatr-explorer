@@ -60,10 +60,14 @@ export function canDropFolder(): boolean {
  */
 export type WayBack = FileSystemDirectoryHandle | FileSystemDirectoryEntry;
 
-/** Walks a folder again by its way back, in whichever dialect it came. */
-export function fromWayBack(back: WayBack): Promise<LocalFolder> {
-	if ('kind' in back) return fromDirectoryHandle(back);
-	return fromDirectoryEntry(back);
+/**
+ * Walks a folder again by its way back, in whichever dialect it came. A walk
+ * `signal` aborts stops at the next entry, rather than reading a tree nobody
+ * will look at.
+ */
+export function fromWayBack(back: WayBack, signal?: AbortSignal): Promise<LocalFolder> {
+	if ('kind' in back) return fromDirectoryHandle(back, signal);
+	return fromDirectoryEntry(back, signal);
 }
 
 /** A repository read from the disk, as much of it as this viewer looks at. */
@@ -155,11 +159,15 @@ export function fromFileList(list: ArrayLike<File>): LocalFolder | null {
  * tens of thousands of loose objects under `.git` to end up with the same forty
  * files. A handle can be asked for a path directly, so it is.
  */
-export async function fromDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<LocalFolder> {
+export async function fromDirectoryHandle(
+	handle: FileSystemDirectoryHandle,
+	signal?: AbortSignal
+): Promise<LocalFolder> {
 	const files = new Map<string, File>();
 
 	async function walk(dir: FileSystemDirectoryHandle, prefix: string): Promise<void> {
 		for await (const [name, entry] of dir.entries()) {
+			signal?.throwIfAborted();
 			const path = `${prefix}/${name}`;
 			if (entry.kind === 'directory') await walk(entry, path);
 			else files.set(path, await entry.getFile());
@@ -252,7 +260,10 @@ async function fileOrNull(
  * and signals the end with an empty array, so reading it once looks like it
  * worked on a small folder and silently loses the rest of a real one.
  */
-export async function fromDirectoryEntry(entry: FileSystemDirectoryEntry): Promise<LocalFolder> {
+export async function fromDirectoryEntry(
+	entry: FileSystemDirectoryEntry,
+	signal?: AbortSignal
+): Promise<LocalFolder> {
 	const files = new Map<string, File>();
 
 	// `Promise.withResolvers` rather than an executor: the paging loop below calls
@@ -296,6 +307,7 @@ export async function fromDirectoryEntry(entry: FileSystemDirectoryEntry): Promi
 
 	async function walk(dir: FileSystemDirectoryEntry, prefix: string): Promise<void> {
 		for (const found of await read(dir)) {
+			signal?.throwIfAborted();
 			const path = `${prefix}/${found.name}`;
 			if (found.isDirectory) await walk(found as FileSystemDirectoryEntry, path);
 			else {

@@ -12,6 +12,7 @@
  * refreshed behind the reader's back.
  */
 import type { RepoRef } from '../../repo/ref.ts';
+import { readJson } from '../http.ts';
 import { SourceError, type Listing } from '../source.ts';
 
 const API = 'https://api.github.com';
@@ -21,7 +22,17 @@ interface TreeResponse {
 	truncated?: boolean;
 }
 
-async function json(network: typeof fetch, url: string, signal?: AbortSignal): Promise<Response> {
+/** What a spent budget leaves the reader, whichever limit GitHub applied. */
+const STILL_FREE =
+	'Only listing a repository counts: reading its tasks does not, and a repository ' +
+	'already read stays here.';
+
+/** The response to `url`, or null when GitHub has no such repository or branch. */
+async function json(
+	network: typeof fetch,
+	url: string,
+	signal?: AbortSignal
+): Promise<Response | null> {
 	let response: Response;
 	try {
 		response = await network(url, {
@@ -32,20 +43,22 @@ async function json(network: typeof fetch, url: string, signal?: AbortSignal): P
 		throw new SourceError('network', `Could not reach ${url}.`);
 	}
 
-	if (response.status === 403 || response.status === 429) {
-		const remaining = response.headers.get('x-ratelimit-remaining');
-		if (remaining === '0' || response.status === 429) {
-			throw new SourceError(
-				'rate-limited',
-				'GitHub allows 60 unauthenticated requests per hour per IP address, and this ' +
-					'address has used all of them. Only listing a repository costs any, never ' +
-					'reading its tasks, and one read once stays available without spending more.'
-			);
-		}
+	const refused = response.status === 403 || response.status === 429;
+	if (refused && response.headers.get('x-ratelimit-remaining') === '0') {
+		throw new SourceError(
+			'rate-limited',
+			'GitHub allows each address 60 unauthenticated requests an hour, and this one ' +
+				`has used them all. ${STILL_FREE}`
+		);
 	}
-	if (response.status === 404) {
-		throw new SourceError('not-found', 'GitHub has no such repository or branch.');
+	// The other limit, on requests too close together, says nothing of the hour.
+	if (response.status === 429) {
+		throw new SourceError(
+			'rate-limited',
+			`GitHub is turning this address away for now, for asking too often. ${STILL_FREE}`
+		);
 	}
+	if (response.status === 404) return null;
 	if (!response.ok) {
 		throw new SourceError('network', `GitHub answered ${response.status}.`);
 	}
@@ -57,7 +70,7 @@ export async function listViaApi(
 	ref: RepoRef,
 	network: typeof fetch,
 	signal?: AbortSignal
-): Promise<Listing> {
+): Promise<Listing | null> {
 	// `HEAD` avoids a second request to learn the default branch's name.
 	const branch = ref.branch ?? 'HEAD';
 	const response = await json(
@@ -65,7 +78,8 @@ export async function listViaApi(
 		`${API}/repos/${ref.owner}/${ref.name}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
 		signal
 	);
-	const body = (await response.json()) as TreeResponse;
+	if (!response) return null;
+	const body = (await readJson(response, 'GitHub')) as TreeResponse;
 	if (!Array.isArray(body.tree)) {
 		throw new SourceError('malformed', 'GitHub answered with no tree in its response.');
 	}

@@ -95,7 +95,8 @@ function honoursTheContract(subject: Subject): void {
 			const source = await holding();
 			expect(source.label).not.toBe('');
 			expect(source.concurrency).toBeGreaterThanOrEqual(1);
-			// Null says "never cache this"; an empty key would say it ambiguously.
+			// A source that is not `Cached` has no key; one that is says what it is
+			// cached under, which an empty key would leave every such source sharing.
 			expect(cacheKeyOf(source)).not.toBe('');
 		});
 
@@ -159,6 +160,7 @@ function honoursTheContract(subject: Subject): void {
 			// A change is answered by the same refresh a click takes, which a
 			// reading that cannot be taken again would answer with nothing: a
 			// `follow` without a `reread` is no capability, and is never followed.
+			// What following does is each kind's own, and its spec says it.
 			const source = await holding();
 			expect(isFollowable(source)).toBe('follow' in source);
 		});

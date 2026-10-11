@@ -120,9 +120,12 @@ class LiveFolder extends FolderSnapshot implements Followable {
 		this.#back = back;
 	}
 
-	async reread(): Promise<void> {
+	async reread(signal?: AbortSignal): Promise<void> {
 		if (!this.folder) return;
-		const folder = await fromWayBack(this.#back);
+		const folder = await fromWayBack(this.#back, signal);
+		// A later reading took over, and its walk may have landed already: this
+		// one, started first, holds the older tree.
+		signal?.throwIfAborted();
 		// The folder alone: closing it would revoke what the reading on screen
 		// links to. Unless it was let go of meanwhile, which a reread must not undo.
 		if (this.folder) this.folder = folder;

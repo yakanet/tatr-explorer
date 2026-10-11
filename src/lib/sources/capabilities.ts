@@ -35,8 +35,11 @@ export interface Cached {
  * folder again, and a Refresh button would be a lie.
  */
 export interface Rereadable {
-	/** Made ready to be read again, before a refresh. */
-	reread(): Promise<void>;
+	/**
+	 * Made ready to be read again, before a refresh. A reading started since
+	 * aborts `signal`, and a reread it aborts leaves the source as it was.
+	 */
+	reread(signal?: AbortSignal): Promise<void>;
 }
 
 /**

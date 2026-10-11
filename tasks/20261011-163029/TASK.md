@@ -114,3 +114,17 @@ Left as they are, and why:
 - `concurrency` stays required: a default would change what the folders do,
   or let a new source over HTTP ask too much at once.
 
+
+Found by the review before merging, and fixed:
+
+- Two overlapping refreshes of a picked or dropped folder (a change followed,
+  then a click) could leave the older walk's tree in place. `reread` now takes
+  the reading's signal, and a walk taken over stops at its next entry.
+- A listing GitHub or ungh answered with something other than JSON reached the
+  page as the parser's own words; it fails as malformed now. The listers
+  answer null for a missing repository, which the forge words once.
+- The rate-limit sentence said every budget was spent on a 429 too, which is
+  GitHub's other limit; each now says what happened.
+- The detail of a failed refresh, and of skipped folders, was only in a
+  tooltip; it is read out as well.
+- The README says how to add a source, in the order it is written.

@@ -102,7 +102,21 @@
 	function dismiss() {
 		if (helping) helping = false;
 	}
+
+	function folders(count: number): string {
+		if (count === 1) return '1 folder';
+		return `${count} folders`;
+	}
 </script>
+
+<!-- A clause of the reading's line, its detail hovered on screen and read out
+     after it: too long for a line that should not move for a rare case. -->
+{#snippet clause(text: string, detail: string)}
+	<span class="stale" title={detail}>
+		· {text}
+		<span class="sr">{detail}</span>
+	</span>
+{/snippet}
 
 <Shortcuts
 	onview={switchTo}
@@ -151,25 +165,23 @@
 					{describeAge(repo.storedAt)}
 				{/if}
 				<!-- The reading stayed; only renewing it failed, which is worth one
-				     clause rather than a panel over tasks that are still true. -->
+				     clause rather than a panel over tasks that are still true. The
+				     source's own sentence is the detail. -->
 				{#if repo.refreshFailure}
-					<span class="stale" title={repo.refreshFailure.message}>
-						· not refreshed: {FAILURE_HEADINGS[repo.refreshFailure.kind]}
-					</span>
+					{@render clause(
+						`not refreshed: ${FAILURE_HEADINGS[repo.refreshFailure.kind]}`,
+						repo.refreshFailure.message
+					)}
 				{/if}
 				<!-- What the reading could not use. Said here because it is a fact about
 				     the reading rather than about a view, and because a count that does
 				     not match `tatr ls` is worse than a count with a reason beside it.
-				     The folders and the reasons are in the tooltip: naming them on the
-				     header would push the whole line around for a case that is rare. -->
+				     The folders and the reasons are the detail. -->
 				{#if repo.skipped.length > 0}
-					<span
-						class="stale"
-						title={repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')}
-					>
-						· {repo.skipped.length}
-						{repo.skipped.length === 1 ? 'folder' : 'folders'} skipped
-					</span>
+					{@render clause(
+						`${folders(repo.skipped.length)} skipped`,
+						repo.skipped.map((one) => `${one.id}: ${one.reason}`).join('\n')
+					)}
 				{/if}
 			</span>
 			{#if rereadable}

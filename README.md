@@ -268,6 +268,30 @@ with the repository name as `BASE_PATH` and publishes to GitHub Pages.
 Client-side routing at any path depth works because the build emits a `404.html`
 fallback.
 
+### Adding a source
+
+GitHub, a local folder and the folder the dev server serves are three kinds of
+source, each in its own folder under `src/lib/sources/`. A fourth is one more
+folder, written in this order:
+
+1. **A class implementing `Source`** (`source.ts`): a label, how many files to
+   read at once, a listing, a read, and a URL per file. A listing that fails
+   throws a `SourceError`, whose sentence the page shows as it is; a file that
+   cannot be read answers null, so one bad task is skipped rather than the
+   whole repository failing.
+2. **The capabilities it really has**, from `capabilities.ts`, each one an
+   interface the page asks about before offering anything: `Cached` keeps the
+   reading between visits, `Rereadable` offers Refresh, `Followable` refreshes
+   on its own when the source changes, and `Linked` links a file to its page.
+   Leave one out and the page offers nothing in its place, which is the point.
+3. **A `SourceKind`** in the folder's `kind.ts`: its address (the hosts a forge
+   reads, or one word such as `/local`), how a reference reads on screen,
+   whether it has branches, what reading costs, and how a source is opened.
+4. **One line in `KINDS`** (`open.ts`). The compiler then asks for the two
+   others: its controls in `KIND_UI` (`src/lib/components/kinds.ts`), null
+   unless a gesture is the only way back to it, and how to build it in
+   `contract.spec.ts`, which runs every source through the same tests.
+
 ## It tracks itself
 
 This repository keeps its own work in its own `tasks/` folder, in the tatr
