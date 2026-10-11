@@ -18,10 +18,9 @@ screens look the same, and the suite says the same as before.
 Done for four pages, the landing page included, as the criterion covers every
 page: each is now the assembly of its blocks, from 418 to 574 lines down to
 between 53 and 133. A block used by one page sits beside it in `src/routes/`;
-`src/lib/components/` keeps what several pages or a layout use. After the
-split, the screens compared equal element by element (position, size and
-computed style) at 1672 and 390 pixels wide; the shared frames and global
-labels that followed were checked on the rendered HTML only.
+`src/lib/components/` keeps what several pages or a layout use. Nine screens
+compare equal before and after, element by element (position, size and
+computed style) at 1672 and 390 pixels wide, two renamed classes aside.
 
 The first cut copied the rules several blocks shared, so the frames became
 components: `ChartPanel` and `BarChart` for the overview's charts, `SidePanel`
