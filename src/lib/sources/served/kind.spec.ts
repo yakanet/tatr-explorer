@@ -2,7 +2,7 @@ import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
-import { localRef, servedRef } from '../../repo/ref.ts';
+import { wordRef } from '../../repo/ref.ts';
 import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
@@ -29,12 +29,6 @@ beforeEach(async () => {
 const open = async () => new ServedSource('my-project', await serving(scratch()));
 
 describe('the served folder, as a source', () => {
-	it('claims the served marker and nothing else', () => {
-		const kind = servedKind('my-project');
-		expect(kind.claims(servedRef())).toBe(true);
-		expect(kind.claims(localRef())).toBe(false);
-	});
-
 	it('names itself after the folder, and keeps no cache of it', async () => {
 		const source = await open();
 		expect(source.label).toBe('my-project');
@@ -90,6 +84,6 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('follows nothing outside a dev server, there being no channel to hear from', async () => {
-		expect(isFollowable(servedKind('my-project').open(servedRef()))).toBe(false);
+		expect(isFollowable(servedKind('my-project').open(wordRef('served')))).toBe(false);
 	});
 });

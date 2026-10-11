@@ -7,9 +7,9 @@
  */
 import { isFollowable, isLinked } from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
-import { openSource } from '../sources/open.ts';
+import { describeRef, openSource } from '../sources/open.ts';
 import { SourceError, type Source, type SourceFailure } from '../sources/source.ts';
-import { describeRef, type RepoRef } from '../repo/ref.ts';
+import type { RepoRef } from '../repo/ref.ts';
 import {
 	compare,
 	snapshot,
@@ -183,7 +183,7 @@ export class RepositoryState {
 		const standing = replaces !== null;
 
 		this.ref = ref;
-		// Before the source is opened, which throws for a reference nothing claims:
+		// Before the source is opened, which throws for a reference no kind reads:
 		// the last reference's source must not stay behind for this one.
 		this.source = source;
 		this.refreshFailure = null;

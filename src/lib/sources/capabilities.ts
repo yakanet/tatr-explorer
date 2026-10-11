@@ -4,7 +4,7 @@
  *
  * A view asks whether the source of its reading can do a thing, never which
  * source it holds: that second question is how a kind's knowledge leaked into
- * the pages, one `isLocal` at a time. And a capability is there with every
+ * the pages, one test of a reference's host at a time. And a capability is there with every
  * member it needs, or absent, so a source cannot half-declare one: a Refresh
  * with nothing behind it, or a key that means "do not cache".
  *

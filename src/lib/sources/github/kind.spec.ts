@@ -69,25 +69,3 @@ describe('the URL of its page on the forge', () => {
 		expect(open(ref, 'feature/web-ui').fileUrl(path)).toContain('/blob/feature/web-ui/tasks/');
 	});
 });
-
-describe('a host this forge does not serve', () => {
-	// Asked once now, at the entrance of the fallback chain, so it is refused
-	// before any lister is tried rather than by each in turn.
-	const elsewhere = parseRepoInput('gitlab.com/group/project')!;
-
-	it('is refused as unsupported, without asking anybody', async () => {
-		let asked = 0;
-		const counting = async () => {
-			asked += 1;
-			throw new Error('should not be reached');
-		};
-
-		await expect(
-			new GitHubRepository(elsewhere, { listers: [counting] }).list()
-		).rejects.toMatchObject({
-			failure: 'unsupported-host',
-			message: 'Only github.com is read for now, not gitlab.com.'
-		});
-		expect(asked).toBe(0);
-	});
-});

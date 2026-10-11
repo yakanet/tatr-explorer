@@ -1,8 +1,8 @@
 # Make adding a source a matter of one folder
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 40
-- TAGS: data,scope
+- TAGS: data
 
 Three sources read through one interface since 20260906-211255, and the loader
 has one path for all of them. Writing a fourth is simple; knowing what else to
@@ -78,3 +78,39 @@ Done when no view decides what to show by asking which source it holds
 (branches, Refresh, following, reopening and the failure text all come from
 the kind or the source), and every source passes the contract spec. The home
 page's ways in stay one per kind, being what a kind brings.
+
+---
+
+Done in six steps, one commit each, with three more for where test code
+lives. Adding a source is now: a folder under `src/lib/sources/` whose
+`kind.ts` builds a `SourceKind` (an address, a description, whether it has
+branches, what a reading costs) and a source class that `implements` the
+capabilities it has; one line in `KINDS`; one entry in the contract's
+`SUBJECTS` and one in `src/lib/components/kinds.ts`, both of which the compiler
+asks for. Nothing outside those files tells sources apart by name any more:
+the header and the failure panel ask the kind, the guards ask the source.
+
+Found on the way, besides what the shape above fixes:
+
+- The rate-limit panel could not appear with the default chain: ungh never
+  says it is rate-limited, and the chain reported whichever fallback failed
+  last. It now reports a spent budget first.
+- A local source read whatever folder was open now, not the one it was opened
+  on. It owns its folder since step 3, and lets go of it when another is
+  picked, which is the prerequisite 20261010-030543 named for writing.
+- The source the dev server opens in practice, the one followed over Vite's
+  channel, was not tested anywhere; the contract runs it now.
+- Test code outside any spec moved to `tests/support/`, beside the fixtures,
+  imported as `#tests/...`; the README states the rule.
+
+Left as they are, and why:
+
+- A forge address is still read by `ref.ts` for every host. A second forge
+  with nested groups (GitLab's `group/sub/project`, and its `/-/tree/` URLs)
+  will have to let its kind read its own; the reference keeps its owner and
+  name until then.
+- The home page's ways in are written by hand, one per kind, as this task
+  meant them to be; nothing makes a new kind add one.
+- `concurrency` stays required: a default would change what the folders do,
+  or let a new source over HTTP ask too much at once.
+

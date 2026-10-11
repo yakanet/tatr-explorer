@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
-import { localRef } from '../repo/ref.ts';
+import { wordRef } from '../repo/ref.ts';
+import { parseRepoPath } from '../sources/open.ts';
 import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/kind.ts';
 import { readTask, type Task } from '../tatr/task.ts';
@@ -79,7 +80,7 @@ const taskAt = (priority: number, status = 'OPEN') =>
 /** Opens the folder, holding one task at that priority, as a directory input would. */
 const opened = (priority = 90) => {
 	openFolder(fromFileList(fileList('my-project', { [TASK]: taskAt(priority) }))!);
-	return localRef();
+	return wordRef('local');
 };
 
 /** The folder on the disk, which an editor rewrites between two readings. */
@@ -93,7 +94,7 @@ const picked = async (tree: Record<string, string> = { [TASK]: taskAt(90) }) => 
 	disk = tree;
 	const entry = entryTree('my-project', disk);
 	openFolder(await fromDirectoryEntry(entry), entry);
-	return localRef();
+	return wordRef('local');
 };
 
 /** Saves the task at another priority, as an editor would. */
@@ -210,10 +211,10 @@ describe('following', () => {
 	});
 });
 
-describe('a reference no source claims', () => {
-	it('fails as a host that is not served', async () => {
+describe('a reference no kind reads', () => {
+	it('fails as a host nothing reads', async () => {
 		const repo = new RepositoryState();
-		await repo.load({ host: 'intranet', owner: 'team', name: 'tasks' });
+		await repo.load(parseRepoPath('gitlab.com/group/project')!);
 		expect(repo.phase).toBe('failed');
 		expect(repo.failure?.kind).toBe('unsupported-host');
 		expect(repo.source).toBeNull();
@@ -241,7 +242,7 @@ describe('a refresh that fails', () => {
 
 	it('is fatal when there is no reading to keep', async () => {
 		const repo = new RepositoryState();
-		await repo.load(localRef());
+		await repo.load(wordRef('local'));
 		await repo.refresh();
 		expect(repo.phase).toBe('failed');
 		expect(repo.failure?.kind).toBe('no-source');

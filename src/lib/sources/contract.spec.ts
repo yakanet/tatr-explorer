@@ -22,7 +22,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
-import { localRef, parseRepoPath } from '../repo/ref.ts';
+import { wordRef, parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { GitHubRepository } from './github/kind.ts';
 import { loadRepository } from './load.ts';
@@ -196,7 +196,7 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 }
 
 function openGitHubOver(network: typeof fetch): Source {
-	return new GitHubRepository(parseRepoPath('owner/repo')!, { network });
+	return new GitHubRepository(parseForgePath('owner/repo')!, { network });
 }
 
 /** What a door hands over for a folder: the folder, and a way back to it when it has one. */
@@ -208,7 +208,7 @@ function through(name: string, door: Door): Subject {
 		name,
 		async holding(tree) {
 			openFolder(...(await door(tree)));
-			return localKind.open(localRef());
+			return localKind.open(wordRef('local'));
 		},
 		broken: forgotten
 	};
@@ -217,7 +217,7 @@ function through(name: string, door: Door): Subject {
 /** Nothing open: where every reload leaves a folder, the browser taking its grant back. */
 function forgotten(): Source {
 	closeFolder();
-	return localKind.open(localRef());
+	return localKind.open(wordRef('local'));
 }
 
 /** The dev channel, with nothing said on it: the contract only asks that it is there. */

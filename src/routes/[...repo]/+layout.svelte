@@ -7,8 +7,9 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
-	import FolderPicker from '#lib/components/FolderPicker.svelte';
-	import { formatRepoPath, isLocal, isServed } from '#lib/repo/ref.ts';
+	import { reopenerOf } from '#lib/components/kinds.ts';
+	import { formatRepoPath } from '#lib/repo/ref.ts';
+	import { kindOf } from '#lib/sources/open.ts';
 	import { isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {
 		FAILURE_HEADINGS,
@@ -48,8 +49,15 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** A folder on this machine, opened or served, which has no branch to choose. */
-	const local = $derived(isLocal(ref) || isServed(ref));
+	/** Whether the reading has branches to choose from, which its kind says. */
+	const branched = $derived(kindOf(ref)?.branches ?? false);
+	/** What the branch shortcut does: open the menu, where there are branches. */
+	const openBranches = $derived.by(() => {
+		if (!branched) return undefined;
+		return () => (branching = true);
+	});
+	/** The gesture that opens the source again, where asking it again is not enough. */
+	const reopener = $derived(reopenerOf(ref));
 
 	/** Whether Refresh means anything here, which only the source of the reading knows. */
 	const rereadable = $derived(isRereadable(repo.source));
@@ -98,7 +106,7 @@
 
 <Shortcuts
 	onview={switchTo}
-	onbranch={local ? undefined : () => (branching = true)}
+	onbranch={openBranches}
 	onhelp={() => (helping = !helping)}
 	ondismiss={dismiss}
 	modal={helping}
@@ -107,7 +115,7 @@
 {#if helping}
 	<KeyHelp
 		views={views.map((view) => view.name)}
-		branch={!local}
+		branch={branched}
 		onclose={() => (helping = false)}
 	/>
 {/if}
@@ -117,10 +125,10 @@
 <header>
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
-		{#if local}
-			<span class="repo">{repo.name}</span>
-		{:else}
+		{#if branched}
 			<BranchField {ref} bind:open={branching} />
+		{:else}
+			<span class="repo">{repo.name}</span>
 		{/if}
 	</div>
 
@@ -170,11 +178,11 @@
 				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
 					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
 				</button>
-			{:else}
+			{:else if reopener}
 				<!-- A reading that cannot be taken again: a directory input hands over
 				     files and no way back to the folder they came from, so refreshing
 				     means asking for it again rather than pretending. -->
-				<FolderPicker label="Reopen…" />
+				<reopener.control label="Reopen…" />
 			{/if}
 		{/if}
 	</div>

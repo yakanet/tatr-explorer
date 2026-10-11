@@ -12,14 +12,13 @@
  * one, follows the folder in every browser, and needs no picker.
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
-import { isServed } from '../../repo/ref.ts';
 import type { Followable, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { CHANGED, ROUTES } from './protocol.ts';
 
-/** The kind's id. */
-const NAME = 'served';
+/** The kind's id, and the word that is its address. */
+export const SERVED_WORD = 'served';
 
 /** A route of the dev server, which is always at the root. */
 const route = (path: string) => `/${ROUTES}/${path}`;
@@ -34,7 +33,7 @@ const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
  * editing would be wrong before it was written.
  */
 export class ServedSource implements Source, Rereadable {
-	readonly id = NAME;
+	readonly id = SERVED_WORD;
 	// The dev server is this machine.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly label: string;
@@ -94,9 +93,20 @@ export class FollowedServedSource extends ServedSource implements Followable {
  */
 export function servedKind(name: string): SourceKind {
 	return {
-		id: NAME,
+		id: SERVED_WORD,
 
-		claims: (ref) => isServed(ref),
+		// A word, as for a folder opened in the browser: no URL anyone else follows
+		// reaches it, though it survives a reload.
+		address: { word: SERVED_WORD },
+
+		describe: () => 'the folder the dev server serves',
+
+		branches: false,
+
+		cost: {
+			listing: 'from the dev server',
+			files: 'The dev server reads the folder from the disk, and says when it changes.'
+		},
 
 		open(): Source {
 			// The dev channel is there whenever the dev server is, which is the only

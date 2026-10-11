@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { fileList } from '#tests/support/fake-directory.ts';
-import { localRef, parseRepoPath } from '../repo/ref.ts';
+import { wordRef, parseForgePath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
 import { loadRepository } from './load.ts';
 import { GitHubRepository, type Lister, type Seams } from './github/kind.ts';
@@ -11,7 +11,7 @@ import type { Snapshot } from '../tatr/changes.ts';
 import { SourceError, type Listing } from './source.ts';
 
 const sources = rawTasks as Record<string, string>;
-const ref = parseRepoPath('tsoding/tatr')!;
+const ref = parseForgePath('tsoding/tatr')!;
 
 /** A lister that answers from the embedded fixture. */
 function fakeLister(overrides: Partial<Listing> = {}) {
@@ -393,7 +393,7 @@ describe('a folder on this machine', () => {
 	const open = (files: File[]) => {
 		const folder = fromFileList(files);
 		if (folder) openFolder(folder);
-		return localKind.open(localRef());
+		return localKind.open(wordRef('local'));
 	};
 
 	const task = (id: string, priority: number, status = 'OPEN') =>
@@ -463,8 +463,10 @@ describe('a folder on this machine', () => {
 
 	it('says so when there is no folder open at all, as after a reload', async () => {
 		closeFolder();
-		await expect(loadRepository(localKind.open(localRef()), { store })).rejects.toMatchObject({
-			failure: 'no-source'
-		});
+		await expect(loadRepository(localKind.open(wordRef('local')), { store })).rejects.toMatchObject(
+			{
+				failure: 'no-source'
+			}
+		);
 	});
 });

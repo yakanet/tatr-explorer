@@ -2,14 +2,21 @@
  * A reference to a repository that holds a `tasks/` folder.
  *
  * References round-trip through the site's own URLs, so that every repository
- * gets a unique, shareable address: `/{owner}/{name}`, optionally prefixed with
- * a forge host and suffixed with `@{branch}`.
+ * gets a unique, shareable address. Two shapes, and this file knows no kind of
+ * source by name:
+ *
+ * - a forge address, `/{owner}/{name}`, optionally prefixed with a forge host
+ *   and suffixed with `@{branch}`, on any host, so that one on a host nothing
+ *   reads still opens a page that says so;
+ * - a word, for a kind whose sources no URL anyone else follows can reach (a
+ *   folder on this machine is a session, not an address). The kind that owns
+ *   the word says so in the registry, which is where the word is recognised.
  */
-import { SERVED } from '../served.ts';
 
 export type RepoRef = {
-	/** Forge host, e.g. `github.com`. */
+	/** Forge host, e.g. `github.com`, or the word of a kind that has one. */
 	host: string;
+	/** Empty for a word, which has no owner to qualify it. */
 	owner: string;
 	name: string;
 	/** `undefined` means "whatever the forge reports as the default branch". */
@@ -18,41 +25,9 @@ export type RepoRef = {
 
 export const DEFAULT_HOST = 'github.com';
 
-/**
- * The host of a folder on the reader's own machine.
- *
- * Not a host at all, which is the point: it marks a reference that no URL can
- * resolve. A local folder is a session rather than an address (the browser
- * gives access to it on a gesture and takes it back on a reload), so our own
- * URL carries the marker and nothing else, and the folder itself is held in
- * memory for as long as the reader stays.
- */
-export const LOCAL_HOST = 'local';
-
-/** A reference to whichever folder the reader has open, named once picked. */
-export function localRef(name = ''): RepoRef {
-	return { host: LOCAL_HOST, owner: '', name };
-}
-
-export function isLocal(ref: RepoRef): boolean {
-	return ref.host === LOCAL_HOST;
-}
-
-/**
- * The host of the folder the dev server serves, when it was started with one.
- *
- * A marker like the local one, for a folder that is not a grant the browser
- * holds but a path the server reads: it survives a reload, and still no URL
- * anyone else follows can reach it.
- */
-export const SERVED_HOST = 'served';
-
-export function servedRef(): RepoRef {
-	return { host: SERVED_HOST, owner: '', name: '' };
-}
-
-export function isServed(ref: RepoRef): boolean {
-	return ref.host === SERVED_HOST;
+/** The reference a word stands for: the word, and nothing else. */
+export function wordRef(word: string): RepoRef {
+	return { host: word, owner: '', name: '' };
 }
 
 /** GitHub allows these characters in owner and repository names. */
@@ -78,20 +53,16 @@ function build(host: string, owner: string, name: string, branch?: string): Repo
 }
 
 /**
- * Parses the `[...repo]` portion of one of our own URLs.
+ * Parses a forge address out of the `[...repo]` portion of one of our own URLs.
  *
  * Accepts `owner/name`, `host/owner/name`, and either form suffixed with
- * `@branch`. Branch names may contain slashes.
+ * `@branch`. Branch names may contain slashes. One segment is never a forge
+ * address, which needs an owner too: that is what leaves a word free to be a
+ * kind's.
  */
-export function parseRepoPath(path: string): RepoRef | null {
+export function parseForgePath(path: string): RepoRef | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');
 	if (!trimmed) return null;
-	// One segment is never a repository on a forge, which needs an owner too, so
-	// the word is free to mean the folder the reader has open.
-	if (trimmed === LOCAL_HOST) return localRef();
-	// An address only where a folder is served: elsewhere, a build included, the
-	// word reads as what it is there, a path to nothing.
-	if (SERVED && trimmed === SERVED_HOST) return servedRef();
 
 	const at = trimmed.indexOf('@');
 	const branch = at === -1 ? undefined : trimmed.slice(at + 1) || undefined;
@@ -128,7 +99,7 @@ export function parseRepoInput(input: string): RepoRef | null {
 	const ssh = /^(?:[\w.-]+@)?([\w.-]+\.[\w.-]+):(?!\/)(.+)$/.exec(trimmed);
 	if (ssh) return fromHostAndPath(ssh[1], ssh[2]);
 
-	return parseRepoPath(trimmed);
+	return parseForgePath(trimmed);
 }
 
 function fromHostAndPath(host: string, path: string): RepoRef | null {
@@ -139,10 +110,11 @@ function fromHostAndPath(host: string, path: string): RepoRef | null {
 	if (segments.length < 2) return null;
 
 	const [owner, name, keyword, ...rest] = segments;
-	// GitHub, GitLab and Gitea all spell a branch view `/tree/<branch>/<path>`.
-	// Branch and path are not separable there without asking the forge, so we take
-	// the first segment: a pasted URL for a slash-containing branch loses its tail.
-	// Our own `@branch` syntax has no such ambiguity.
+	// GitHub spells a branch view `/tree/<branch>/<path>`; GitLab (`/-/tree/`) and
+	// Gitea (`/src/branch/`) spell it otherwise, which a second forge will have to
+	// teach this. Branch and path are not separable there without asking the
+	// forge, so we take the first segment: a pasted URL for a slash-containing
+	// branch loses its tail. Our own `@branch` syntax has no such ambiguity.
 	const branch = keyword === 'tree' && rest.length > 0 ? rest[0] : undefined;
 
 	return build(host, owner, name, branch);
@@ -168,10 +140,9 @@ export function isBranchName(name: string): boolean {
 
 /** Renders a reference back into the path form used by our own URLs. */
 export function formatRepoPath(ref: RepoRef): string {
-	// The folder's name is deliberately not in the URL: it would read as an
-	// address, and nobody else's machine can follow it.
-	if (isLocal(ref)) return LOCAL_HOST;
-	if (isServed(ref)) return SERVED_HOST;
+	// A word is the whole address: a folder's name, say, would read as one, and
+	// nobody else's machine can follow it.
+	if (!ref.owner) return ref.host;
 	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;
 	const suffix = ref.branch ? `@${ref.branch}` : '';
 	return `${prefix}${ref.owner}/${ref.name}${suffix}`;
@@ -180,16 +151,4 @@ export function formatRepoPath(ref: RepoRef): string {
 /** Stable identity for caching, independent of the default-branch lookup. */
 export function repoKey(ref: RepoRef): string {
 	return `${ref.host}/${ref.owner}/${ref.name}@${ref.branch ?? ''}`;
-}
-
-/**
- * How a reference reads on screen: `owner/name`, or a folder's own name.
- *
- * A local folder has no owner to qualify it, so its name stands alone, and
- * before one is picked there is nothing to name at all.
- */
-export function describeRef(ref: RepoRef): string {
-	if (isLocal(ref)) return ref.name || 'a folder on this machine';
-	if (isServed(ref)) return 'the folder the dev server serves';
-	return `${ref.owner}/${ref.name}`;
 }

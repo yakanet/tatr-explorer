@@ -34,19 +34,6 @@ const RAW = 'https://raw.githubusercontent.com';
 const NAME = 'github';
 
 /**
- * Refuses a reference this forge does not serve.
- *
- * Asked once, at the entrance of the fallback chain, rather than by each lister
- * in it: both read GitHub (its API, and a proxy of it), so the host is the
- * forge's business, and asking in each lister said so twice.
- */
-function assertHost(ref: RepoRef): void {
-	if (ref.host !== 'github.com') {
-		throw new SourceError('unsupported-host', `Only github.com is read for now, not ${ref.host}.`);
-	}
-}
-
-/**
  * URL of a file's raw contents. Free of the API budget.
  *
  * The branch is encoded as a path, and for the same reason: a URL carries
@@ -112,7 +99,6 @@ async function listRepository(
 	network: typeof fetch,
 	signal?: AbortSignal
 ): Promise<Listing> {
-	assertHost(ref);
 	let lastError: unknown;
 	let spent: SourceError | undefined;
 
@@ -139,7 +125,7 @@ function failedWith(error: unknown, failure: SourceFailure): error is SourceErro
  * guessed between at the cost of another request.
  */
 function missing(ref: RepoRef): string {
-	const repository = `${ref.owner}/${ref.name}`;
+	const repository = describe(ref);
 	if (ref.branch) {
 		return `No branch ${ref.branch} in ${repository}, or no such repository, or it is private.`;
 	}
@@ -177,7 +163,7 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 		this.#branch = ref.branch ?? 'HEAD';
 		this.#network = seams.network ?? fetch;
 		this.#listers = seams.listers ?? LISTERS;
-		this.label = `${ref.owner}/${ref.name}`;
+		this.label = describe(ref);
 		this.cacheKey = repoKey(ref);
 	}
 
@@ -204,13 +190,26 @@ export class GitHubRepository implements Source, Cached, Rereadable, Linked {
 	async reread(): Promise<void> {}
 }
 
+/** How a repository reads on screen: `owner/name`, its host being github.com. */
+function describe(ref: RepoRef): string {
+	return `${ref.owner}/${ref.name}`;
+}
+
 export const githubKind = {
 	id: NAME,
 
-	// Any domain for now, which is every host but the local marker: `assertHost`
-	// is what actually refuses the others, and refusing them here becomes this
-	// method's job once a second forge claims some.
-	claims: (ref) => ref.host.includes('.'),
+	// A forge address on any other host parses all the same, and is refused when
+	// opened, as a host nothing reads.
+	address: { hosts: ['github.com'] },
+
+	describe,
+
+	branches: true,
+
+	cost: {
+		listing: 'one request',
+		files: 'Task files are read from a CDN and cost no rate limit.'
+	},
 
 	open: (ref) => new GitHubRepository(ref)
 } satisfies SourceKind;

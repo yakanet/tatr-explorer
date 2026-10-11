@@ -22,7 +22,7 @@
 		type LocalFolder,
 		type WayBack
 	} from '#lib/sources/local/folder.ts';
-	import { openFolder } from '#lib/sources/local/kind.ts';
+	import { LOCAL_WORD, openFolder } from '#lib/sources/local/kind.ts';
 
 	let { label = 'Open a folder…' }: { label?: string } = $props();
 
@@ -52,7 +52,7 @@
 		}
 		error = null;
 		openFolder(folder, back);
-		await goto(resolve('/[...repo]', { repo: 'local' }), { refreshAll: true });
+		await goto(resolve('/[...repo]', { repo: LOCAL_WORD }), { refreshAll: true });
 	}
 
 	async function pick() {

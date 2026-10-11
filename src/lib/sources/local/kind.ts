@@ -9,7 +9,6 @@
  * from then on (its files, its way back and the `blob:` URLs it hands out), and
  * the navigation that follows finds that source here.
  */
-import { isLocal } from '../../repo/ref.ts';
 import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
 import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
@@ -38,7 +37,7 @@ import {
  * page anywhere to link a file to.
  */
 class FolderSnapshot implements Source {
-	readonly id = 'local';
+	readonly id = LOCAL_WORD;
 	// A disk has no CDN to be polite to.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly label: string;
@@ -204,10 +203,25 @@ function sourceOver(folder: LocalFolder, back: WayBack | undefined): FolderSnaps
 	return new LiveFolder(folder, back);
 }
 
-export const localKind: SourceKind = {
-	id: 'local',
+/** The local folder's address, and all of it. */
+export const LOCAL_WORD = 'local';
 
-	claims: (ref) => isLocal(ref),
+export const localKind: SourceKind = {
+	id: LOCAL_WORD,
+
+	// One word, and nothing else: the folder's name would read as an address,
+	// and nobody else's machine can follow it.
+	address: { word: LOCAL_WORD },
+
+	describe: () => 'a folder on this machine',
+
+	// A working tree is on whatever branch is checked out, which `.git/HEAD` says.
+	branches: false,
+
+	cost: {
+		listing: 'from this machine',
+		files: 'The folder is read where it sits: nothing is uploaded.'
+	},
 
 	// With nothing handed over, the source every reload leaves.
 	open: () => current ?? new FolderSnapshot(null)

@@ -10,7 +10,7 @@
  * Kept apart from the page so that turning cache rows into cards can be
  * asserted: the parsing of a key, the counting, the fallback and the order.
  */
-import { parseRepoPath, repoKey, type RepoRef } from './ref.ts';
+import { parseForgePath, repoKey, type RepoRef } from './ref.ts';
 
 /** Whatever the cache holds that a card needs. Deliberately narrow. */
 export interface CachedShape {
@@ -41,7 +41,7 @@ export function parseKey(key: string): RepoRef | null {
 	const at = key.indexOf('@');
 	const path = at === -1 ? key : key.slice(0, at);
 	const branch = at === -1 ? '' : key.slice(at + 1);
-	return parseRepoPath(branch ? `${path}@${branch}` : path);
+	return parseForgePath(branch ? `${path}@${branch}` : path);
 }
 
 /**

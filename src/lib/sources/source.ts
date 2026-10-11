@@ -102,16 +102,41 @@ export interface Source {
 }
 
 /**
- * A kind of source: how a reference is recognised, and turned into one.
+ * Where a kind's sources are found: on the forge hosts it reads, at
+ * `[host/]owner/name`, or under one word of its own, for sources no URL anyone
+ * else follows can reach (a folder on this machine).
+ *
+ * A list rather than a pattern, as a self-hosted forge is on whatever domain
+ * its owner chose and is named, not guessed.
+ */
+export type Address = { readonly hosts: readonly string[] } | { readonly word: string };
+
+/** What a reading costs, said while it is taken: the listing, then the files. */
+export interface Cost {
+	/** Beside the listing step: `one request`, `from this machine`. */
+	readonly listing: string;
+	/** Under the steps: what reading the files costs, or does not. */
+	readonly files: string;
+}
+
+/**
+ * A kind of source: what is known of it before there is a source, and how one
+ * is opened.
  *
  * Recognising a reference is not something an instance can do (it is what
- * decides which instance to build), so it sits one storey up. And it cannot be
- * a closed list of hosts: a self-hosted Gitea is on whatever domain its owner
- * chose.
+ * decides which instance to build), so it sits one storey up, and so does
+ * everything a page needs before a reading exists: how to name the reference,
+ * whether it has branches, what reading it will cost.
  */
 export interface SourceKind {
 	readonly id: string;
-	claims(ref: RepoRef): boolean;
+	/** Which references it opens; the registry finds a reference's kind by it. */
+	readonly address: Address;
+	/** How a reference reads on screen, before a reading names it. */
+	describe(ref: RepoRef): string;
+	/** Whether a reading can be taken at another branch, which the header offers. */
+	readonly branches: boolean;
+	readonly cost: Cost;
 	/**
 	 * The source for `ref`, from the reference alone. What a spec substitutes
 	 * (the network, a chain of listers) goes to a source's own constructor, each

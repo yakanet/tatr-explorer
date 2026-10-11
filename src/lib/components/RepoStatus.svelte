@@ -1,20 +1,26 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import FolderPicker from '#lib/components/FolderPicker.svelte';
+	import { reopenerOf } from '#lib/components/kinds.ts';
 	import { onBranch } from '#lib/repo/branch.ts';
-	import { isLocal, type RepoRef } from '#lib/repo/ref.ts';
+	import type { RepoRef } from '#lib/repo/ref.ts';
+	import { kindOf } from '#lib/sources/open.ts';
 	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';
 
 	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
 
 	const percent = $derived(repo.total === 0 ? 0 : Math.round((repo.done / repo.total) * 100));
+	/** What reading costs, which the kind says: a request, or nothing at all. */
+	const cost = $derived(kindOf(ref)?.cost);
+	/** The gesture that opens the source again, where trying again cannot. */
+	const reopener = $derived(reopenerOf(ref));
 </script>
 
 {#if repo.phase === 'listing' || repo.phase === 'reading'}
 	<section class="panel">
 		<p class="step">
 			<span class="tick" class:done={repo.phase === 'reading'}></span>
-			Listing the repository <span class="hint">one request</span>
+			Listing the repository
+			{#if cost}<span class="hint">{cost.listing}</span>{/if}
 		</p>
 		<p class="step">
 			<span class="tick" class:active={repo.phase === 'reading'}></span>
@@ -24,7 +30,7 @@
 		{#if repo.total > 0}
 			<div class="bar"><div class="fill" style:width="{percent}%"></div></div>
 		{/if}
-		<p class="note">Task files are read from a CDN and cost no rate limit.</p>
+		{#if cost}<p class="note">{cost.files}</p>{/if}
 	</section>
 {:else if repo.phase === 'failed' && repo.failure}
 	<!-- The heading is the page's name for the failure; the sentence is the
@@ -40,8 +46,8 @@
 			</p>
 		{/if}
 		<div class="actions">
-			{#if isLocal(ref)}
-				<FolderPicker label="Choose a folder…" />
+			{#if reopener}
+				<reopener.control label={reopener.label} />
 			{:else}
 				<button class="action" onclick={() => repo.refresh()}>Try again</button>
 				{#if ref.branch}

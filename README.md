@@ -148,7 +148,7 @@ have not committed yet.
 Nothing is uploaded, and nothing could be: the page has no server to upload to.
 Your browser grants access to that one folder, for as long as the tab is open,
 and takes it back when you reload, so a local folder is a session rather than
-an address, and `/local` is a marker rather than a link anyone else could
+an address, and `/local` is a word rather than a link anyone else could
 follow. The branch comes from `.git/HEAD`, which is a file like any other; the
 `tasks/` folder is all that is read.
 

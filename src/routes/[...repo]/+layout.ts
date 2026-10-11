@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { parseRepoPath } from '#lib/repo/ref.ts';
+import { parseRepoPath } from '#lib/sources/open.ts';
 import type { LayoutLoad } from './$types';
 
 // The repository is only known at runtime, so these routes are served by the
