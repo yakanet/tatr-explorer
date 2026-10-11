@@ -26,7 +26,7 @@ export const UNSET_PRIORITY = 999999;
 
 export interface ParsedTaskMd {
 	title: string;
-	/** Every property in the block, not just the three documented ones. */
+	/** Every property in the block, not just the three documented ones, in the CLI's order. */
 	properties: Map<string, string>;
 	/** Everything after the property block, verbatim. */
 	description: string;
@@ -86,7 +86,9 @@ export function parseTaskMd(source: string): ParsedTaskMd {
 
 		const valueStart = i;
 		while (i < source.length && source[i] !== '\n') i += 1;
-		// A later definition of the same key wins, as the hash table overwrites.
+		// A later definition of the same key wins and moves to its place, as
+		// `properties_put` drops the earlier one before appending.
+		properties.delete(key);
 		properties.set(key, source.slice(valueStart, i).trim());
 
 		if (source[i] === '\n') i += 1;
@@ -100,13 +102,18 @@ export function parseTags(value: string): string[] {
 	return value.split(/[\s,]+/).filter((tag) => tag.length > 0);
 }
 
-/**
- * Reads the priority. Absent means {@link UNSET_PRIORITY}; anything unparsable
- * is 0, matching `atoi`, which stops at the first non-digit.
- */
-export function readPriority(properties: Map<string, string>): number {
+/** Reads the priority, or {@link UNSET_PRIORITY} when it is absent. */
+export function readPriority(properties: ReadonlyMap<string, string>): number {
 	const raw = properties.get('PRIORITY');
 	if (raw === undefined) return UNSET_PRIORITY;
+	return parsePriority(raw);
+}
+
+/**
+ * Reads a priority value as `atoi` does, which stops at the first non-digit, so
+ * anything unparsable is 0.
+ */
+export function parsePriority(raw: string): number {
 	const value = Number.parseInt(raw, 10);
 	if (Number.isNaN(value)) return 0;
 	return value;
@@ -116,10 +123,15 @@ export function readPriority(properties: Map<string, string>): number {
  * Whether the status is exactly `CLOSED`. Any other value, misspelt or missing,
  * counts as open, so a task is never hidden by its own error.
  */
-export function isClosed(properties: Map<string, string>): boolean {
+export function isClosed(properties: ReadonlyMap<string, string>): boolean {
 	return properties.get('STATUS') === 'CLOSED';
 }
 
-export function readTags(properties: Map<string, string>): string[] {
+/** Reads the status, `OPEN` when it is absent, as `load_tasks` assumes. */
+export function readStatus(properties: ReadonlyMap<string, string>): string {
+	return properties.get('STATUS') ?? 'OPEN';
+}
+
+export function readTags(properties: ReadonlyMap<string, string>): string[] {
 	return parseTags(properties.get('TAGS') ?? '');
 }

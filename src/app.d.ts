@@ -36,6 +36,15 @@ declare global {
 	 */
 	const __TATR_SERVED__: string | false;
 
+	/**
+	 * File System Access permissions, which the DOM library does not declare.
+	 * Optional, as only Chromium asks the reader whether a page may write.
+	 */
+	interface FileSystemHandle {
+		queryPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+		requestPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+	}
+
 	interface DataTransferItem {
 		/**
 		 * File System Access, which the DOM library does not declare: Chromium hands

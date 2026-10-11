@@ -1,0 +1,292 @@
+[
+ {
+  "id": "20251205-071347",
+  "tag": "emacs",
+  "text": "# completing-read in tasks-create-from-title does not allow spaces in the titles\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n"
+ },
+ {
+  "id": "20260304-175344",
+  "tag": "bug",
+  "text": "# `tatr new` prints the full path to TASK.md instead of relative one like `tatr ls`\n\n- STATUS: CLOSED\n- PRIORITY: 90\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260304-182334",
+  "tag": "bug",
+  "text": "# Accidental double `tatr new` in Emacs\n\n- STATUS: CLOSED\n- PRIORITY: 70\n- TAGS: wontfix\n\nThere is a weird UX problem I keep experiencing in Emacs' compilation\nmode with `tatr new`. I have a habit of switching to `*compilation*`\nbuffer and hitting `g` to rerun the last commands. Sometimes such\ncommands is `tatr new` which leads to creating the same task\ntwice. I'm not sure what to do about it as I feel like I'm probably\nthe only one who will experience this problem even after the tool goes\npublic.\n\nIt probably has a similar problem in Bash if you have a habit of\nhitting up and enter.\n\n---\n\nWith VCS it's not that big of a deal actually.\n"
+ },
+ {
+  "id": "20260304-182334",
+  "tag": "wontfix",
+  "text": "# Accidental double `tatr new` in Emacs\n\n- STATUS: CLOSED\n- PRIORITY: 70\n- TAGS: bug\n\nThere is a weird UX problem I keep experiencing in Emacs' compilation\nmode with `tatr new`. I have a habit of switching to `*compilation*`\nbuffer and hitting `g` to rerun the last commands. Sometimes such\ncommands is `tatr new` which leads to creating the same task\ntwice. I'm not sure what to do about it as I feel like I'm probably\nthe only one who will experience this problem even after the tool goes\npublic.\n\nIt probably has a similar problem in Bash if you have a habit of\nhitting up and enter.\n\n---\n\nWith VCS it's not that big of a deal actually.\n"
+ },
+ {
+  "id": "20260305-120049",
+  "tag": "release",
+  "text": "# Presentable to GitHub README\n\n- STATUS: CLOSED\n- PRIORITY: 50\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260305-120131",
+  "tag": "release",
+  "text": "# `tatr version` command that prints current version, date of build and git commit hash\n\n- STATUS: CLOSED\n- PRIORITY: 30\n- TAGS:\n\nI'm having second thoughts regarding this command. I feel like it adds\ncomplexity without much benefit. Right now the whole build is just one\ncommand (even though it's through nob.c). It's kinda nice to keep it\nthis way. I'm gonna lower the priority of this task and see if\nanything changes later.\n\n---\n\nWtf are you even talking about me from the past?! I just implemented!\n"
+ },
+ {
+  "id": "20260308-163429",
+  "tag": "wontfix",
+  "text": "# Tasks array should be a hash table\n\n- STATUS: CLOSED\n- PRIORITY: 30\n- TAGS:\n\nUse ht.h\n\n---\n\nI don't think we can get that much performance boost as of right\nnow. To build the list of tasks we still iterate tasks folders\nlinearly one by one.\n\n---\n\nClosing this for now, since I don't see any need for this yet.\n"
+ },
+ {
+  "id": "20260310-133453",
+  "tag": "stream",
+  "text": "# Query language for `tatr ls`\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nMaybe instead of implementing tons of mutually exclusive flags\n(See\u00a020260304-174730, 20260304-175116), I should just develop a query\nlanguage.\n\nSomething akin to Bex:\n\n- `tag(editor)` - contains tag `editor`\n- `and(tag(editor), tag(bug))` - contains tag `editor` and `bug`\n- `or(tag(editor), tag(bug))` - contains tag `editor` or `bug`\n- ...\n\nThough, Bex syntax is a bit vebose for this. I should come up with\nsomething more fitting.\n\n- `.editor` - contains tag `editor`\n- `.editor and .bug` - contains tags `editor` and `bug`\n- `.editor or .bug` - contains tags `editor` or `bug`\n- ..\n\nThis kind of style requires thinking about presedence. But maybe it's\nworth it.\n\n---\n\nDone!\n"
+ },
+ {
+  "id": "20260311-185002",
+  "tag": "bug",
+  "text": "# Query \"not (tagged or .bug and .test and .foo and .bar)\" is not parsed properly\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nIntroduced by 20260310-133453\n\nSteps to reproduce:\n\n```console\n$ ./build/tatr ls -df -f \"not (tagged or .bug and .test and .foo and .bar)\"\nnot (tagged or .bug and .test and .foo and .bar)\n                                               ^\nERROR: expected end of primary expression\n$\n```\n\nExpected output is roughly:\n\n```\nOP_TAGGED\nOP_TAG bug\nOP_TAG test\nOP_AND\nOP_TAG foo\nOP_AND\nOP_TAG bar\nOP_OR\nOP_NOT\n```\n"
+ },
+ {
+  "id": "20260312-174535",
+  "tag": "release",
+  "text": "# Document the query language\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260315-160917",
+  "tag": "bug",
+  "text": "# When you have several TASK.md opened, it's unclear which issues they belong to\n\n- STATUS: OPEN\n- PRIORITY: 10\n- TAGS:\n\nThis is more of a bug of the spec of the task database. All the info\nabout the issue is store in a file named \"TASK.md\". In a text editor\n\"TASK.md\" is what's gonna be displayed in the title of a tab or a\nwindow when the file is opened. Which gives zero info about what that\nissues is about when you have several of them opened.\n\nOne solution I see is to extend the name of \"TASK.md\" with an optional\nsuffix \"TASK[-few-word-from-the-title].md\". But that opens up another\nproblem which is now a single Task may have several TASK.md-s.\n\n---\n\nAnother solution is to extend the folder name\n`<HUID>[-few-words-from-the-title]`. But that correspondingly means\nyou can have several tasks with the same HUID. But solution to that\ncould be to make the \"few words\" suffix part of the Task ID. Which\nmakes the Task IDs rather huge on the other hand.\n\nBesides it's unclear how do you automatically form such IDs. It must\nbe up to the tool to do that. We getting into the territory of\nlanguage models which is a huge complexity for the problem I'm trying\nto solve.\n\n---\n\nThe `<HUID>[-few-words-from-the-title]` idea is implemented with\nExtended HUID. See TASK(20260826-204052). But it's intended as a\nmechanism for resolving collisions when working in a team. So I'm not\nsure how much it is applicable here.\n"
+ },
+ {
+  "id": "20260321-181305",
+  "tag": "bug",
+  "text": "# `tatr ls` relative paths are broken\n\n- STATUS: CLOSED\n- PRIORITY: 120\n- TAGS: release\n\nRepro:\n\n```console\n[streamer@markov thirdparty]$ pwd\n/home/streamer/Programming/tsoding/tatr/thirdparty\n[streamer@markov thirdparty]$ tatr ls | head\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100] Document the query language\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100, TAGS: bug] When you have several TASK.md opened, it's unclear which issues they belong to\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100, TAGS: stream] Build a graph of issues crossreferring to each other\n../asks/<HUID>/TASK.md:1: [PRIORITY: 90 ] Description for tags\n../asks/<HUID>/TASK.md:1: [PRIORITY: 90 ] Priority becomes irrelevant when the task is closed\n../asks/<HUID>/TASK.md:1: [PRIORITY: 80 ] There should be a command that reports all the skipped\nweird folders and files found in the tasks/ folder\n../asks/<HUID>/TASK.md:1: [PRIORITY: 70 , TAGS: bug] Accidental double `tatr new` in Emacs\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 ] Subtasks\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 ] An ability to actually store `tasks` folder outside of\nthe main repo\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 , TAGS: release] Presentable to GitHub README\n```\n\n---\n\nI think I know what's the problem\n\n![2026-05-11-074919_1423x794_scrot.png](./2026-05-11-074919_1423x794_scrot.png)\n\n`relative_path()` function is too naive\n\n---\n\nIt would be nice if nob.h just had a special type for file paths or what not:\n\n[./path.c](./path.c)\n"
+ },
+ {
+  "id": "20260321-181305",
+  "tag": "release",
+  "text": "# `tatr ls` relative paths are broken\n\n- STATUS: CLOSED\n- PRIORITY: 120\n- TAGS: bug\n\nRepro:\n\n```console\n[streamer@markov thirdparty]$ pwd\n/home/streamer/Programming/tsoding/tatr/thirdparty\n[streamer@markov thirdparty]$ tatr ls | head\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100] Document the query language\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100, TAGS: bug] When you have several TASK.md opened, it's unclear which issues they belong to\n../asks/<HUID>/TASK.md:1: [PRIORITY: 100, TAGS: stream] Build a graph of issues crossreferring to each other\n../asks/<HUID>/TASK.md:1: [PRIORITY: 90 ] Description for tags\n../asks/<HUID>/TASK.md:1: [PRIORITY: 90 ] Priority becomes irrelevant when the task is closed\n../asks/<HUID>/TASK.md:1: [PRIORITY: 80 ] There should be a command that reports all the skipped\nweird folders and files found in the tasks/ folder\n../asks/<HUID>/TASK.md:1: [PRIORITY: 70 , TAGS: bug] Accidental double `tatr new` in Emacs\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 ] Subtasks\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 ] An ability to actually store `tasks` folder outside of\nthe main repo\n../asks/<HUID>/TASK.md:1: [PRIORITY: 50 , TAGS: release] Presentable to GitHub README\n```\n\n---\n\nI think I know what's the problem\n\n![2026-05-11-074919_1423x794_scrot.png](./2026-05-11-074919_1423x794_scrot.png)\n\n`relative_path()` function is too naive\n\n---\n\nIt would be nice if nob.h just had a special type for file paths or what not:\n\n[./path.c](./path.c)\n"
+ },
+ {
+  "id": "20260322-204811",
+  "tag": "release",
+  "text": "# use String_View for Task.title and Task.status that refer to the TASK.md content\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n"
+ },
+ {
+  "id": "20260417-070156",
+  "tag": "stream",
+  "text": "# LLM search\n\n- STATUS: CLOSED\n- PRIORITY: 10\n- TAGS: wontfix\n\nIntegrate with the llama.cpp API. Start with some small model like bonsai or something.\n\n## NOTE(20260829-204420)\n\nI'm thinking of just organizing some basic loop which prompts the\nmodel \"Is this task relevant to the user prompt? Here is the prompt\nand here is TASK.md content. Answer only yes or no.\" And just go\nthrough the tasks.\n\n## NOTE(20260830-041238)\n\nWhat I found is that grep is usually more than sufficient for me. This\njust adds more complexity.\n"
+ },
+ {
+  "id": "20260417-070156",
+  "tag": "wontfix",
+  "text": "# LLM search\n\n- STATUS: CLOSED\n- PRIORITY: 10\n- TAGS: stream\n\nIntegrate with the llama.cpp API. Start with some small model like bonsai or something.\n\n## NOTE(20260829-204420)\n\nI'm thinking of just organizing some basic loop which prompts the\nmodel \"Is this task relevant to the user prompt? Here is the prompt\nand here is TASK.md content. Answer only yes or no.\" And just go\nthrough the tasks.\n\n## NOTE(20260830-041238)\n\nWhat I found is that grep is usually more than sufficient for me. This\njust adds more complexity.\n"
+ },
+ {
+  "id": "20260823-172022",
+  "tag": "bug",
+  "text": "# Lot's of 'undefined behavior' reports fro UBsan lately\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release\n\n![2026-08-24-002046_1610x338_scrot.png](./2026-08-24-002046_1610x338_scrot.png)\n\n---\n\nI feel like this one specifically is a false positive. So I just disabled the sanitizers for now.\n"
+ },
+ {
+  "id": "20260823-172022",
+  "tag": "release",
+  "text": "# Lot's of 'undefined behavior' reports fro UBsan lately\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: bug\n\n![2026-08-24-002046_1610x338_scrot.png](./2026-08-24-002046_1610x338_scrot.png)\n\n---\n\nI feel like this one specifically is a false positive. So I just disabled the sanitizers for now.\n"
+ },
+ {
+  "id": "20260825-133942",
+  "tag": "release",
+  "text": "# Memory management is a bit messy\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nIt is currently fine as long as this program is a batch program. But\nwe have a task for potentially adding a Web interface\n(20260316-214021) which means it may become a long running interactive\nprogram where memory management becomes more important.\n\nI should go through the source code and make memory management more\npredictable (whatever that means).\n\n---\n\nThe main concern is undisciplined reliance on String_Builder-s. It\nwould be nice to have context allocators like in Jai so to not think\nabout this.\n\n---\n\nThings to check:\n- [x] `String_Builder`\n- [x] `read_entire_file`\n- [x] `read_entire_dir`\n- [x] `str*dup`\n\n---\n\nThe `*_run` functions should probably not be that disciplined about\nmemory because they are designed to interface the batch interface of\nthe program.\n"
+ },
+ {
+  "id": "20260825-163127",
+  "tag": "release",
+  "text": "# Test on several compilers like ht.h\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nA tried to add chibicc support along with gcc, clang, and tcc, but it\ncrashes trying to compile our codebase which I guess disqualifies it\nfor now. I may add it later if I have time to debug it. What's\nimportant is that the general multi-compiler support is in place.\n"
+ },
+ {
+  "id": "20260825-195942",
+  "tag": "release",
+  "text": "# Move the relative path tests into a separate unit\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nDecided not to move anything to separate unit. But just cleaned it all up a little bit.\n"
+ },
+ {
+  "id": "20260826-142421",
+  "tag": "release",
+  "text": "# Rename tatr 'filter language' to 'query language' throughout the code base\n\n- STATUS: CLOSED\n- PRIORITY: 50\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260826-142921",
+  "tag": "release",
+  "text": "# Add things like `priority > 10` to tatr query language\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260826-152351",
+  "tag": "release",
+  "text": "# Stress-test the markdown parser\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nI usually don't put anything unusual into TASK.md myself, but other\npeople might. So I need to test how it all works on random junk.\n\n---\n\nAs a result of working on this issue md parsing completely got rid of\nerror reporting. It is now similar to how we load songs in\nsowon2. Invalid task is just a task that is still incorporated in the\nresults, but has a screaming appearance.\n\nWe may even consider doing just this instead of introducing separate\ncommand for reporting weird task folders 20260308-171346.\n\n## Problems to fix in this issue\n\n### [FIXED] If `TAGS` is missing and the body starts with a list item, the parser thinks we provided an invalid property.\n\n```\n# title\n- STATUS: OPEN\n- PRIORITY: 69\n\n- foo\n- bar\n- baz\n```\n\nIt thinks `foo` is another property and fails. Not sure what to do about this.\n\n### [FIXED] Properties can be defined only in a specific order.\n\nHuge oversight. Should allow properties in any order and also\nduplicated properties. In case of duplicates take the value of the\nlast one.\n\nUnsupported properties should be probably just ignored.\n\n### [MOVED] Invalid status value just silently does nothing and hides the task\n\nI think this should be addressed by 20260826-200847\n"
+ },
+ {
+  "id": "20260826-204052",
+  "tag": "release",
+  "text": "# Extended HUID\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\n## NOTE(20260829-233518)\n\n`YYYMMDD-HHMMSS[-<random-suffix>]`\n\nBasically allow any suffix at the end after a dash. This should\naddress potential collisions when working in a team.\n\nJust add support for that on the reading level. We may add support for\nthat on creation level later -- basically allow configuring the suffix\nper user machine so the team member can agree on the collision\nresolution scheme among themselves, maybe create a separate task for\nthat for after the release.\n\n## NOTE(20260829-233521)\n\nAnother idea is to allow any folder within `tasks/` to be considered a\ntask folder. It's name is the ID.\n\nOne downside I see is what if we ever need special folders that are\nnot tasks in there.\n\nThe NOTE(20260829-233518) approach is basically that but mandates\nprefixing task folders with `YYYMMDD-HHMMSS` to indicate that they are\nindeed task folders.\n\n## NOTE(20260830-000502)\n\nSettled on `/[0-9]{8}-[0-9]{6}(-[a-zA-Z0-9\\\\-]*)?/`. Allowing random\njunk makes them unreadable. And they meant to be readable.\n\nAn example of a task with Extended ID is TASK(20260830-000838-rexim)\n"
+ },
+ {
+  "id": "20260827-141739",
+  "tag": "tql",
+  "text": "# Separate tokenization from parsing in the Query Language\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release\n\nNo description.\n"
+ },
+ {
+  "id": "20260827-141739",
+  "tag": "release",
+  "text": "# Separate tokenization from parsing in the Query Language\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: tql\n\nNo description.\n"
+ },
+ {
+  "id": "20260828-211200",
+  "tag": "stream",
+  "text": "# Mass updating tasks by a query (`tatr-untag`)\n\n- STATUS: CLOSED\n- PRIORITY: 120\n- TAGS:\n\n## Scope of the task\n\nRemoving everything from the scope:\n\n```console\n$ tatr untag -t scope :scope\n```\n\nOnly this command for now. In the future we may add more as part of\nseparate tasks.\n\n## Keeping the properties intact as we are modifying them\n\nWe implemented `tatr-untag` but it's currently rather bad at keeping the original order of the properties.\n\n---\n\nThere is a little bit of a problem in here of keeping the parsed properties (`Task.status`, `Task.priority`, and `Task.tags`) and the unparse properties (`Task.properties`) in sync.\n\n---\n\nI think I solved the syncing problem by making sure `STATUS`, `PRIORITY`, and `TAGS` are always present in the `Task.properties` and just giving `Task.status`, `Task.priority`, and `Task.tags` a priority over whatever is in `Task.properties`.\n\nIt also helped a lot of with keeping the original order of the properties.\n\n---\n\nI'm still not sure how the whole system reacts to duplicated properties.\n\n---\n\nInterestingly we never really defined well the format of the properties in general. So it's a rather a spec gap right now.\n\n---\n\nAdded some info about `[other properties]` to The Spec.\n\n---\n\nI think this part of the Task is closed. This is how we are treating the properties from now on.\n"
+ },
+ {
+  "id": "20260828-211350",
+  "tag": "release",
+  "text": "# The way `tatr-ls` constructs queries is confusing\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nYou can do things like\n\n```console\n$ tatr ls .bug -id and -a priority gte 100\n```\n\n`-id` and `-a` are not part of the query. The query is actually `.bug\nand priority gte 100`. The fact that you can interleave query and the\nflags like this is extremely confusing and should be either changed or\nproperly documented.\n\nSame will go for any future commands that accept queries (see\n20260828-211200).\n\n---\n\nI feel like `tatr-new` has a similar problem but with titles. We need\nto double check on that.\n"
+ },
+ {
+  "id": "20260828-211721",
+  "tag": "tql",
+  "text": "# The syntax of tags in the query language is confusing\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\n## NOTE(20260829-201427)\n\nIn the query language you prefix them with dot: `.bug`. But in such\ncommands as `tatr-new` when you pass them via the `-t` flag you don't\nput any dots: `-t bug`. This is confusing.\n\n## NOTE(20260829-201431)\n\nJust allowing tags without dots like `bug\u00a0and\u00a0release` means we need\nto introduce the notion of keyword which could not be used as a\nkeyword which greatly reduces the vocabulary of tags.\n\n## NOTE(20260829-201434)\n\nMaybe long prefix: `tag:bug\u00a0and\u00a0tag:release`. Much less convenient to\ntype.\n\n## NOTE(20260829-201439)\n\nKeywords as special characters don't work well in Shell environment\nbecause there they also have special meaning: `bug\u00a0&&\u00a0relase`.\n\n## NOTE(20260829-201442)\n\nFor some reason I feel like just replacing `.` with `:`:\n`:bug\u00a0and\u00a0:release`. Not sure how it helps with confusing but it just\nfeels better?\n\nIt reminds me [keywords\u00a0from\u00a0Clojure](https://clojuredocs.org/clojure.core/keyword).\n\n## NOTE(20260829-201447)\n\nActually, I feel like after TASK(20260828-211350) it became potentially less\nconfusing? Because now commands that accept query language have these\ndistinct boundaries between CLI arguments and the query language\nexpression.\n\nI think I'm gonna implement NOTE(20260829-201442) and just unschedule\nthis task from release until I have more info on how actually\nconfusing people find this.\n"
+ },
+ {
+  "id": "20260829-200218",
+  "tag": "release",
+  "text": "# The comparison operators in Query Language are lame\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: tql\n\nlt, gt, lte, gte, etc.\n\nThey were implemented as a temporary placeholder.\n\n## NOTE(20260829-200429)\n\nWe could alias them to their traditional forms `<`, `>`, `<=`,\netc. But those have special meaning in Shell and can't be used\nunescaped. We can still provide the aliases in case of usage outside\nof Shell-like environments.\n\n---\n\nTraditional aliases requires more sophisticated lexing though which\nrequires implementing TASK(20260827-141739).\n\n## NOTE(20260829-200435)\n\n- `below`\n- `above`\n- `not above`\n- `not below`\n- `equal`\n- `not equal`\n\nIt was also suggested in the Discord to consider things like `at\u00a0least`\n\n## NOTE(20260829-221229)\n\nThe ability to type `not above` implies the ability to type `not lt`,\n`not gt`, etc. which makes it even more lame. Maybe we should just\nremove the weird lame comparison operators as early as possible.\n\nI didn't use them for too long to develop any important reflexes, so I\ndon't need to maintain backward compat in here.\n\n## NOTE(20260830-035331)\n\nI don't like that the most common operation with priority is `priority not below 100`\n\nMaybe as mentioned in NOTE(20260829-200435) consider using `at least` and `at most`?\n\n## NOTE(20260830-044156)\n\nAnother set I came up with\n\n- `{`\n- `{=`\n- `}`\n- `}=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority }= 10]` looks like ass though\n\n## NOTE(20260830-050449)\n\n- `v`\n- `v=`\n- `^`\n- `^=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority ^= 10]`\n\n## NOTE(20260830-050948)\n\nThe \u0425\u0423\u042f set\n\n- `-?`\n- `-?=`\n- `+?`\n- `+?=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority +?= 10]`\n\n## NOTE(20260830-064508)\n\nAt the end I settled on\n\n- `lt`\n- `lt=`\n- `gt`\n- `gt=`\n- `=`\n- `!=`\n\nI can't improve this any further.\n\n## NOTE(20260830-153618)\n\nCompletely forgor about the `test(1)` set\n\n- `lt`\n- `le`\n- `gt`\n- `ge`\n- `eq`\n- `ne`\n\nThis one is cool because all 6 have the same 2 character length and\n`test(1)` is fairly familiar to the shell users. I think it's a\nperfect candidate.\n"
+ },
+ {
+  "id": "20260829-200218",
+  "tag": "tql",
+  "text": "# The comparison operators in Query Language are lame\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release\n\nlt, gt, lte, gte, etc.\n\nThey were implemented as a temporary placeholder.\n\n## NOTE(20260829-200429)\n\nWe could alias them to their traditional forms `<`, `>`, `<=`,\netc. But those have special meaning in Shell and can't be used\nunescaped. We can still provide the aliases in case of usage outside\nof Shell-like environments.\n\n---\n\nTraditional aliases requires more sophisticated lexing though which\nrequires implementing TASK(20260827-141739).\n\n## NOTE(20260829-200435)\n\n- `below`\n- `above`\n- `not above`\n- `not below`\n- `equal`\n- `not equal`\n\nIt was also suggested in the Discord to consider things like `at\u00a0least`\n\n## NOTE(20260829-221229)\n\nThe ability to type `not above` implies the ability to type `not lt`,\n`not gt`, etc. which makes it even more lame. Maybe we should just\nremove the weird lame comparison operators as early as possible.\n\nI didn't use them for too long to develop any important reflexes, so I\ndon't need to maintain backward compat in here.\n\n## NOTE(20260830-035331)\n\nI don't like that the most common operation with priority is `priority not below 100`\n\nMaybe as mentioned in NOTE(20260829-200435) consider using `at least` and `at most`?\n\n## NOTE(20260830-044156)\n\nAnother set I came up with\n\n- `{`\n- `{=`\n- `}`\n- `}=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority }= 10]` looks like ass though\n\n## NOTE(20260830-050449)\n\n- `v`\n- `v=`\n- `^`\n- `^=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority ^= 10]`\n\n## NOTE(20260830-050948)\n\nThe \u0425\u0423\u042f set\n\n- `-?`\n- `-?=`\n- `+?`\n- `+?=`\n- `=`\n- `!=`\n\n`tatr ls not [:bug and priority +?= 10]`\n\n## NOTE(20260830-064508)\n\nAt the end I settled on\n\n- `lt`\n- `lt=`\n- `gt`\n- `gt=`\n- `=`\n- `!=`\n\nI can't improve this any further.\n\n## NOTE(20260830-153618)\n\nCompletely forgor about the `test(1)` set\n\n- `lt`\n- `le`\n- `gt`\n- `ge`\n- `eq`\n- `ne`\n\nThis one is cool because all 6 have the same 2 character length and\n`test(1)` is fairly familiar to the shell users. I think it's a\nperfect candidate.\n"
+ },
+ {
+  "id": "20260829-221717",
+  "tag": "bug",
+  "text": "# We actually expect much more infix keywords when the expression is not fully parsed\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release,tql\n\nGrep the referers for the context\n"
+ },
+ {
+  "id": "20260829-221717",
+  "tag": "tql",
+  "text": "# We actually expect much more infix keywords when the expression is not fully parsed\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: bug,release\n\nGrep the referers for the context\n"
+ },
+ {
+  "id": "20260829-221717",
+  "tag": "release",
+  "text": "# We actually expect much more infix keywords when the expression is not fully parsed\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: bug,tql\n\nGrep the referers for the context\n"
+ },
+ {
+  "id": "20260829-224812",
+  "tag": "tql",
+  "text": "# Implement traditional comparison operators for the Query Language\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nExtracted from TASK(20260829-200218). The traditional operators are\n`<`, `<=`, `>`, `>=`, `=`, `!=`, etc.\n\nDespite them having a special meaning in Shell we still wanna support\nthem in case the language is inputed not from a Shell environment.\n\nRequires implementing a more sophisticated lexer: TASK(20260827-141739)\n\n## NOTE(20260830-064623)\n\nDone in the scope of TASK(20260829-200218) without any\nTASK(20260827-141739) yet. So tokenization sucks, but we will fix it\nlater.\n"
+ },
+ {
+  "id": "20260829-225753",
+  "tag": "tql",
+  "text": "# All comparison operators could work with booleans too\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS:\n\nThe do in Python for example: `False < True`.\n"
+ },
+ {
+  "id": "20260830-065446",
+  "tag": "bug",
+  "text": "# primary expressions start from more things\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release,tql\n\nGrep for referers.\n\nRelated to TASK(20260829-221717).\n"
+ },
+ {
+  "id": "20260830-065446",
+  "tag": "tql",
+  "text": "# primary expressions start from more things\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: bug,release\n\nGrep for referers.\n\nRelated to TASK(20260829-221717).\n"
+ },
+ {
+  "id": "20260830-065446",
+  "tag": "release",
+  "text": "# primary expressions start from more things\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: bug,tql\n\nGrep for referers.\n\nRelated to TASK(20260829-221717).\n"
+ },
+ {
+  "id": "20260830-163947",
+  "tag": "tql",
+  "text": "# TQL supports less tags than the spec allows to define\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: release\n\n## NOTE(20260830-170057)\n\nMaybe introduce some sort of `:'complex tag'` syntax.\n\nBasically `'foo bar baz'` could be treated as a single tag. Though Shell tokenization gets in a way here.\n\nWe could use curly braces `:{complex tag}`.\n\nBut how do we escape `{` and `}` within the `{complex tag}`? We can just check the balance and allow `{complex {tag}}`. But what if I need something out of balance? `{complex } tag}`.\n\nWe can use `^` as an escape symbol (since Shell hijacks backslash): `{complex ^} tag}` and `{complex ^^ tag}`.\n\nWe should also add a section about tokenization to the README.\n\nShell tokenization may get in the way by turning `{foo     bar}` into `{foo bar}`.\n\n## NOTE(20260830-173544)\n\nFork from NOTE(20260830-170057)\n\nActually, what if the syntax for `OP_TAG` is not `:tag` but `{tag}`?\n\n`tatr ls {bug} and {release}`\n\nIt's a bit annoying that you have to provided the ending symbol just to refer to a tag though. Before you only needed `:` at the start.\n\n## NOTE(20260830-170102)\n\nAnother solution is to change the spec and just limit what kind of tags could be used in there.\n\nIt gets a bit messy when the unicode starts to get involved.\n\nI feel like just forbidding whitespaces in the names of the tags solves majority of the problems.\n\nIf we are going that route the tool must validate tag names everywhere.\n\nIf would've been simplier if the whitespaces WERE the separators. But I guess it's too late for that now. We need to maintain backward compatibility with existing `tasks/` folders.\n\nThough we could just say that commas are treated as whitespaces.\n\nNone of that solves the problem where in `not [:bug or :ui]` the last tag captures the bracket `ui]` because according to the spec `]` can be part of the tag. Applying NOTE(20260830-173544) turns it into `not [{bug} or {ui}]` which I think is a bit noisy.\n\nAnother idea is `not [:bug: or :ui:]`. Requires escaping `:` since it could be in a tag.\n\nBut you know what cannot be a tag? Comma! `not [,bug, or ,ui,]`. Nah, too goofy...\n\nWe could go even stricter and just allow only alphanumeric symbols in the tags.\n\nBut we already have a test with utf8.\n\nBut I don't use any utf8 in the wild.\n\nIt feels like tags must have a very strict limitation because they are used in the query language. So they must be in harmony with each other.\n\nAlso, it's easier to relax the limit later if needed.\n\n## NOTE(20260831-045755)\n\nI think this problem occured because I overcomplicated TQL. I cut down on all the aliases and updated the spec to treat commas as whitespace and now only tags with square brackets cannot be queries using `tatr`. Which is I think a reasonable limitation for now which I documented in the README.\n"
+ },
+ {
+  "id": "20260830-163947",
+  "tag": "release",
+  "text": "# TQL supports less tags than the spec allows to define\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS: tql\n\n## NOTE(20260830-170057)\n\nMaybe introduce some sort of `:'complex tag'` syntax.\n\nBasically `'foo bar baz'` could be treated as a single tag. Though Shell tokenization gets in a way here.\n\nWe could use curly braces `:{complex tag}`.\n\nBut how do we escape `{` and `}` within the `{complex tag}`? We can just check the balance and allow `{complex {tag}}`. But what if I need something out of balance? `{complex } tag}`.\n\nWe can use `^` as an escape symbol (since Shell hijacks backslash): `{complex ^} tag}` and `{complex ^^ tag}`.\n\nWe should also add a section about tokenization to the README.\n\nShell tokenization may get in the way by turning `{foo     bar}` into `{foo bar}`.\n\n## NOTE(20260830-173544)\n\nFork from NOTE(20260830-170057)\n\nActually, what if the syntax for `OP_TAG` is not `:tag` but `{tag}`?\n\n`tatr ls {bug} and {release}`\n\nIt's a bit annoying that you have to provided the ending symbol just to refer to a tag though. Before you only needed `:` at the start.\n\n## NOTE(20260830-170102)\n\nAnother solution is to change the spec and just limit what kind of tags could be used in there.\n\nIt gets a bit messy when the unicode starts to get involved.\n\nI feel like just forbidding whitespaces in the names of the tags solves majority of the problems.\n\nIf we are going that route the tool must validate tag names everywhere.\n\nIf would've been simplier if the whitespaces WERE the separators. But I guess it's too late for that now. We need to maintain backward compatibility with existing `tasks/` folders.\n\nThough we could just say that commas are treated as whitespaces.\n\nNone of that solves the problem where in `not [:bug or :ui]` the last tag captures the bracket `ui]` because according to the spec `]` can be part of the tag. Applying NOTE(20260830-173544) turns it into `not [{bug} or {ui}]` which I think is a bit noisy.\n\nAnother idea is `not [:bug: or :ui:]`. Requires escaping `:` since it could be in a tag.\n\nBut you know what cannot be a tag? Comma! `not [,bug, or ,ui,]`. Nah, too goofy...\n\nWe could go even stricter and just allow only alphanumeric symbols in the tags.\n\nBut we already have a test with utf8.\n\nBut I don't use any utf8 in the wild.\n\nIt feels like tags must have a very strict limitation because they are used in the query language. So they must be in harmony with each other.\n\nAlso, it's easier to relax the limit later if needed.\n\n## NOTE(20260831-045755)\n\nI think this problem occured because I overcomplicated TQL. I cut down on all the aliases and updated the spec to treat commas as whitespace and now only tags with square brackets cannot be queries using `tatr`. Which is I think a reasonable limitation for now which I documented in the README.\n"
+ },
+ {
+  "id": "20260831-044501",
+  "tag": "release",
+  "text": "# tasks/tags file should have the separator comma optional\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nFor the consistentcy with how we define the tags in the `TAGS`\nproperty after implementing TASK(20260830-163947).\n"
+ },
+ {
+  "id": "20260901-052356",
+  "tag": "release",
+  "text": "# Add -help to every tatr subcommand\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nThough, `tatr-help` and `tatr-version` probably don't need it right now.\n"
+ },
+ {
+  "id": "20260901-070317",
+  "tag": "bug",
+  "text": "# Ascending order with `tatr ls -a` does not actually reverse the result\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\n![2026-09-01-140226_937x249_scrot.png](2026-09-01-140226_937x249_scrot.png)\n\nScreenshot taken at commit 10701d45c843a1acd56a29f35ff8a90a7c500361.\n\n---\n\nMaybe we should just literally reverse the array of tasks after sorting them in descending order?\n"
+ },
+ {
+  "id": "20260910-171120",
+  "tag": "bug",
+  "text": "# tatr-new -s flag does not validate the suffix\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nNo description.\n"
+ },
+ {
+  "id": "20260910-181239",
+  "tag": "scope",
+  "text": "# `tatr ls -debug` should be a separate command\n\n- TAGS:\n- PRIORITY: 101\n- STATUS: OPEN\n\nSince now we have two commands that accept TQL. So it only makes sense that query debugging is a separate command.\n"
+ },
+ {
+  "id": "20260912-085629",
+  "tag": "scope",
+  "text": "# `tatr-untag` must report each modification with a compiler style report pointing at the line where the `TAGS` property is located\n\n- STATUS: OPEN\n- PRIORITY: 105\n- TAGS:\n\nGrep for refs.\n\nIntroduced by TASK(20260828-211200).\n\nWe need to keep track of the property locations for that.\n\nSame should be applied to all the other mass update commands.\n"
+ },
+ {
+  "id": "20260912-102943",
+  "tag": "bar",
+  "text": "# Test task with custom properties for 20260828-211200\n\n- STATUS: CLOSED\n- FOO: BAR\n- TAGS: foo\n- DUPLICATE: 420\n- PRIORITY: 110\n\nNo description.\n"
+ },
+ {
+  "id": "20260912-102943",
+  "tag": "foo",
+  "text": "# Test task with custom properties for 20260828-211200\n\n- STATUS: CLOSED\n- FOO: BAR\n- TAGS: bar\n- DUPLICATE: 420\n- PRIORITY: 110\n\nNo description.\n"
+ },
+ {
+  "id": "20260912-110420",
+  "tag": "bug",
+  "text": "# Invalid tasks are filter out when `tatr-ls` is called with non-default query\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nThe idea was that incorrectly formatted tasks are included in the `tatr-ls` result but have high priority and screaming title so to force you to go and fix them. But currently such invalid tasks are easily filtered out by `OP_TAG` (since they don't have any tags). We need to make them unfliterable. Maybe introduce a special flag into `Task` structure like `Task.invalid` which makes it very special during filtering and rendering and stuff.\n"
+ },
+ {
+  "id": "20260912-124403",
+  "tag": "tql",
+  "text": "# TQL expression that matches a task with a specific ID\n\n- STATUS: CLOSED\n- PRIORITY: 110\n- TAGS:\n\nExtracted from 20260828-211200\n\nIt feels like sometimes mass update operations (like `tatr-untag`, etc) should be able to work on a single task.\n\nLike I wanna be able to do:\n\n```console\n$ tatr close 20260912-102943\n```\n\nSo we need to think how to accomdate this use case.\n\n---\n\nI'm thinking about extending TQL with `OP_ID` which is compiled from a keyword that is a valid HUID. That is something like `20260912-102943` is a syntactically valid TQL query which matches one task with that exact ID.\n\n---\n\nI just realized that TQL expression like `20260912-125818 or 20260912-125912` will be absolutely valid and will match two tasks. In fact you will be able to match any amount of specific tasks this way. Awesome!\n\n---\n\nBecause of that `tatr ls 20260912-125818` and `tatr find 20260912-125818` become equivalent which turns `tatr-find` kind obsolete.\n\n---\n\nActually they are not equivalent. `tatr-find` will also give you closed tasks, while `tatr-ls` requires `-c` flag for that.\n"
+ },
+ {
+  "id": "20260912-125818",
+  "tag": "scope",
+  "text": "# Implement `tatr-tag`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nExtracted from 20260828-211200.\n\nAdding everything with priority 100 and higher to the scope:\n\n```console\n$ tatr tag -t scope priority gte 100\n```\n"
+ },
+ {
+  "id": "20260912-125912",
+  "tag": "scope",
+  "text": "# Implement `tatr-close`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nExtracted from 20260828-211200\n\nClosing all the bugs:\n\n```console\n$ tatr close :bug\n```\n"
+ },
+ {
+  "id": "20260913-063421",
+  "tag": "scope",
+  "text": "# `append_task_md_content()` doesn't take into account `Task.body`\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: bug\n\nFurthermore, looks like `append_task_md_content()` duplicates functionality of `render_task_md()`. We should probably just remove `append_task_md_content()` and use `render_task_md()` instead.\n\n---\n\nIn the whole `TASK.md` updating/rendering system there is an important invariant that is never really checked anywhere which is `TAGS`, `STATUS`, and `PRIORITY` must be always present in `Task.properties`. We shall resolve that in the scope of this task somehow (not really sure how yet).\n\n---\n\nI feel like I'm encountering the same property syncing problem as I had in TASK(20260828-211200). When I'm constructing the `Task` structure not from a `TASK.md` file I need to duplicate the `Task.tags`, `Task.status` and `Task.priority` in `Task.properties` which requires allocating separate memory on the heap (in case of `TASK.md` all that memory is stored within the buffer which we read the file into). And it's generally feels really fragile. I feel like we are just using a wrong data structure here.\n\nPlus `Task.task_md_content` just doesn't make any sense when you are constructuing the `Task` structure not from a `TASK.md` file. Another red flag.\n"
+ },
+ {
+  "id": "20260913-063421",
+  "tag": "bug",
+  "text": "# `append_task_md_content()` doesn't take into account `Task.body`\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: scope\n\nFurthermore, looks like `append_task_md_content()` duplicates functionality of `render_task_md()`. We should probably just remove `append_task_md_content()` and use `render_task_md()` instead.\n\n---\n\nIn the whole `TASK.md` updating/rendering system there is an important invariant that is never really checked anywhere which is `TAGS`, `STATUS`, and `PRIORITY` must be always present in `Task.properties`. We shall resolve that in the scope of this task somehow (not really sure how yet).\n\n---\n\nI feel like I'm encountering the same property syncing problem as I had in TASK(20260828-211200). When I'm constructing the `Task` structure not from a `TASK.md` file I need to duplicate the `Task.tags`, `Task.status` and `Task.priority` in `Task.properties` which requires allocating separate memory on the heap (in case of `TASK.md` all that memory is stored within the buffer which we read the file into). And it's generally feels really fragile. I feel like we are just using a wrong data structure here.\n\nPlus `Task.task_md_content` just doesn't make any sense when you are constructuing the `Task` structure not from a `TASK.md` file. Another red flag.\n"
+ },
+ {
+  "id": "20260913-140450",
+  "tag": "scope",
+  "text": "# Introduce `tatr-id` command\n\n- STATUS: OPEN\n- PRIORITY: 80\n- TAGS:\n\nWhen executed inside of a task folder prints its id to stdout.\n\nConsider this workflow\n\n```console\n$ tatr id | xclip\n```\n"
+ },
+ {
+  "id": "20260914-105224",
+  "tag": "scope",
+  "text": "# JSON reports\n\n- STATUS: OPEN\n- PRIORITY: 80\n- TAGS:\n\nInteresting use case:\n\n![image.png](./image.png)\n\nWe could also implement all sorts of machine-friendly formats for the reports. Like XML and what not. But in the scope of this task let's focus on JSON only.\n"
+ }
+]

@@ -90,7 +90,8 @@
 	}
 
 	async function dropped(event: DragEvent) {
-		if (!droppable) return;
+		// Only a drag that carries files can be a folder: a dragged link or card is not.
+		if (!droppable || !carriesFiles(event)) return;
 		event.preventDefault();
 		over = 0;
 

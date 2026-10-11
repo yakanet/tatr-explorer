@@ -62,13 +62,16 @@ export interface Linked {
  *
  * `write` replaces `path` only while it still holds `expected`, the text read
  * before the edit. Otherwise it answers `changed` and leaves the file alone, so
- * an editor's save is never lost. A write that cannot be made at all throws a
- * `SourceError`. A forge never writes, as that takes an account and this site
- * asks for none.
+ * an editor's save is never lost. It answers `refused` when the reader did not
+ * allow writing, which is not asked again. A write that cannot be made at all
+ * throws a `SourceError`. A forge never writes, as that takes an account and
+ * this site asks for none.
  */
 export interface Writable {
-	write(path: string, text: string, expected: string): Promise<'written' | 'changed'>;
+	write(path: string, text: string, expected: string): Promise<WriteAnswer>;
 }
+
+export type WriteAnswer = 'written' | 'changed' | 'refused';
 
 /**
  * The member `name` of `source`, which the `Source` type does not declare.

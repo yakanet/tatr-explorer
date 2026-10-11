@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import BranchField from '#lib/components/BranchField.svelte';
+	import EditNotice from '#lib/components/EditNotice.svelte';
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
@@ -186,7 +187,12 @@
 			{#if rereadable}
 				<!-- The previous reading stays on screen during a refresh, so the
 				     button is the only sign that one is under way. -->
-				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
+				<button
+					class="action"
+					disabled={repo.refreshing}
+					aria-busy={repo.refreshing}
+					onclick={() => repo.refresh()}
+				>
 					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
 				</button>
 			{:else if reopener}
@@ -200,6 +206,8 @@
 </header>
 
 {@render children()}
+
+<EditNotice {repo} />
 
 <style>
 	/* The header is a floating pill like the cards under it, because an

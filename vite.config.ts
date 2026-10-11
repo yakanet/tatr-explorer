@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { iconify } from './src/lib/icons.server.ts';
 import { tatrServedFolder } from './src/lib/sources/served/folder.server.ts';
 
 /**
@@ -30,6 +31,7 @@ function runes({ filename }: { filename: string }): boolean | undefined {
 export default defineConfig({
 	plugins: [
 		tatrServedFolder(),
+		iconify(),
 		sveltekit({
 			compilerOptions: { runes },
 			// GitHub Pages serves `404.html` for any path without a file, which lets

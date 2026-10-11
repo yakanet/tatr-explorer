@@ -70,6 +70,11 @@ describe('properties', () => {
 		);
 	});
 
+	it('moves a repeated key to where it was last defined, as `properties_put` does', () => {
+		const { properties } = parseTaskMd('# T\n\n- STATUS: OPEN\n- PRIORITY: 30\n- STATUS: CLOSED\n');
+		expect([...properties.keys()]).toEqual(['PRIORITY', 'STATUS']);
+	});
+
 	it('rejects a key that is not alphanumeric', () => {
 		// `MY_KEY` stops at the underscore, so the colon check fails and the block ends.
 		expect(parseTaskMd('# T\n\n- MY_KEY: x\n').properties.size).toBe(0);

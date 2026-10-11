@@ -21,9 +21,14 @@
 	background: var(--tint);
 }
 
-/* A button is disabled only while its action runs, hence the progress cursor. */
 .action:disabled {
 	color: var(--muted);
+	cursor: default;
+}
+
+/* A button whose action is running says so with `aria-busy`, which also tells
+   a screen reader. */
+.action[aria-busy='true'] {
 	cursor: progress;
 }
 
@@ -32,6 +37,11 @@
 	background: var(--accent);
 	border-color: var(--accent);
 	font-weight: 700;
+}
+
+/* Faded rather than greyed, so it still reads as the action to come. */
+.action.primary:disabled {
+	opacity: 0.5;
 }
 
 /*
@@ -73,6 +83,33 @@
 	color: var(--on-accent);
 	background: var(--accent);
 	font-weight: 700;
+}
+
+/* A quieter segmented control, for a bar that already sets it apart: smaller,
+   and the current choice raised on the surface rather than filled with the
+   accent. */
+.segmented.quiet {
+	gap: 0.125rem;
+	padding: 0;
+	background: none;
+}
+
+.segmented.quiet > * {
+	min-height: 0;
+	padding: 0.3rem 0.75rem;
+	font-size: 0.8125rem;
+	color: var(--muted);
+	border-radius: var(--radius-sm);
+}
+
+.segmented.quiet > :hover {
+	color: var(--fg);
+}
+
+.segmented.quiet > :has(:checked) {
+	color: var(--fg);
+	background: var(--surface);
+	box-shadow: 0 0 0 1px var(--border);
 }
 
 /* A radio segment keeps its input, hidden, for the keyboard and assistive

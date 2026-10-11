@@ -100,12 +100,13 @@
 
 	/**
 	 * Whether the keystroke's target is a field being typed into, so that `j` in
-	 * the query box types a letter. Escape still leaves the field.
+	 * the query box types a letter, and picks an option in a select. Escape still
+	 * leaves the field.
 	 */
 	function isTyping(target: EventTarget | null): boolean {
 		if (!(target instanceof HTMLElement)) return false;
 		if (target.isContentEditable) return true;
-		return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+		return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 	}
 
 	function onkeydown(event: KeyboardEvent) {

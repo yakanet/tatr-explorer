@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { entryTree, fileList } from '#tests/support/fake-directory.ts';
+import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { parseRepoPath } from '../sources/open.ts';
 import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
+import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
+import { fieldsOf, withFields } from '../tatr/task-fields.ts';
+import { loadTaskFile, withStatus } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
 const NOW = 1_000_000_000;
@@ -271,5 +274,139 @@ describe('a refresh that fails', () => {
 		await repo.refresh();
 		expect(repo.refreshFailure).toBeNull();
 		expect(repo.phase).toBe('ready');
+	});
+});
+
+describe('editing a task', () => {
+	const ID = '20260101-000001';
+	const close = withStatus('CLOSED');
+	/** The task at that priority once rewritten, which writes down the TAGS the CLI assumes. */
+	const rewritten = (priority: number, status: string) => `${taskAt(priority, status)}- TAGS:\n`;
+
+	afterEach(() => closeFolder());
+
+	/** Opens a folder picked on Chromium, whose reader answers `ask`. */
+	const writable = async (ask: () => Promise<PermissionState> = async () => 'granted') => {
+		disk = { [TASK]: taskAt(90) };
+		const handle = directory('my-project', disk, ask);
+		openFolder(await fromDirectoryHandle(handle), handle);
+		return parseRepoPath('local')!;
+	};
+
+	/** A state reading a folder picked on Chromium, whose reader answers `ask`. */
+	const editing = async (ask?: () => Promise<PermissionState>) => {
+		const repo = new RepositoryState();
+		await repo.load(await writable(ask));
+		return repo;
+	};
+
+	it('is offered only where the source writes', async () => {
+		expect((await editing()).editable).toBe(true);
+		const repo = new RepositoryState();
+		await repo.load(opened());
+		expect(repo.editable).toBe(false);
+	});
+
+	it('writes the edit, then shows it as any change found on disk', async () => {
+		const repo = await editing();
+		expect(await repo.edit(ID, close, 'closed')).toBe(true);
+
+		expect(disk[TASK]).toBe(rewritten(90, 'CLOSED'));
+		expect(repo.tasks[0].closed).toBe(true);
+		expect(repo.changes?.moved.get(ID)).toEqual(['closed']);
+		expect(repo.notice).toEqual({ text: `${ID}: closed.`, failed: false, undoable: true });
+	});
+
+	it('edits the file as it is on disk, not as the reading on screen holds it', async () => {
+		const repo = await editing();
+		saved(110);
+		await repo.edit(ID, close, 'closed');
+		expect(disk[TASK]).toBe(rewritten(110, 'CLOSED'));
+	});
+
+	it('writes nothing when the file already says so', async () => {
+		const repo = await editing();
+		disk[TASK] = taskAt(90, 'CLOSED');
+		await repo.edit(ID, close, 'closed');
+
+		expect(repo.notice).toBeNull();
+		expect(repo.tasks[0].closed).toBe(true);
+	});
+
+	it('stops offering edits once the reader refuses, without asking again', async () => {
+		const ask = vi.fn(async (): Promise<PermissionState> => 'denied');
+		const repo = await editing(ask);
+		await repo.edit(ID, close, 'closed');
+		await repo.edit(ID, close, 'closed');
+
+		expect(repo.editable).toBe(false);
+		expect(repo.notice?.failed).toBe(true);
+		expect(ask).toHaveBeenCalledTimes(1);
+		expect(disk[TASK]).toBe(taskAt(90));
+	});
+
+	it('offers edits again on another folder', async () => {
+		const repo = await editing(async () => 'denied');
+		await repo.edit(ID, close, 'closed');
+		await repo.load(await picked());
+		expect(repo.notice).toBeNull();
+
+		await repo.load(await writable());
+		expect(repo.editable).toBe(true);
+	});
+
+	it('says why a write failed, and leaves the reading as it was', async () => {
+		const repo = await editing(() => Promise.reject(new DOMException('no click', 'SecurityError')));
+		expect(await repo.edit(ID, close, 'closed')).toBe(false);
+
+		expect(repo.notice?.failed).toBe(true);
+		expect(repo.notice?.text).toMatch(/click/);
+		expect(repo.phase).toBe('ready');
+		expect(repo.tasks[0].closed).toBe(false);
+		expect(repo.editable).toBe(true);
+	});
+
+	it('says so when the task file is gone', async () => {
+		const repo = await editing();
+		delete disk[TASK];
+		await repo.edit(ID, close, 'closed');
+		expect(repo.notice?.text).toBe(`${ID} could not be read, so nothing was written.`);
+	});
+
+	it('undoes the last edit byte for byte', async () => {
+		const repo = await editing();
+		const loose = '# a\n\n- STATUS:  OPEN\n- PRIORITY: 90\n';
+		disk[TASK] = loose;
+		await repo.edit(ID, close, 'closed');
+		await repo.undo();
+
+		expect(disk[TASK]).toBe(loose);
+		expect(repo.tasks[0].closed).toBe(false);
+		expect(repo.notice).toEqual({ text: `${ID}: undone.`, failed: false, undoable: false });
+	});
+
+	it('says why an edit refused the file, writing nothing and reading again', async () => {
+		const repo = await editing();
+		const opened = fieldsOf(loadTaskFile(disk[TASK])!);
+		saved(110);
+
+		const done = await repo.edit(ID, withFields(opened, { ...opened, priority: 60 }), 'saved');
+		expect(done).toBe(false);
+		expect(repo.notice?.text).toBe(
+			`${ID}: the priority changed on disk since editing began, so nothing was written.`
+		);
+		expect(disk[TASK]).toBe(taskAt(110));
+		expect(repo.tasks[0].priority).toBe(110);
+	});
+
+	it('undoes nothing over a save made since', async () => {
+		const repo = await editing();
+		await repo.edit(ID, close, 'closed');
+		saved(110);
+		await repo.undo();
+
+		expect(disk[TASK]).toBe(taskAt(110));
+		expect(repo.notice?.failed).toBe(true);
+		expect(repo.tasks[0].priority).toBe(110);
 	});
 });

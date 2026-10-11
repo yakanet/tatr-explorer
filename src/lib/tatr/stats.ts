@@ -7,6 +7,7 @@
  * current status.
  */
 import { counted, plural } from '../plural.ts';
+import type { TagOption } from '../tql/complete.ts';
 import type { Task } from './task.ts';
 
 export interface Counts {
@@ -56,6 +57,15 @@ export function byTag(tasks: Task[]): TagCount[] {
 	return [...seen]
 		.map(([tag, count]) => ({ tag, count }))
 		.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
+/** The tags of `tasks` as a field offers them: by count, each with its description. */
+export function tagOptions(tasks: Task[], descriptions: ReadonlyMap<string, string>): TagOption[] {
+	return byTag(tasks).map(({ tag, count }) => ({
+		name: tag,
+		description: descriptions.get(tag),
+		count
+	}));
 }
 
 export interface MonthBucket {

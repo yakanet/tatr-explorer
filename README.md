@@ -194,6 +194,38 @@ in any browser, still there after a reload, and following the folder as you
 edit it. The home page lists it too, first. It exists in the dev server only.
 Without the variable nothing changes, and the built site contains none of it.
 
+## And edit it, where it can be written
+
+A folder on your own machine can be more than read. Where the page can write to
+it, the board and a task's page act on the backlog: drag a card to **Done** and
+its file says `STATUS: CLOSED`; to **In progress** and it gains the `scope` tag;
+back to **Backlog** and it loses it.
+
+A task's page reads the same everywhere, and **Edit** turns it into a sheet:
+the title, the description in a Markdown editor with its syntax highlighted, a
+small toolbar and a Preview that shows it as the page will, and the status, the
+priority and the tags as fields. **Save** writes only the fields you changed,
+so a priority `tatr` changed meanwhile is kept, and refuses a field changed on
+both sides rather than pick one. Leaving with changes unsaved asks first. The
+editor (9 kB) loads only when a sheet opens.
+
+Two sources can write: the folder the dev server serves, in any browser, and a
+folder picked or dropped on Chromium. That one asks whether the page may edit
+it on the first change you make, never before, so reading never asks; say no
+and the folder stays read-only until you open it again. Firefox and Safari hand
+over no folder that can be written, and a repository on a forge is never
+written, as that would take an account. Where nothing can be written there is
+nothing to edit: no field, and no card that drags, rather than one that lands
+nowhere.
+
+A change applies to the file as it is on disk at that moment, not to what the
+page showed, and is written only if nothing was saved over it meanwhile;
+otherwise the file is left alone and the folder read again. The file is
+rewritten whole, the way `tatr untag` rewrites one, so a file the CLI wrote
+comes back byte for byte, and one written by hand comes back as the CLI would
+write it, a missing `PRIORITY` written down as `999999`. **Undo** puts back the
+text that was there, exactly.
+
 ## Identical to the CLI, and that claim is tested
 
 The format parser, the query language and the reference graph are ported from
@@ -206,11 +238,14 @@ the C source, not from the README, which simplifies. All three are covered by
   printed;
 - **15 invalid queries**, each compared against everything the CLI printed:
   the help, the caret and the message;
-- **36 arrows** of `tatr graph`, compared one by one.
+- **36 arrows** of `tatr graph`, compared one by one;
+- **58 files** rewritten by `tatr untag`, one tag of one task at a time,
+  compared byte for byte with what this site writes for the same edit.
 
 A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks
 (impossible dates, suffixes, a status that is neither, a title without its `#`,
-a priority given twice, text outside ASCII), run through the same binary.
+a priority given twice, text outside ASCII, keys the format does not define, a
+file with no newline at its end), run through the same binary.
 
 A divergence fails the suite. When upstream moves, `pnpm run fixtures` records
 everything again from a built clone of tatr, in a sibling folder unless

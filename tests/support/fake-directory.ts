@@ -34,16 +34,52 @@ function join(prefix: string, name: string): string {
 	return `${prefix}/${name}`;
 }
 
-/** A stand-in for the handle `showDirectoryPicker` returns. */
-export function directory(name: string, tree: Record<string, string>): FileSystemDirectoryHandle {
+/**
+ * A stand-in for the handle `showDirectoryPicker` returns. Given `ask`, it is
+ * the handle Chromium hands over, which can write once `ask` answers `granted`
+ * to its `requestPermission`; its files are then written into `tree`.
+ */
+export function directory(
+	name: string,
+	tree: Record<string, string>,
+	ask?: () => Promise<PermissionState>
+): FileSystemDirectoryHandle {
+	let permission: PermissionState = 'prompt';
+	const permissions = ask && {
+		queryPermission: async () => permission,
+		requestPermission: async () => {
+			permission = await ask();
+			return permission;
+		}
+	};
+
 	const handleOf = (prefix: string, child: string, found: Child) => {
-		if (found.kind === 'directory') return build(child, join(prefix, child));
+		const path = join(prefix, child);
+		if (found.kind === 'directory') return build(child, path);
 		return {
 			kind: 'file',
 			name: child,
-			// Fixed, so a reread sees the file as unchanged.
-			getFile: async () => new File([found.contents], child, { lastModified: 0 })
+			getFile: async () => {
+				if (!Object.hasOwn(tree, path)) throw new DOMException('missing', 'NotFoundError');
+				// Fixed, so a reread sees the file as unchanged.
+				return new File([tree[path]], child, { lastModified: 0 });
+			},
+			...(permissions && { createWritable: async () => writableAt(path) })
 		} as unknown as FileSystemFileHandle;
+	};
+
+	/** A stream that replaces the file at `path` on `close`, as Chromium's does. */
+	const writableAt = (path: string) => {
+		if (permission !== 'granted') throw new DOMException('not allowed', 'NotAllowedError');
+		let written = '';
+		return {
+			write: async (text: string) => {
+				written += text;
+			},
+			close: async () => {
+				tree[path] = written;
+			}
+		};
 	};
 
 	const build = (dirName: string, prefix: string): FileSystemDirectoryHandle => {
@@ -55,6 +91,7 @@ export function directory(name: string, tree: Record<string, string>): FileSyste
 		return {
 			kind: 'directory',
 			name: dirName,
+			...permissions,
 			entries: async function* () {
 				for (const [child, found] of childrenOf(tree, prefix)) {
 					yield [child, handleOf(prefix, child, found)];

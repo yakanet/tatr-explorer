@@ -9,8 +9,9 @@
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
-	import { toColumns } from '#lib/tatr/board.ts';
-	import { byTag } from '#lib/tatr/stats.ts';
+	import { columnOf, moveTo, toColumns, type Column, type ColumnKey } from '#lib/tatr/board.ts';
+	import { tagOptions } from '#lib/tatr/stats.ts';
+	import type { Task } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
@@ -27,13 +28,7 @@
 	const pool = $derived(columns.reduce((n, column) => n + column.total, 0));
 
 	// Tag counts cover every task because the board shows every task.
-	const tagOptions = $derived(
-		byTag(repo.tasks).map(({ tag, count }) => ({
-			name: tag,
-			description: repo.tags.descriptions.get(tag),
-			count
-		}))
-	);
+	const options = $derived(tagOptions(repo.tasks, repo.tags.descriptions));
 
 	function syncUrl() {
 		const url = new URL(page.url.href);
@@ -42,6 +37,45 @@
 	}
 
 	const describe = (tag: string) => repo.tags.descriptions.get(tag) ?? '';
+
+	/** The task whose card is being dragged, or null. */
+	let dragged = $state.raw<Task | null>(null);
+	/** The column the card is held over, marked as where it would land. */
+	let target = $state<ColumnKey | null>(null);
+
+	function picked(event: DragEvent, task: Task) {
+		dragged = task;
+		if (!event.dataTransfer) return;
+		event.dataTransfer.effectAllowed = 'move';
+		// Firefox starts a drag only once it carries data.
+		event.dataTransfer.setData('text/plain', task.id);
+	}
+
+	/** Accepts the card over any column but its own. */
+	function over(event: DragEvent, column: ColumnKey) {
+		if (!dragged || columnOf(dragged) === column) return;
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		target = column;
+	}
+
+	function left(event: DragEvent & { currentTarget: HTMLElement }, column: ColumnKey) {
+		// Moving onto a card inside the column fires `dragleave` on the column too.
+		if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+		if (target === column) target = null;
+	}
+
+	function dropped(event: DragEvent, column: Column) {
+		event.preventDefault();
+		const card = dragged;
+		ended();
+		if (card) repo.edit(card.id, moveTo(column.key), `moved to ${column.name}`);
+	}
+
+	function ended() {
+		dragged = null;
+		target = null;
+	}
 </script>
 
 <svelte:head>
@@ -49,13 +83,26 @@
 </svelte:head>
 
 <main>
-	<QueryBar {query} {matched} {pool} tags={tagOptions} onchange={syncUrl} chooseStatus={false} />
+	<QueryBar {query} {matched} {pool} tags={options} onchange={syncUrl} chooseStatus={false} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}
+		{#if repo.editable}
+			<p class="editing">
+				Drag a card to another column to rewrite its <code>TASK.md</code>, as the CLI would.
+			</p>
+		{/if}
 		<div class="board">
 			{#each columns as column (column.key)}
-				<section class="column {column.key}">
+				<section
+					role="group"
+					aria-label={column.name}
+					class="column {column.key}"
+					class:target={target === column.key}
+					ondragover={(event) => over(event, column.key)}
+					ondragleave={(event) => left(event, column.key)}
+					ondrop={(event) => dropped(event, column)}
+				>
 					<header>
 						<h2>{column.name}</h2>
 						<span class="tally mono">
@@ -74,8 +121,18 @@
 								{@const moves = repo.changes?.moved.get(task.id)}
 								<li>
 									<!-- The whole card is the link and the key row, so `j`/`k` and
-									     Enter work on the board without code of its own. -->
-									<a href={taskHref(ref, task.id)} data-key-row class:done={column.key === 'done'}>
+									     Enter work on the board without code of its own. A card that
+									     cannot move does not drag at all, rather than drag as a link
+									     and land nowhere. -->
+									<a
+										href={taskHref(ref, task.id)}
+										data-key-row
+										class:done={column.key === 'done'}
+										class:dragging={dragged?.id === task.id}
+										draggable={repo.canEdit(task)}
+										ondragstart={(event) => picked(event, task)}
+										ondragend={ended}
+									>
 										<span class="prio" class:done={column.key === 'done'}>
 											{task.priority}
 										</span>
@@ -152,6 +209,18 @@
 		background: var(--accent-wash);
 	}
 
+	/* The column a dragged card would land in. */
+	.column.target {
+		outline: 2px dashed var(--accent);
+		outline-offset: -2px;
+	}
+
+	.editing {
+		margin: 0 0 1rem;
+		font-size: 0.8125rem;
+		color: var(--ink-2);
+	}
+
 	header {
 		display: flex;
 		flex-wrap: wrap;
@@ -208,6 +277,15 @@
 
 	li a:hover {
 		border-color: var(--accent-line);
+	}
+
+	li a[draggable='true'] {
+		cursor: grab;
+	}
+
+	/* The card left behind while its ghost is dragged. */
+	li a.dragging {
+		opacity: 0.4;
 	}
 
 	/* Done cards have no fill and no shadow, so they recede behind open work. */

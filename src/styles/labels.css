@@ -15,9 +15,11 @@
 
 /*
  * A tag: a pill on one of four tints, with a dot in the matching ink, chosen
- * by `tagHue`. No cursor here, because a tag is inert on a board card.
+ * by `tagHue`. No cursor here, because a tag is inert on a board card. Prism
+ * names its HTML tag token `tag` too, in the description editor, where a pill
+ * would shift the highlighted text; `:where` keeps the specificity of `.tag`.
  */
-.tag {
+.tag:not(:where(.token)) {
 	--tag-tint: var(--tint);
 	--tag-dot: var(--muted);
 	display: inline-flex;
@@ -34,7 +36,7 @@
 	white-space: nowrap;
 }
 
-.tag::before {
+.tag:not(:where(.token))::before {
 	content: '';
 	flex: none;
 	width: 7px;

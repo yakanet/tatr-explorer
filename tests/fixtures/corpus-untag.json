@@ -1,0 +1,127 @@
+[
+ {
+  "id": "00000000-000000",
+  "tag": "ui",
+  "text": "# All zeros\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n"
+ },
+ {
+  "id": "20260101-120000",
+  "tag": "ui",
+  "text": "# A task like any other\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n\nThe plain case, which the others cite.\n"
+ },
+ {
+  "id": "20260102-080000-team-a",
+  "tag": "data",
+  "text": "# A suffix holding a dash\n\n- STATUS: OPEN\n- PRIORITY: 60\n- TAGS:\n\nDepends on TASK(20260231-000000).\n"
+ },
+ {
+  "id": "20260103-090000",
+  "tag": "data",
+  "text": "# A status that is neither\n\n- STATUS: WIP\n- PRIORITY: 40\n- TAGS:\n\nNot CLOSED, so `tatr ls` lists it with the open ones.\n"
+ },
+ {
+  "id": "20260106-120000",
+  "tag": "ui",
+  "text": "# # Two hashes\n\n- STATUS: OPEN\n- PRIORITY: 20\n- TAGS:\n"
+ },
+ {
+  "id": "20260107-130000",
+  "tag": "ui",
+  "text": "# Écrire en français — 日本語 aussi\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: données\n\nText outside ASCII, in the title and in a tag.\n"
+ },
+ {
+  "id": "20260107-130000",
+  "tag": "données",
+  "text": "# Écrire en français — 日本語 aussi\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui\n\nText outside ASCII, in the title and in a tag.\n"
+ },
+ {
+  "id": "20260108-140000",
+  "tag": "data",
+  "text": "# Priority given twice\n\n- STATUS: OPEN\n- PRIORITY: 20\n- TAGS:\n"
+ },
+ {
+  "id": "20260109-150000",
+  "tag": "data",
+  "text": "# closed, in lower case\n\n- STATUS: closed\n- PRIORITY: 30\n- TAGS:\n\nOnly `CLOSED` exactly is closed.\n"
+ },
+ {
+  "id": "20260110-160000",
+  "tag": "ui",
+  "text": "# Cites TASK(20260101-120000) in its title\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n\nAlso cites 20260107-130000, and itself: 20260110-160000.\n\n## NOTE(20260110-170000)\n\nA journal entry whose timestamp names no task.\n"
+ },
+ {
+  "id": "20260111-170000",
+  "tag": "infra",
+  "text": "# A negative priority\n\n- STATUS: OPEN\n- PRIORITY: -5\n- TAGS:\n"
+ },
+ {
+  "id": "20260112-180000",
+  "tag": "ui",
+  "text": "# Tags with spaces\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: infra,data\n"
+ },
+ {
+  "id": "20260112-180000",
+  "tag": "data",
+  "text": "# Tags with spaces\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui,infra\n"
+ },
+ {
+  "id": "20260112-180000",
+  "tag": "infra",
+  "text": "# Tags with spaces\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: ui,data\n"
+ },
+ {
+  "id": "20260113-190000",
+  "tag": "infra",
+  "text": "# Trailing spaces   \n\n- STATUS: CLOSED\n- PRIORITY: 80\n- TAGS:\n"
+ },
+ {
+  "id": "20260114-200000",
+  "tag": "scope",
+  "text": "# Keys the format does not define\n\n- OWNER: someone\n- STATUS: OPEN\n- ESTIMATE: 3d\n- PRIORITY: 40\n- TAGS: ui,data\n\nTwo keys of its own around the three the format defines, which a rewrite keeps in their place.\n"
+ },
+ {
+  "id": "20260114-200000",
+  "tag": "data",
+  "text": "# Keys the format does not define\n\n- OWNER: someone\n- STATUS: OPEN\n- ESTIMATE: 3d\n- PRIORITY: 40\n- TAGS: scope,ui\n\nTwo keys of its own around the three the format defines, which a rewrite keeps in their place.\n"
+ },
+ {
+  "id": "20260114-200000",
+  "tag": "ui",
+  "text": "# Keys the format does not define\n\n- OWNER: someone\n- STATUS: OPEN\n- ESTIMATE: 3d\n- PRIORITY: 40\n- TAGS: scope,data\n\nTwo keys of its own around the three the format defines, which a rewrite keeps in their place.\n"
+ },
+ {
+  "id": "20260115-210000",
+  "tag": "data",
+  "text": "# Tags and nothing else\n\n- TAGS: ui\n- STATUS: OPEN\n- PRIORITY: 999999\n\nNo status and no priority: a rewrite writes down the defaults.\n"
+ },
+ {
+  "id": "20260115-210000",
+  "tag": "ui",
+  "text": "# Tags and nothing else\n\n- TAGS: data\n- STATUS: OPEN\n- PRIORITY: 999999\n\nNo status and no priority: a rewrite writes down the defaults.\n"
+ },
+ {
+  "id": "20260116-220000",
+  "tag": "data",
+  "text": "# Status given twice, apart\n\n- PRIORITY: 30\n- STATUS: CLOSED\n- TAGS:\n\nThe later definition wins, and takes its place in the order.\n"
+ },
+ {
+  "id": "20260117-230000",
+  "tag": "ui",
+  "text": "# A loose layout\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n\nExtra blank lines and spaces, which the parser reads past.\n"
+ },
+ {
+  "id": "20260118-000000",
+  "tag": "ui",
+  "text": "# No newline at the end\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n"
+ },
+ {
+  "id": "20260231-000000",
+  "tag": "ui",
+  "text": "# The thirty-first of February\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n\nIts id is no real date, which the CLI never checks. See 20260101-120000.\n"
+ },
+ {
+  "id": "20260231-000000-x",
+  "tag": "ui",
+  "text": "# An impossible date with a suffix\n\n- STATUS: CLOSED\n- PRIORITY: 50\n- TAGS:\n"
+ }
+]

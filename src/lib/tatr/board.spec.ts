@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json' };
 import { makeTask } from '#tests/support/tasks.ts';
-import { IN_PROGRESS, toColumns } from './board.ts';
+import { columnOf, IN_PROGRESS, moveTo, toColumns } from './board.ts';
+import { editTaskMd } from './task-file.ts';
 import { readTask, type Task } from './task.ts';
 
 const sources = rawTasks as Record<string, string>;
@@ -114,5 +115,31 @@ describe('toColumns under a query', () => {
 			(task) => task.tags.includes('ui')
 		);
 		expect(ids(columns[0].tasks)).toEqual(['20260101-000003', '20260101-000001']);
+	});
+});
+
+describe('moving a card', () => {
+	const at = (status: string, tags: string) =>
+		`# t\n\n- STATUS: ${status}\n- PRIORITY: 50\n- TAGS: ${tags}\n`;
+
+	it.each([
+		['done', at('OPEN', 'scope,ui'), at('CLOSED', 'scope,ui')],
+		['progress', at('OPEN', 'ui'), at('OPEN', 'ui,scope')],
+		['backlog', at('OPEN', 'ui,scope'), at('OPEN', 'ui')],
+		['progress', at('CLOSED', 'ui'), at('OPEN', 'ui,scope')],
+		['backlog', at('CLOSED', 'scope,ui'), at('OPEN', 'ui')]
+	] as const)('to %s rewrites only what the move needs', (column, before, after) => {
+		expect(editTaskMd(before, moveTo(column))).toBe(after);
+	});
+
+	it('keeps a status that is neither open nor closed, outside Done', () => {
+		expect(editTaskMd(at('WIP', 'ui'), moveTo('progress'))).toBe(at('WIP', 'ui,scope'));
+	});
+
+	it('lands the card in the column it was moved to', () => {
+		for (const column of ['backlog', 'progress', 'done'] as const) {
+			const text = editTaskMd(at('CLOSED', 'scope'), moveTo(column));
+			expect(columnOf(readTask('20260101-000001', text)!)).toBe(column);
+		}
 	});
 });

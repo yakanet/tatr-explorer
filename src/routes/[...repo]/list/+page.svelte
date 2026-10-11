@@ -9,7 +9,7 @@
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import { QUERY, type QueryState } from '#lib/state/query.svelte.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
-	import { byTag } from '#lib/tatr/stats.ts';
+	import { tagOptions } from '#lib/tatr/stats.ts';
 
 	let { data } = $props();
 	const ref = $derived(data.ref);
@@ -28,13 +28,7 @@
 
 	// Tag counts cover the tasks the status admits, so the count beside a tag
 	// matches the list that picking it shows.
-	const tagOptions = $derived(
-		byTag(admitted).map(({ tag, count }) => ({
-			name: tag,
-			description: repo.tags.descriptions.get(tag),
-			count
-		}))
-	);
+	const options = $derived(tagOptions(admitted, repo.tags.descriptions));
 
 	function syncUrl() {
 		const url = new URL(page.url.href);
@@ -59,7 +53,7 @@
 </svelte:head>
 
 <main>
-	<QueryBar {query} matched={visible.length} {pool} tags={tagOptions} onchange={syncUrl} />
+	<QueryBar {query} matched={visible.length} {pool} tags={options} onchange={syncUrl} />
 	<RepoStatus {repo} {ref} />
 
 	{#if repo.phase === 'ready'}

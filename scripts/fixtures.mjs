@@ -13,12 +13,16 @@
  * `tasks/` folder sits in this repository for the CLI or a reader to mistake
  * for a backlog.
  *
+ * Both are rewritten by `tatr untag` too, which pins the file this viewer writes
+ * when it edits a task.
+ *
  * Every recording keeps its own questions: the queries are read back from the
  * file before it is written again. To add a case, add an entry with an empty
  * answer and run this; the binary fills it in.
  */
 import { spawnSync } from 'node:child_process';
 import {
+	cpSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
@@ -80,6 +84,36 @@ function edges(cwd) {
 		.sort((a, b) => (a.join() < b.join() ? -1 : a.join() > b.join() ? 1 : 0));
 }
 
+/** Orders rows by id, code unit by code unit, as `strcmp` does. */
+function compareById(a, b) {
+	if (a.id < b.id) return -1;
+	if (a.id > b.id) return 1;
+	return 0;
+}
+
+/**
+ * What `tatr untag` writes: for each tag of each task in `rows`, the file once
+ * that tag alone is removed. `cwd` must be a copy: each file is put back before
+ * the next run, so that every run removes one tag.
+ */
+function untagged(cwd, rows) {
+	const cases = [];
+	for (const { id, status, tags } of [...rows].sort(compareById)) {
+		const path = join(cwd, 'tasks', id, 'TASK.md');
+		const before = readFileSync(path, 'utf8');
+		for (const tag of new Set(tags)) {
+			const args = ['untag', '-t', tag];
+			// `untag` rewrites the open tasks the query selects, or the closed ones with `-c`.
+			if (status === 'CLOSED') args.push('-c');
+			const result = run(cwd, [...args, id]);
+			if (result.status !== 0) throw new Error(`tatr untag -t ${tag} ${id}: ${result.stderr}`);
+			cases.push({ id, tag, text: readFileSync(path, 'utf8') });
+			writeFileSync(path, before);
+		}
+	}
+	return cases;
+}
+
 const read = (name) => JSON.parse(readFileSync(join(fixtures, name), 'utf8'));
 
 function write(name, text) {
@@ -122,7 +156,7 @@ function cliCases(cwd, cases, encode) {
 	const rows = [...ls(checkout, []), ...ls(checkout, ['-c'])];
 	write('tatr-ls-output.json', JSON.stringify(rows, null, 1));
 	const byId = [...rows]
-		.sort((a, b) => (a.id < b.id ? -1 : 1))
+		.sort(compareById)
 		.map(({ id, title, status, priority, tags }) => ({ id, title, status, priority, tags }));
 	write('tsoding-tatr.json', ascii(JSON.stringify(byId, null, 1)) + '\n');
 
@@ -134,6 +168,15 @@ function cliCases(cwd, cases, encode) {
 		return { query, exit: result.status, stderr: result.stderr.replace(/\n+$/, '') };
 	});
 	write('tatr-query-errors.json', JSON.stringify(errors, null, 1) + '\n');
+
+	// `untag` writes into the folder it runs in, so it runs over a copy.
+	const copy = mkdtempSync(join(tmpdir(), 'tatr-untag-'));
+	try {
+		cpSync(join(checkout, 'tasks'), join(copy, 'tasks'), { recursive: true });
+		write('tatr-untag.json', ascii(JSON.stringify(untagged(copy, rows), null, 1)) + '\n');
+	} finally {
+		rmSync(copy, { recursive: true, force: true });
+	}
 }
 
 // Our corpus of edge cases, laid out for the run and removed after.
@@ -151,6 +194,7 @@ function cliCases(cwd, cases, encode) {
 			'corpus-cli-cases.json',
 			cliCases(folder, read('corpus-cli-cases.json'), (line) => line)
 		);
+		write('corpus-untag.json', JSON.stringify(untagged(folder, rows), null, 1) + '\n');
 	} finally {
 		rmSync(folder, { recursive: true, force: true });
 	}
