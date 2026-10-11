@@ -10,7 +10,7 @@ import {
 	readBranch
 } from './folder.ts';
 
-/** A file as the directory input reports it, path and all. */
+/** A file as the directory input hands it over, with its `webkitRelativePath`. */
 function entry(relativePath: string, contents = 'x'): File {
 	const file = new File([contents], relativePath.split('/').pop()!);
 	Object.defineProperty(file, 'webkitRelativePath', { value: relativePath });
@@ -25,8 +25,6 @@ describe('isWorthKeeping', () => {
 	});
 
 	it('drops what a checkout holds besides them', () => {
-		// A reader picks the repository, not a subfolder of it, and node_modules
-		// alone can be a hundred thousand files.
 		expect(isWorthKeeping('src/lib/sources/local.ts')).toBe(false);
 		expect(isWorthKeeping('node_modules/svelte/package.json')).toBe(false);
 		expect(isWorthKeeping('README.md')).toBe(false);
@@ -57,8 +55,7 @@ describe('fromFileList', () => {
 	});
 
 	it('gives up on a selection that carries no paths at all', () => {
-		// Files chosen one by one rather than as a folder: nothing says where they
-		// sit relative to each other, so there is no repository to read.
+		// Files picked one by one, not as a folder, carry no relative path.
 		expect(fromFileList([new File(['x'], 'TASK.md')])).toBeNull();
 		expect(fromFileList([])).toBeNull();
 	});
@@ -85,9 +82,6 @@ describe('fromDirectoryHandle', () => {
 	});
 
 	it('refuses a folder that is neither a repository nor a tasks folder', async () => {
-		// The case that made a mispicked folder cost minutes: everything below it
-		// was walked under a `tasks/` prefix, which then read to the loader as a
-		// tasks folder holding no tasks.
 		const folder = await fromDirectoryHandle(
 			directory('Documents', {
 				'notes/shopping.md': 'milk',
@@ -113,8 +107,6 @@ describe('fromDirectoryHandle', () => {
 	});
 
 	it('descends `tasks/` and nothing else', async () => {
-		// Walking everything and filtering after would mean reading `node_modules`
-		// and every loose object under `.git` to arrive at the same files.
 		const visited: string[] = [];
 		const repo = directory('repo', {
 			'tasks/20260101-000001/TASK.md': '# a\n',
@@ -159,7 +151,7 @@ describe('listFolder', () => {
 });
 
 describe('readBranch', () => {
-	// A repository, which is what has a `.git` beside its tasks.
+	// A repository root, the only place `.git/HEAD` is read from.
 	const withHead = async (contents: string) =>
 		readBranch(
 			await fromDirectoryHandle(
@@ -202,9 +194,6 @@ describe('looksLikeTasksFolder', () => {
 });
 
 describe('picking the tasks folder itself', () => {
-	// Why it is allowed: a directory input makes the browser ask about every file
-	// in the folder by count ("import 7,775 files?" for a checkout), and picking
-	// `tasks/` makes that question about the tasks alone.
 	it('puts the paths back where the rest of the viewer expects them', () => {
 		const folder = fromFileList([
 			entry('tasks/20260101-000001/TASK.md'),
@@ -265,9 +254,7 @@ describe('fromDirectoryEntry', () => {
 	});
 
 	it('keeps reading until the reader says it is done', async () => {
-		// `readEntries` answers a page at a time and ends with an empty array, so
-		// calling it once looks like it worked and loses the rest. Five tasks
-		// through a reader that returns two at a time is the shape that catches it.
+		// Five tasks through a reader that answers two at a time take three pages.
 		const tree: Record<string, string> = {};
 		for (let i = 1; i <= 5; i++) tree[`tasks/2026010${i}-000001/TASK.md`] = `# ${i}\n`;
 
@@ -287,9 +274,6 @@ describe('fromDirectoryEntry', () => {
 });
 
 describe('a dropped folder that holds no tasks', () => {
-	// The widest door, and the one with no dialog in front of it: on Firefox and
-	// Safari a drop hands over the legacy entry tree, so nothing asked the reader
-	// to confirm a file count before this walk began.
 	it('is read as empty rather than walked whole', async () => {
 		const folder = await fromDirectoryEntry(
 			entryTree('Downloads', { 'invoices/march.pdf': 'pdf', 'notes.txt': 'x' })

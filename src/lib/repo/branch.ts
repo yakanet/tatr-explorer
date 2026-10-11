@@ -1,8 +1,6 @@
 /**
- * Moving between branches of the repository being read.
- *
- * Apart from `ref.ts` because it reads where the reader is, which only the
- * running app knows, while everything there is a pure function of its input.
+ * Links to another branch of the repository being read. Kept apart from
+ * `ref.ts`, which holds pure functions, because it reads the current page.
  */
 import { resolve } from '$app/paths';
 import { page } from '$app/state';
@@ -10,20 +8,17 @@ import type { RouteId } from '$app/types';
 import { formatRepoPath, type ForgeRef } from './ref.ts';
 
 /**
- * Every route under a repository takes `repo`, and the task page the `id`
- * `page.params` already holds, so the current route resolves again with one
- * parameter changed. `resolve` checks parameters against a route named in the
- * source, which this one is not, hence the looser signature.
+ * `resolve` with a looser signature, since the route comes from `page` rather
+ * than being named in the source. Every route under a repository takes `repo`,
+ * plus the `id` already in `page.params`, so changing `repo` is enough.
  */
 const again = resolve as (route: RouteId, params: Record<string, string | undefined>) => string;
 
 /**
- * Where the reader is, on another branch: the same view, the same task, the
- * same query. `undefined` is the default branch.
- *
- * The query is read from `page.shallow` when there is one. The list and the
- * board rewrite their address as the reader types, through a shallow `goto`,
- * and `page.url` stays the address the page was reached by.
+ * The current page on another branch, keeping the view, the task and the
+ * query; `undefined` is the default branch. The query comes from
+ * `page.shallow` when set, because the list and the board update their address
+ * through a shallow `goto` while `page.url` keeps the address first reached.
  */
 export function onBranch(ref: ForgeRef, branch: string | undefined): string {
 	const repo = formatRepoPath({ ...ref, branch });

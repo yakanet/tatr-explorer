@@ -1,21 +1,13 @@
 /*
- * The one face the site is set in, served from the site itself.
+ * The site's one face, served from the site itself so that no visit makes a
+ * request to a third party.
  *
- * It came from Google Fonts until a request to a third party on every visit sat
- * badly beside a README promising no analytics and no server. The file is the
- * package's latin subset as it ships: the tasks this viewer reads are English,
- * and Latin-1 already carries the accents of the western European languages.
- * Anything beyond it (Polish, Cyrillic, which Google's other subsets used to
- * cover, and the arrows on the reference cards, which nothing covered) is drawn
- * by the next face in `--font-mono`.
- *
- * Written by hand rather than importing the package's `wght.css`, which
- * declares six subsets and would put all six in the build. Writing it also
- * keeps the family's plain name: the package calls it `JetBrains Mono
- * Variable`, and a stack naming the wrong one falls through without a word.
- *
- * The whole 100-800 axis, when four weights are used: 9 kB more than a file
- * instanced to 400-800, against a regeneration step nobody would remember.
+ * Only the latin subset ships: the tasks are English, and the next face in
+ * `--font-mono` draws anything beyond it. The rule is written by hand because
+ * the package's `wght.css` declares six subsets, all of which would reach the
+ * build, and names the family `JetBrains Mono Variable`, which the stack would
+ * silently miss. The full 100-800 axis costs 9 kB more than the weights used,
+ * and spares a regeneration step.
  */
 @font-face {
 	font-family: 'JetBrains Mono';

@@ -1,7 +1,6 @@
 /**
- * Writes a tree of files on the disk, and serves it as the dev server would:
- * the served source is specced over real folders, the disk being what it is
- * about, by its own specs and by the contract every source runs.
+ * Writes trees of files to a scratch folder and serves them as the dev server
+ * would, for the specs of the served source and of the source contract.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -10,8 +9,8 @@ import { afterEach, beforeEach } from 'vitest';
 import { answer, locate } from '#lib/sources/served/folder.server.ts';
 
 /**
- * A fresh folder for every spec, removed after it. Returns a function, as the
- * folder only exists once the spec has started.
+ * Creates a fresh folder before each spec and removes it after. Returns a
+ * getter, as the folder exists only once a spec has started.
  */
 export function scratchFolder(): () => string {
 	let current = '';
@@ -33,13 +32,12 @@ export async function writeTree(root: string, tree: Record<string, string>): Pro
 	return root;
 }
 
-/** Where the page that asks is served from, which is where the dev server is. */
+/** The origin of the dev server and of its page. */
 const PAGE = 'http://localhost:5173';
 
 /**
- * A request as a page of the dev server makes it: at the server's address, and
- * naming the page's origin on anything but a read, as the browser does whatever
- * the page says. A spec may name another origin, to see it refused.
+ * A request as the dev server's page sends it, with the `Origin` the browser
+ * adds to anything but a GET. A spec may set another origin to see it refused.
  */
 export function fromPage(input: string, init: RequestInit = {}): Request {
 	const headers = new Headers(init.headers);
@@ -50,9 +48,8 @@ export function fromPage(input: string, init: RequestInit = {}): Request {
 }
 
 /**
- * A fetch answered by the dev server's half itself, serving `folder`: no HTTP,
- * but no mock of either side. Called with a `this`, it refuses, as the
- * browser's own `fetch` does with any but the window.
+ * A `fetch` answered by the server half serving `folder`, without HTTP. Like the
+ * browser's `fetch`, it throws when called with a `this`.
  */
 export async function serving(folder: string): Promise<typeof fetch> {
 	const served = await locate(folder);

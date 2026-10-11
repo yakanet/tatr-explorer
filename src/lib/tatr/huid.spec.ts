@@ -31,9 +31,6 @@ describe('parseHuid', () => {
 	});
 
 	it('keeps an id whose digits are no real instant, without a date', () => {
-		// The CLI never reads them, so these are tasks to it. Date.UTC would roll
-		// 31 February over into March, which is why there is no date rather than
-		// a wrong one.
 		expect(parseHuid('20260231-000000')).toEqual({ id: '20260231-000000', created: null });
 		expect(parseHuid('20260830-250000-x')).toEqual({
 			id: '20260830-250000-x',
@@ -112,20 +109,13 @@ describe('scanHuids', () => {
 		expect(scanHuids('2026-01-01 is not one, nor is 20260101')).toEqual([]);
 	});
 
-	/**
-	 * The scan stops at the end of the text rather than at the end of a
-	 * well-formed id, so the last id in a text can be accepted while
-	 * incomplete. Harmless (every caller then looks the task up and finds
-	 * nothing), but it decides where a scan ends, so it is pinned rather than
-	 * left to be discovered by whoever rewrites this.
-	 */
 	it('accepts a time cut short by the end of the text', () => {
 		expect(scanHuids('see 20260101-0000')).toEqual(['20260101-0000']);
 		expect(scanHuids('see 20260101-')).toEqual(['20260101-']);
 	});
 
 	it('does not accept a date cut short by it', () => {
-		// Nothing follows the digits, so the dash that must come next is missing.
+		// Only the time may be cut short: the date needs all eight digits and its dash.
 		expect(scanHuids('see 2026010')).toEqual([]);
 	});
 
@@ -154,9 +144,8 @@ describe('scanHuidSpans', () => {
 	});
 
 	it('every span slices back to its own id', () => {
-		// Which is the reason the positions come out of the scan rather than
-		// being looked up afterwards: the same id can appear where the scanner
-		// does not read one, and a search would link the wrong occurrence.
+		// A later search for each id could land on an occurrence the scan does not
+		// read as an id, and link the wrong one.
 		const text = '20260907-01 is not one, 20260907-011003 is, and so is 20260304-115038';
 		const spans = scanHuidSpans(text);
 		expect(spans).toHaveLength(2);

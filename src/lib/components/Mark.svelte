@@ -1,8 +1,7 @@
 <script lang="ts">
-	// The logo, inline rather than an <img>, so it takes the accent from the
-	// theme it is drawn in and needs no request of its own. It always sits beside
-	// the name in text, so it is hidden from screen readers rather than labelled:
-	// a label would have them read the name twice.
+	// The logo, inline rather than an <img> so it takes the theme's accent and
+	// costs no request. It is hidden from screen readers because the name always
+	// sits beside it in text, and a label would be read twice.
 	let { size = 22 }: { size?: number } = $props();
 </script>
 
@@ -26,11 +25,8 @@
 	svg {
 		display: block;
 		flex-shrink: 0;
-		/* A drawing has no baseline, so a row aligning on one would take this
-		   element's bottom edge for the whole line's; the text beside it then
-		   hangs wherever that edge happens to fall. Sitting out of the baseline
-		   group leaves the text to define it, and centring lands the artwork on
-		   the cap height of the word next to it. */
+		/* An SVG has no baseline, so a baseline-aligned row would use its bottom
+		   edge. Centring it leaves the baseline to the text beside it. */
 		align-self: center;
 		color: var(--accent);
 	}

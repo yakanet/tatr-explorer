@@ -1,24 +1,15 @@
 /*
- * How repository content is set: monospace, because it is a name someone typed
- * into a file rather than prose this site wrote.
- *
- * `.mono` was declared in two components and *applied* in five, which is a
- * class of mistake scoped CSS makes silently: the markup asked for a rule the
- * component did not have, so a board's priorities and tags, a file's size and a
- * repository's path all rendered in the body face while the list's rendered
- * right. One rule, once. Everything is monospace now, but the class still says
- * which text came from the repository.
+ * Marks text that came from the repository rather than from the site. Global,
+ * because a scoped `.mono` silently does nothing in a component that does not
+ * declare it.
  */
 .mono {
 	font-family: var(--font-mono);
 }
 
 /*
- * A tag, as the format writes it: a pill on one of four tints, with a dot in
- * the matching ink. The hue comes from `tagHue`, by name, so a tag keeps its
- * colour from page to page; the name is always printed, so the colour never
- * carries the meaning alone. Clickable in the list and on the dashboard, inert
- * on a board card, which is why the cursor is not here.
+ * A tag: a pill on one of four tints, with a dot in the matching ink, chosen
+ * by `tagHue`. No cursor here, because a tag is inert on a board card.
  */
 .tag {
 	--tag-tint: var(--tint);
@@ -63,9 +54,8 @@
 	--tag-dot: var(--dot-rose);
 }
 
-/* A priority: a number to compare down a column, on a pill wide enough for
-   five digits, on the lilac tint so a column of them reads as one thing. The
-   face is monospace, so the digits already line up. */
+/* A priority, on a pill wide enough for five digits and on the lilac tint, so
+   a column of them reads as one thing. The monospace face lines up the digits. */
 .prio {
 	display: inline-flex;
 	align-items: center;
@@ -82,9 +72,9 @@
 	border-radius: var(--radius-full);
 }
 
-/* The clause of a headline that matters, highlighted the way a terminal
-   selects text. It hangs into the margin so the words still start flush with
-   the lines under them, and every line of a wrapped clause gets its own ends. */
+/* The key clause of a headline, highlighted like a terminal selection. The
+   negative margin keeps the words flush with the lines below, and `clone`
+   gives each wrapped line its own ends. */
 .highlight {
 	padding: 0 0.5rem;
 	margin-left: -0.5rem;
@@ -95,11 +85,9 @@
 	-webkit-box-decoration-break: clone;
 }
 
-/* A task id beside its title: small and quiet, the title being what is read.
-   Code, but not in a well: a column of wells would be louder than the
-   titles. Never broken at its hyphen: half an id is not an id, and beside a
-   long title the browser would otherwise take the room from it rather than
-   from the words, which can wrap. */
+/* A task id beside its title, quieter than the title. No well, because a
+   column of wells would be louder than the titles. `nowrap`, so a long title
+   wraps rather than the id breaking at its hyphen. */
 .id {
 	padding: 0;
 	font-size: 0.75rem;
@@ -115,12 +103,9 @@
 	color: var(--ink-2);
 }
 
-/* How a row says it moved since the reader's last reading, in the list and on
-   the board's cards alike: one word, beside the title it belongs to.
-
-   Not a band on the row: that already means "the keyboard is here", and two
-   meanings on one channel is one too many. Here rather than in each view for the
-   same reason as the rules above, one convention being one rule. */
+/* The word saying a row moved since the reader's last reading, beside its
+   title in the list and on board cards. Not a band on the row, which already
+   marks the keyboard focus. */
 [data-moved] {
 	padding: 0.05rem 0.45rem;
 	font-size: 0.7rem;

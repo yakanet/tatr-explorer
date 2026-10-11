@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { renderInline, renderMarkdown, resolveAttachment, splitJournal } from './markdown.ts';
 
 const options = {
-	// What a forge's source answers, spelled out: which URL a path becomes is
-	// the source's business, and what is tested here is that it is asked.
+	// A forge's answer, spelled out: the URL is the source's choice, and these
+	// tests only check that the source is asked.
 	assetUrl: (path: string) => `https://raw.githubusercontent.com/owner/repo/main/${path}`,
 	taskId: '20260826-200847'
 };
@@ -26,16 +26,13 @@ describe('rendering', () => {
 });
 
 describe('hostile input', () => {
-	// The source is a file from an arbitrary repository. Each of these is a real
-	// way to get script execution through a markdown renderer. None can work here
-	// because HTML never enters: the parser escapes it into text.
-	//
-	// So the assertion is not "the word script is absent" - it does appear, inertly,
-	// as `&lt;script&gt;`. It is that no *active* markup survives.
+	// Each input is a real way to run script through a markdown renderer. The
+	// escaped text still contains `&lt;script&gt;`, so the assertion is that no
+	// active markup survives, not that the word is absent.
 	const ACTIVE_TAG = /<(script|iframe|svg|body|style|form|object|embed|link|meta)\b/i;
 	const DANGEROUS_URL = /(?:href|src)\s*=\s*"(?:javascript|data|vbscript):/i;
 
-	/** The tags actually rendered, as opposed to escaped text that merely looks like one. */
+	/** The tags rendered, as opposed to escaped text that looks like one. */
 	const renderedTags = (html: string) => html.match(/<[a-z][^>]*>/gi) ?? [];
 	const hasEventAttribute = (html: string) =>
 		renderedTags(html).some((tag) => /\son[a-z]+\s*=/i.test(tag));
@@ -107,7 +104,6 @@ describe('attachments', () => {
 	);
 
 	it('drops an image whose source is neither relative nor the repository CDN', () => {
-		// Otherwise a task could beacon every reader to an arbitrary host.
 		expect(render('![x](https://evil.example/pixel.png)')).not.toContain('evil.example');
 	});
 
@@ -118,9 +114,8 @@ describe('attachments', () => {
 });
 
 describe('task ids in a body', () => {
-	// The ids the repository being read actually has. The page hands in a builder
-	// that answers for those and `null` for anything else, which is where the
-	// difference between our tasks and the upstream ones they cite lands.
+	// The ids the repository being read has. The page passes a builder that
+	// answers `null` for any other id.
 	const KNOWN = new Set(['20260907-011003', '20260826-200847', '20260907-011003-b']);
 	const linking = {
 		...options,
@@ -141,7 +136,7 @@ describe('task ids in a body', () => {
 	});
 
 	it('leaves an id this repository does not have as text', () => {
-		// A real one: our tasks cite upstream's, which resolve nowhere here.
+		// A real case: this project's tasks cite upstream's.
 		const html = link('upstream calls it 20260304-115038');
 		expect(html).not.toContain('<a ');
 		expect(html).toContain('20260304-115038');

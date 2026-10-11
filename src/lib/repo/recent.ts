@@ -1,25 +1,19 @@
 /**
- * The repositories to offer on the homepage.
- *
- * A reader who has opened three is far likelier to want a fourth visit than a
- * first one, so the cache is the list, and the counts a card shows are already
- * in it, which means a card costs no request at all. With nothing cached, this
- * project's own repository is offered: it is certain to exist and to follow the
- * layout, since it tracks its own work with tatr.
- *
- * Kept apart from the page so that turning cache rows into cards can be
- * asserted: the parsing of a key, the counting, the fallback and the order.
+ * The repositories the homepage offers: those in the cache, the likeliest to
+ * be read again, whose cards cost no request since their counts are cached
+ * too. With nothing cached, this project's own repository is offered, since it
+ * follows the tatr layout. Kept apart from the page so it can be tested.
  */
 import { parseForgePath, repoKey, type ForgeAddress } from './ref.ts';
 
-/** Whatever the cache holds that a card needs. Deliberately narrow. */
+/** The part of a cache row that a card needs. */
 export interface CachedShape {
 	tasks: { closed: boolean }[];
 }
 
 export interface Suggestion {
 	ref: ForgeAddress;
-	/** Path in our own URLs, which is both the link and the label. */
+	/** The path in the site's URLs, used as both the link and the label. */
 	path: string;
 	total: number;
 	open: number;
@@ -35,17 +29,14 @@ export const FALLBACK: ForgeAddress = {
 };
 
 /**
- * The named branches of one repository already in the cache, for the header's
- * branch menu to offer.
- *
- * Asking the forge for its branches is one more request against the hourly
- * budget, spent before the reader has chosen anything; the branches they have
- * read before cost nothing to list, and are the likeliest to be wanted again.
- * The default branch is not among them, the menu offering it as `HEAD`.
+ * The named branches of a repository already in the cache, for the header's
+ * branch menu. Asking the forge would spend a rate-limited request before the
+ * reader chooses anything. The default branch is left out, since the menu
+ * offers it as `HEAD`.
  */
 export function branchesOf(ref: ForgeAddress, keys: readonly string[]): string[] {
-	// `repoKey` ends the repository at an `@`, so the prefix cannot match a
-	// namesake whose name merely starts the same.
+	// `repoKey` ends the name with `@`, so the prefix cannot match a longer name
+	// that starts the same.
 	const prefix = repoKey({ ...ref, branch: undefined });
 	return keys
 		.filter((key) => key.startsWith(prefix) && key !== prefix)
@@ -58,11 +49,10 @@ export function toSuggestions(
 	format: (ref: ForgeAddress) => string
 ): Suggestion[] {
 	const found = rows.flatMap((row) => {
-		// `repoKey` writes a forge path, so that reading turns a key back into a
-		// reference. A key we cannot read back is a row from a scheme we no longer
-		// write.
+		// `repoKey` writes a forge path, so parsing it gives the reference back. A
+		// key that does not parse comes from an older format, and is skipped
+		// rather than shown as a card that leads nowhere.
 		const ref = parseForgePath(row.key);
-		// Skipping it beats showing a card that leads nowhere.
 		if (!ref) return [];
 		return [
 			{

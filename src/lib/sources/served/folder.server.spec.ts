@@ -17,8 +17,8 @@ import {
 import { tagOf } from './protocol.ts';
 
 /**
- * Real folders on the disk, because what is worth pinning here is what the disk
- * does: symbolic links, `..`, a folder that is its own `tasks/`.
+ * Real folders, because these specs pin how the disk behaves: symbolic links,
+ * `..`, a folder that is its own `tasks/`.
  */
 const scratch = scratchFolder();
 
@@ -166,11 +166,11 @@ describe('what the dev server answers', () => {
 });
 
 describe('writing a task file', () => {
-	/** A write as a page of this dev server sends it, unless told otherwise. */
+	/** A write to `file`, from this dev server's page unless `headers` names another origin. */
 	const put = (file: string, body: string, headers: Record<string, string>) =>
 		fromPage(`/__tatr/served/files/${file}`, { method: 'PUT', body, headers });
 
-	/** The repository, served, and a way to look at the task file on its disk. */
+	/** The repository served, and a reader of its task file on disk. */
 	const opened = async () => {
 		const root = await repository();
 		return {
@@ -210,7 +210,7 @@ describe('writing a task file', () => {
 	});
 
 	it('creates no file: only one already there is replaced', async () => {
-		// Which paths may be touched at all is what reading them already pins.
+		// The paths a write may reach are those a read may, pinned above.
 		const { served } = await opened();
 		const file = 'tasks/20260101-000002/TASK.md';
 		const reply = await answer(served, put(file, '# b\n', { 'if-match': await tagOf('# a\n') }));
@@ -220,8 +220,8 @@ describe('writing a task file', () => {
 
 describe('the middleware, on a real server', () => {
 	/**
-	 * `serve` on a port of this machine, with a next handler that reads what
-	 * it is handed: the address a browser would write to, and what reached it.
+	 * Runs `serve` on a local port, with a next handler that records the bodies
+	 * it receives. Returns the address and those bodies.
 	 */
 	const listening = async (served: ServedFolder) => {
 		const passed: string[] = [];
@@ -246,7 +246,7 @@ describe('the middleware, on a real server', () => {
 				body: '# b\n'
 			});
 
-		// Past the origin, the stale version is what refuses it.
+		// With the origin accepted, the stale version is what refuses the write.
 		expect((await write(at)).status).toBe(412);
 		expect((await write('http://127.0.0.1:1')).status).toBe(403);
 	});

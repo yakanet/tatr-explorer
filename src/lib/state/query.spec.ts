@@ -55,9 +55,8 @@ describe('QueryState', () => {
 		expect(query.apply(tasks)).toHaveLength(2);
 	});
 
-	// `priority` parses and compiles: it is an integer where a boolean is
-	// required, and the language only says so while evaluating. Left unchecked it
-	// threw mid-render and took the page down with it.
+	// `priority` parses and compiles; its type error only shows while
+	// evaluating, which would otherwise throw mid-render.
 	it.each(['priority', '100', 'priority and :bug'])(
 		'reports the ill-typed query %o instead of throwing',
 		(source) => {
@@ -69,8 +68,8 @@ describe('QueryState', () => {
 	);
 
 	it('still reports a type error hiding on the right of an and', () => {
-		// `and` evaluates both sides before testing either, so no branch escapes
-		// the witness, even one a short-circuiting language would skip.
+		// `and` evaluates both sides before testing either, so the type check
+		// reaches the right side too.
 		expect(withText(':bug and priority').error?.message).toContain('Expected boolean');
 	});
 
@@ -113,9 +112,6 @@ describe('the ~ term, through the state', () => {
 	});
 
 	it('hands out the source the error was measured on, spaces trimmed off', () => {
-		// A caret counts columns from what the compiler saw. Rendering `text`
-		// instead put the leading spaces back on the line above it and left the
-		// caret several columns short of the character it meant.
 		const query = withText('   nope   ');
 		expect(query.source).toBe('nope');
 		expect(formatDiagnostic(query.source, query.error!).split('\n').slice(-3)).toEqual([
@@ -164,8 +160,8 @@ describe('the query in a URL', () => {
 	});
 
 	it('keeps the status through a view that does not use it', () => {
-		// The board's address carries the text alone; coming back to the list
-		// must find the status the reader chose there.
+		// The board's address carries the text alone; back on the list, the
+		// reader's status must still be there.
 		const query = withText(':bug');
 		query.status = 'closed';
 		query.read(new URLSearchParams('q=%3Atql'));

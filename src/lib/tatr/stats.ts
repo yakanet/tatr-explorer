@@ -1,11 +1,10 @@
 /**
- * Summaries of a set of tasks, for the dashboard.
+ * Summarises a set of tasks for the dashboard.
  *
- * Everything here is derived from the four dimensions the format actually
- * carries: binary status, numeric priority, tags, and the creation date encoded
- * in the HUID. There are no closure dates in a task file, so there can be no
- * burndown, no cycle time and no "closed this month"; the activity series
- * counts *creations*, split by present status. Anything else would be invented.
+ * Everything comes from what the format carries: status, priority, tags, and
+ * the creation date in the HUID. A task file holds no closure date, so there is
+ * no burndown or cycle time, and the activity series counts creations split by
+ * current status.
  */
 import type { Task } from './task.ts';
 
@@ -31,8 +30,8 @@ export interface PriorityBucket {
 }
 
 /**
- * One row per distinct priority, highest first, not fixed ranges, because a
- * repository's priorities are whatever its author chose.
+ * Counts tasks per distinct priority, highest first, rather than in fixed
+ * ranges, because each repository picks its own priorities.
  */
 export function byPriority(tasks: Task[]): PriorityBucket[] {
 	const seen = new Map<number, number>();
@@ -47,7 +46,7 @@ export interface TagCount {
 	count: number;
 }
 
-/** Tags by frequency, most used first, ties broken alphabetically. */
+/** Counts tasks per tag, most used first, ties broken alphabetically. */
 export function byTag(tasks: Task[]): TagCount[] {
 	const seen = new Map<string, number>();
 	for (const task of tasks) {
@@ -66,13 +65,12 @@ export interface MonthBucket {
 }
 
 /**
- * Creations per month, from the first month that has any through the last,
- * empty months included, because their emptiness is the point. Repositories
- * like this one are written in bursts, and a series that silently skips the
- * quiet months would hide that.
+ * Counts creations per month, from the first month with any to the last,
+ * including empty months, because repositories are written in bursts and
+ * skipping the quiet months would hide that.
  *
- * A task whose id is no real instant has no month, and is left out without a
- * word: it is counted everywhere else, and the chart is about when.
+ * A task whose id is no real instant has no month, so it is left out here and
+ * counted everywhere else.
  */
 export function byMonth(tasks: Task[]): MonthBucket[] {
 	const dated = tasks.flatMap(({ created, closed }) => (created ? [{ created, closed }] : []));
@@ -106,7 +104,7 @@ export function byMonth(tasks: Task[]): MonthBucket[] {
 	return out;
 }
 
-/** Tasks a query selected, highest priority first, as `tatr ls` orders them. */
+/** Returns the first `limit` tasks, highest priority first, as `tatr ls` orders them. */
 export function topByPriority(tasks: Task[], limit: number): Task[] {
 	return tasks
 		.toSorted((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
@@ -129,9 +127,8 @@ const MONTH_NAMES = [
 ];
 
 /**
- * `2026-03` as `March 2026`, joined by a no-break space: the masthead's
- * sentence is set large enough to wrap, and a month on one line with its year
- * on the next reads as two things.
+ * Formats `2026-03` as `March 2026`, joined by a no-break space so the masthead
+ * never wraps a month away from its year.
  */
 export function monthName(month: string): string {
 	const [year, index] = month.split('-').map(Number);
@@ -148,22 +145,15 @@ export interface Summary {
 }
 
 /**
- * States a repository's condition in a sentence.
+ * States a repository's condition in one sentence: a lead clause, then the one
+ * fact that stands out, if any.
  *
- * The dashboard opens by saying something rather than by presenting a row of
- * counters, so this picks the one fact worth leading with. Every candidate is
- * checked against the data: nothing here is a template with a number dropped
- * into it, and when nothing stands out the sentence simply stops.
+ * Each clause says what happened rather than what did not, since the chart
+ * already shows the quiet months. Each clause names what it counts, since a
+ * bare "them" would seem to refer to the open tasks in the lead.
  *
- * Each clause says what happened rather than what did not: a reader opens a
- * repository to see its work, and the chart below already shows the quiet
- * months. A sleeping repository still says so, as the month its latest task
- * arrived. Each clause also names what it counts: a bare "them" would seem to
- * refer to the open tasks in the lead when the figure is over all of them.
- *
- * This describes a whole repository. Do not call it on a filtered subset: "29
- * were created in August alone" would read as a fact about the repository the
- * masthead names, when it is one about whatever the filter kept.
+ * Call it on a whole repository only: on a filtered subset, "29 were created in
+ * August alone" would read as a fact about the repository the masthead names.
  */
 export function summarise(tasks: Task[], now = new Date()): Summary {
 	const { open, closed, total } = counts(tasks);
@@ -177,7 +167,7 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 
 	if (total === 0) return { lead, leadCount: 0, detail: null };
 
-	// Progress first. Not when everything is closed, which the lead already says.
+	// Progress comes first, unless everything is closed, which the lead already says.
 	if (open > 0 && closed * 3 >= total) {
 		return {
 			lead,
@@ -186,9 +176,9 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 		};
 	}
 
-	// Repositories like this one are written in bursts, and the month that holds
-	// a third of everything is the one worth naming, if it stands alone, since a
-	// tie has no month to name, and over a span long enough to be a burst in.
+	// Repositories are written in bursts, so a month holding a third of all tasks
+	// is worth naming. A tie has no single month to name, and fewer than three
+	// months are too short a span for a burst.
 	const months = byMonth(tasks);
 	const sizes = months.map((month) => month.open + month.closed);
 	const most = Math.max(...sizes);
@@ -201,8 +191,8 @@ export function summarise(tasks: Task[], now = new Date()): Summary {
 		};
 	}
 
-	// A repository that has gone quiet: the month its latest task arrived, which
-	// a reader can place, rather than a duration they would have to count back.
+	// A quiet repository names the month of its latest task, which a reader can
+	// place, rather than a duration to count back from today.
 	const last = months[months.length - 1];
 	const [year, month] = last.month.split('-').map(Number);
 	if ((now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month) >= 3) {

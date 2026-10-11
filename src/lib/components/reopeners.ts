@@ -1,11 +1,8 @@
 /**
- * What a source brings to the page that only a component can: the gesture that
- * opens it again, where a gesture is the only way back (a folder the browser
- * forgot on the reload, or handed over with no way to read it again).
- *
- * Here rather than with the source, which stays free of Svelte as everything
- * under `sources/` does. Keyed like the registry, so a source added there and
- * forgotten here does not compile.
+ * The controls that reopen a source when only a user gesture can, such as a
+ * folder the browser forgot on reload. They live here because `sources/` stays
+ * free of Svelte, keyed by `SourceId` so a new source does not compile without
+ * an entry.
  */
 import type { Component } from 'svelte';
 import type { RepoRef } from '../repo/ref.ts';
@@ -13,8 +10,8 @@ import type { SourceId } from '../sources/open.ts';
 import FolderPicker from './FolderPicker.svelte';
 
 /**
- * A control that opens a source again, and what it says in the
- * failure panel, where it stands in for Try again.
+ * A control that reopens a source, with its label, shown in the failure panel
+ * in place of Try again.
  */
 export interface Reopener {
 	readonly control: Component<{ label?: string }>;
@@ -28,8 +25,8 @@ const REOPENERS = {
 } satisfies Record<SourceId, Reopener | null>;
 
 /**
- * The gesture that opens the source of `ref` again, or null where asking the
- * source again is enough (a forge, the served folder) or nothing reads `ref`.
+ * The reopener for the source of `ref`, or null when a plain retry is enough
+ * (a forge, the served folder) or no source reads `ref`.
  */
 export function reopenerOf(ref: RepoRef): Reopener | null {
 	if (!ref.source) return null;

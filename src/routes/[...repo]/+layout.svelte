@@ -21,21 +21,21 @@
 	let { data, children } = $props();
 	const ref = $derived(data.ref);
 
-	// One state for every view, so navigating between them costs nothing.
+	// The layout shares one repository state with every view, so switching views
+	// does not read the repository again.
 	const repo = new RepositoryState();
 	setContext(REPOSITORY, repo);
 
-	// One query too: the charts filter the list and vice versa. A link that
-	// carries a query sets it, so the dashboard's counts and bars can be plain
-	// links. Typing in the list or the board rewrites the URL through a shallow
-	// `goto`, which SvelteKit reports as a navigation like any other; it is
-	// skipped here, or the address it just wrote, trimmed, would come back and eat
-	// the space under the cursor. Only the `goto`: going back to such an address
-	// is reported as shallow too, and that one has to be read.
+	// The layout also shares one query with every view, and a link that carries a
+	// query sets it, so the overview's counts and bars can be plain links.
+	// A shallow `goto` runs the navigation hooks in SvelteKit 3. The list and the
+	// board call one as the reader types, and reading the trimmed URL back would
+	// delete the space under the cursor, so that `goto` is skipped. Going back to
+	// such a URL is also shallow, and that one must be read.
 	const query = new QueryState();
 	query.read(page.url.searchParams);
-	// Before the new page renders rather than after, so it does not draw once
-	// with the old query only to be filtered again.
+	// `onNavigate` runs before the new page renders, so the page does not draw
+	// once with the old query and again with the new one.
 	onNavigate(({ to, type, shallow }) => {
 		if (to && !(type === 'goto' && shallow)) query.read(to.url.searchParams);
 	});
@@ -48,34 +48,32 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** The reading's reference where its source has branches to choose from: a forge's. */
+	/** The forge reference to pick a branch on, or null when the source has no branches. */
 	const branchRef = $derived.by((): ForgeRef | null => {
 		if (!isBranched(repo.source) || !isForgeRef(ref)) return null;
 		return ref;
 	});
-	/** What the branch shortcut does: open the menu, where there are branches. */
+	/** Opens the branch menu from the shortcut, or is undefined when there are no branches. */
 	const openBranches = $derived.by(() => {
 		if (branchRef === null) return undefined;
 		return () => (branching = true);
 	});
-	/** The gesture that opens the source again, where asking it again is not enough. */
+	/** The control that opens the source again, or null when reading it again is enough. */
 	const reopener = $derived(reopenerOf(ref));
 
-	/** Whether Refresh means anything here, which only the source of the reading knows. */
+	/** Whether the source can be read again, which decides whether Refresh is shown. */
 	const rereadable = $derived(isRereadable(repo.source));
-	/** Whether the reading keeps itself current, so that its age says nothing. */
+	/** Whether the source reports its own changes, in which case the reading's age is not shown. */
 	const following = $derived(isFollowable(repo.source));
 
-	// A reading that can follow its source does, for as long as it stands.
 	$effect(() => repo.follow());
 
 	let helping = $state(false);
 
 	/**
-	 * The query travels with the link, so a filtered view stays shareable, but
-	 * each view's address carries only what that view uses (see `searchOf`).
-	 * What a view ignores stays in memory rather than in its URL, and comes back
-	 * with the next view that uses it.
+	 * Each view's link carries the part of the query that view uses, so a
+	 * filtered view stays shareable. The rest stays in memory and returns with
+	 * the next view that uses it.
 	 */
 	const views = $derived([
 		{ name: 'Overview', base: resolve('/[...repo]', { repo: path }), search: '' },
@@ -94,13 +92,13 @@
 
 	let branching = $state(false);
 
-	/** `1`-`9` counts positions in the nav, so an absent view simply does nothing. */
+	/** Opens the view at this position in the nav; a position with no view does nothing. */
 	function switchTo(index: number) {
 		const view = views[index];
 		if (view) goto(view.base + view.search);
 	}
 
-	/** Escape closes what is open, in the order a reader would expect. */
+	/** Closes the key help when the reader presses Escape. */
 	function dismiss() {
 		if (helping) helping = false;
 	}
@@ -111,8 +109,9 @@
 	}
 </script>
 
-<!-- A clause of the reading's line, its detail hovered on screen and read out
-     after it: too long for a line that should not move for a rare case. -->
+<!-- A clause in the reading's line, with its detail in a tooltip and read out
+     to screen readers. The detail stays out of the line so a rare case does not
+     make the header shift. -->
 {#snippet clause(text: string, detail: string)}
 	<span class="stale" title={detail}>
 		· {text}
@@ -136,8 +135,8 @@
 	/>
 {/if}
 
-<!-- Three zones: whose tasks on the left, which view in the middle, how fresh
-     the reading is on the right. -->
+<!-- The header has three zones: the repository on the left, the views in the
+     middle, and the reading's age on the right. -->
 <header>
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
@@ -166,19 +165,18 @@
 					{repo.fromCache ? 'cached' : 'read'}
 					{describeAge(repo.storedAt)}
 				{/if}
-				<!-- The reading stayed; only renewing it failed, which is worth one
-				     clause rather than a panel over tasks that are still true. The
-				     source's own sentence is the detail. -->
+				<!-- A failed refresh keeps the previous reading, so it gets one clause
+				     rather than an error panel over tasks that are still valid. The
+				     source's message is the detail. -->
 				{#if repo.refreshFailure}
 					{@render clause(
 						`not refreshed: ${FAILURE_HEADINGS[repo.refreshFailure.kind]}`,
 						repo.refreshFailure.message
 					)}
 				{/if}
-				<!-- What the reading could not use. Said here because it is a fact about
-				     the reading rather than about a view, and because a count that does
-				     not match `tatr ls` is worse than a count with a reason beside it.
-				     The folders and the reasons are the detail. -->
+				<!-- The folders the reading skipped, reported in the header because they
+				     concern every view, and because a count that differs from `tatr ls`
+				     needs its reason beside it. The folders and reasons are the detail. -->
 				{#if repo.skipped.length > 0}
 					{@render clause(
 						`${folders(repo.skipped.length)} skipped`,
@@ -187,15 +185,14 @@
 				{/if}
 			</span>
 			{#if rereadable}
-				<!-- The reading stays on screen while the next one is taken, so the
-				     button is what says one is under way. -->
+				<!-- The previous reading stays on screen during a refresh, so the
+				     button is the only sign that one is under way. -->
 				<button class="action" disabled={repo.refreshing} onclick={() => repo.refresh()}>
 					{#if repo.refreshing}Refreshing…{:else}Refresh{/if}
 				</button>
 			{:else if reopener}
-				<!-- A reading that cannot be taken again: a directory input hands over
-				     files and no way back to the folder they came from, so refreshing
-				     means asking for it again rather than pretending. -->
+				<!-- A source that cannot be read again offers to open it again instead:
+				     a directory input hands over files but no way back to their folder. -->
 				<reopener.control label="Reopen…" />
 			{/if}
 		{/if}
@@ -205,13 +202,10 @@
 {@render children()}
 
 <style>
-	/* A floating pill rather than a ruled band: the bar is a thing on the page,
-	   like the cards under it, and a band edge-to-edge would be the only hard
-	   line left on a site made of rounded surfaces. */
-	/* The sides share what is left equally, so the views sit at the middle of
-	   the page, over the column every view centres below it, however long the
-	   repository's name or the reading's age. When one side outgrows its share
-	   the views give way rather than overlap it. */
+	/* The header is a floating pill like the cards under it, because an
+	   edge-to-edge band would be the only hard line on a site of rounded
+	   surfaces. The two sides share the remaining width equally, so the views
+	   stay centred over the column below whatever the side lengths. */
 	header {
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
@@ -225,8 +219,8 @@
 		box-shadow: var(--shadow-card);
 	}
 
-	/* Kept on one line, so a side that needs more room takes it from the
-	   views' centring rather than wrapping inside the pill. */
+	/* The sides stay on one line, so a side that needs more room moves the
+	   views off centre rather than wrapping inside the pill. */
 	.identity,
 	.reading {
 		display: flex;
@@ -235,8 +229,8 @@
 		white-space: nowrap;
 	}
 
-	/* Pulled into the bar's padding, so Refresh sits concentric with the pill's
-	   end while the padding itself stays even and the middle stays the middle. */
+	/* The negative margin pulls Refresh into the header's padding, so it sits
+	   concentric with the pill's rounded end while the padding stays even. */
 	.reading {
 		justify-content: flex-end;
 		margin-right: -0.875rem;
@@ -266,8 +260,9 @@
 		color: var(--warning);
 	}
 
-	/* Too narrow for three zones on one line: the views take a row of their
-	   own, and the bar a card's radius, since a pill two rows tall bulges. */
+	/* Below 64rem the three zones do not fit on one line. The views take their
+	   own row, and the header takes a card's radius because a two-row pill
+	   looks swollen. */
 	@media (max-width: 64rem) {
 		header {
 			grid-template-columns: 1fr auto;

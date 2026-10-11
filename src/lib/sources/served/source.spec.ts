@@ -9,10 +9,7 @@ import { SourceError } from '../contract.ts';
 import { FollowedServedSource, ServedSource } from './source.ts';
 import { CHANGED } from './protocol.ts';
 
-/**
- * The page half against the server half, with nothing between them but the
- * answer the dev server would send: no HTTP, but no mock of either side.
- */
+/** Specs the page half against the real server half, without HTTP. */
 const scratch = scratchFolder();
 
 beforeEach(async () => {

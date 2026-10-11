@@ -1,21 +1,18 @@
 /*
- * Design tokens: the Calm system.
+ * Design tokens of the Calm design system: neutral grounds with a faint violet
+ * bias, one orchid accent, and four pastel tints that carry meaning (the stats
+ * and the tags).
  *
- * Neutral grounds with a faint violet bias, one orchid accent, and four pastel
- * tints that carry meaning (the stats and the tags) rather than decoration.
- * Every text colour holds 4.5:1 on every ground it is used on, in both themes,
- * and open-vs-closed clears colour-vision separation and 3:1 against the
- * surface and each tint: measured, not eyeballed. The two exceptions are
- * decorative and say so where they are declared.
- *
- * The dark theme is selected rather than inverted: its accent is lighter, so
- * the text on it turns dark (`--on-accent`), and its cards are told apart by
- * border and surface instead of a shadow.
+ * Every text colour holds 4.5:1 on every ground it is used on, in both themes.
+ * Open and closed hold 3:1 against the surface and each tint, and stay apart
+ * for every colour-vision type. The two decorative exceptions say so where
+ * they are declared. The dark theme's accent is lighter, so text on it turns
+ * dark (`--on-accent`), and its cards rely on border and surface, not shadow.
  */
 :root {
-	/* One family. A task is a TASK.md file, and the screen reads like the
-	   terminal the format comes from. The display and sans names stay so a rule
-	   still says which role it sets. */
+	/* One monospace family, so the screen reads like the terminal the format
+	   comes from. The display and sans names remain so a rule says which role it
+	   sets. */
 	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 	--font-display: var(--font-mono);
 	--font-sans: var(--font-mono);
@@ -27,7 +24,7 @@
 	/* The empty part of a bar. Decorative: the count beside it is the value. */
 	--track: #eeebf2;
 	--border: #e7e4ec;
-	/* Axes and zero lines, recessive on purpose (1.9:1): never a control's only edge. */
+	/* Axes and zero lines. Decorative (1.9:1), so never a control's only edge. */
 	--baseline: #bfb9c8;
 	--muted: #5d5866;
 	--ink-2: #47434f;
@@ -41,7 +38,7 @@
 	/* Edge of a washed chip. Decorative (1.9:1): its fill and label identify it. */
 	--accent-line: #cdb3e8;
 
-	/* Meaning, not decoration: the stats, and the four tag hues. */
+	/* The stats, and the four tag hues. */
 	--tint-lilac: #efe7fb;
 	--tint-mint: #e3f4ec;
 	--tint-sky: #e4eefb;
@@ -56,16 +53,16 @@
 	/* Text on a closed mark (a graph node's number): 4.6:1 here, 5.1:1 dark. */
 	--on-closed: #1d1b24;
 
-	/* The reference graph's arrows, by direction: what cites the task in the
-	   middle, what it cites, and both ways. Orchid and mint were checked apart
-	   for every colour-vision type (ΔE 15 here, 13.8 dark) and reach 3:1 on a
-	   card; as text, for the list's glyphs, mint is 5.3:1. */
+	/* The reference graph's arrows: what cites the centred task, what it cites,
+	   and both ways. Orchid and mint stay apart for every colour-vision type
+	   (ΔE 15, 13.8 dark) and reach 3:1 on a card; as text, for the list's
+	   glyphs, mint holds 5.3:1. */
 	--link-in: var(--accent);
 	--link-out: var(--dot-mint);
 	--link-both: var(--ink-2);
 
-	/* Status. Always shipped with a word. `--good` is teal-blue so it never
-	   rests on hue alone against `--danger`. */
+	/* Status colours, always shown with a word. `--good` is teal-blue so it
+	   differs from `--danger` by more than hue. */
 	--good: #0e6f86;
 	--warning: #b54708;
 	--danger: #b42318;
@@ -78,8 +75,8 @@
 
 	/* 44px: the smallest target a thumb can hit, for anything pressed. */
 	--target: 2.75rem;
-	/* Between two cards: wider than a card's own padding, so each reads as a
-	   thing on the page rather than a cell in a grid. */
+	/* Between two cards, wider than a card's padding, so each reads as a card
+	   rather than a grid cell. */
 	--card-gap: 1.5rem;
 
 	--shadow-card: 0 1px 2px #1d1b240d, 0 8px 24px #1d1b240f;
@@ -116,7 +113,8 @@
 
 		--series-closed: #85858f;
 		--on-closed: #121116;
-		/* The theme's own mint sits above the band an arrow needs; one step down. */
+		/* One step darker than the theme's mint, which falls outside the range an
+		   arrow needs. */
 		--link-out: #43a679;
 
 		--good: #3fbfd6;

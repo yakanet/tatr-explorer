@@ -1,11 +1,8 @@
 /**
- * Every source there is, and what the page asks of the whole list: which source
- * reads a reference, how one of our own addresses reads back, and the source
- * opened for it.
+ * The registry of sources: which source reads a reference, how one of this
+ * site's URLs reads back as a reference, and opening the source for it.
  *
- * Separate from the contract in `contract.ts` so that a source may name the
- * interface without this registry importing it back at runtime; each source's class lives
- * in its own folder, and only this module knows the whole list.
+ * Only this module imports every source.
  */
 import { isForgeRef, parseForgePath, type RepoRef } from '../repo/ref.ts';
 import { GitHubRepositorySource } from './github/source.ts';
@@ -15,17 +12,13 @@ import { ServedSource } from './served/source.ts';
 import { SourceError, type Address, type Source, type SourceClass } from './contract.ts';
 
 /**
- * Every source's class, by its key: the key the page's own tables
- * (`REOPENERS`) and the contract's subjects are keyed by.
+ * Every source's class, by the key that `REOPENERS` and the contract spec's
+ * subjects are keyed by too.
  *
- * Written out rather than reduced from a list: a duplicate key in a literal is
- * an error the compiler makes, where building it from a list would have
- * silently dropped one and left every test iterating the record to pass over
- * the hole.
- *
- * Frozen, so nothing registers a source at runtime. Order is the declaration's,
- * and nothing rests on it: no two share a path or a host, which the spec keeps
- * true.
+ * A literal rather than built from a list, because the compiler rejects a
+ * duplicate key in a literal where a list would silently drop one. Frozen, so
+ * nothing registers a source at runtime. Order does not matter: no two sources
+ * share a path or a host, which the spec checks.
  */
 export const SOURCES = Object.freeze({
 	local: LocalFolderSource,
@@ -37,8 +30,8 @@ export const SOURCES = Object.freeze({
 export type SourceId = keyof typeof SOURCES;
 
 /**
- * The folder the dev server serves, only when it serves one: a build, and a dev
- * server started without a folder, carry no served source at all.
+ * The served source, only when the dev server serves a folder: a build, or a
+ * dev server started without one, has none.
  */
 function servedSources(): { served?: SourceClass } {
 	if (!SERVED) return {};
@@ -48,7 +41,7 @@ function servedSources(): { served?: SourceClass } {
 /** The key of the first source whose address `matches`, or null where none does. */
 function sourceWhere(matches: (address: Address) => boolean): SourceId | null {
 	for (const [id, sourceClass] of Object.entries(SOURCES)) {
-		// `Object.entries` widens the keys it reads to strings; they are `SOURCES`'s.
+		// `Object.entries` types its keys as strings, but these are `SOURCES` keys.
 		if (matches(sourceClass.address)) return id as SourceId;
 	}
 	return null;
@@ -67,12 +60,10 @@ function hostsOf(address: Address): readonly string[] {
 }
 
 /**
- * Reads the `[...repo]` portion of one of our own URLs into a reference, and
- * names the source that reads it: the one whose path it is, or the one that
- * reads a forge address's host. A forge address on a host nothing reads is a
- * reference all the same, with no source, so that it opens a page that says
- * so; a path no source owns is none, as `served` is where no folder is served,
- * a build included.
+ * Reads the `[...repo]` part of one of this site's URLs into a reference,
+ * naming the source whose path it is or that reads its forge host. A forge
+ * address on a host nothing reads is still a reference, with a null source, so
+ * that its page can say so; a path no source owns gives null.
  */
 export function parseRepoPath(path: string): RepoRef | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');
@@ -84,14 +75,13 @@ export function parseRepoPath(path: string): RepoRef | null {
 }
 
 /**
- * The source serving `ref`. Throws for a reference nothing reads, as a host
- * nothing reads: that is how the page explains it, and the reading is the only
- * place a source is opened.
+ * Opens the source for `ref`. A host nothing reads throws a `SourceError`, so
+ * the page explains it like any failed reading.
  */
 export function openSource(ref: RepoRef): Source {
 	const sourceClass = classOf(ref);
 	if (sourceClass) return sourceClass.open(ref);
-	// Only a forge's reference names no source: a path is read only where one owns it.
+	// A path reference always names a source: `parseRepoPath` gives null for one no source owns.
 	if (!isForgeRef(ref)) throw new TypeError(`No source owns /${ref.path}.`);
 	throw new SourceError('unsupported-host', unread(ref.host));
 }
@@ -102,7 +92,7 @@ function classOf(ref: RepoRef): SourceClass | undefined {
 	return SOURCES[ref.source];
 }
 
-/** What a host nothing reads is told: which ones are. */
+/** The message for a host nothing reads, listing the hosts that are read. */
 function unread(host: string): string {
 	const read = Object.values(SOURCES).flatMap((sourceClass) => hostsOf(sourceClass.address));
 	return `Nothing reads ${host} yet: the hosts read are ${read.join(', ')}.`;

@@ -16,7 +16,7 @@ a:hover {
 	color: var(--accent-strong);
 }
 
-/* The browser's own monospace is not this one, hence the family. */
+/* The browser's default monospace is not the site's, so the family is set. */
 code,
 kbd,
 samp {
@@ -24,16 +24,15 @@ samp {
 	font-size: 0.93em;
 }
 
-/* Everything is monospace now, so code is told apart by a well rather than a
-   face: the same grey a legend chip sits on. Not inside a `pre`, whose block is
-   already the well. */
+/* Inline code sits in a well, because the whole site is monospace and the
+   face cannot set it apart. A `pre` is already its own well. */
 :not(pre) > code {
 	padding: 0.05rem 0.35rem;
 	background: var(--tint);
 	border-radius: var(--radius-sm);
 }
 
-/* A key cap: raised by a heavier bottom edge, rounded like everything else. */
+/* A key cap, raised by a heavier bottom edge. */
 kbd {
 	display: inline-flex;
 	align-items: center;
@@ -51,15 +50,15 @@ kbd {
 	border-radius: var(--radius-sm);
 }
 
-/* A page's title is the same face at a heavier weight; a monospace set tight
-   at that size reads as one word per line rather than as letters in boxes.
-   Smaller headings keep the face's own spacing. */
+/* A page title is set tighter, because a monospace at that size otherwise
+   reads as letters in boxes. Smaller headings keep the face's own spacing. */
 h1 {
 	font-family: var(--font-display);
 	letter-spacing: -0.02em;
 }
 
-/* Read aloud, never seen: what a glyph or an empty header cell stands for. */
+/* Text for screen readers only, such as what a glyph or an empty header cell
+   stands for. */
 .sr {
 	position: absolute;
 	width: 1px;
@@ -69,10 +68,9 @@ h1 {
 	white-space: nowrap;
 }
 
-/* Every view centres one column and chooses its own width. The distance from
-   the header and the side gutter are shared, so switching views does not move
-   the first thing under the header; the home and error pages, which have no
-   header, set their own. */
+/* Every view centres one column of its own width. The padding is shared, so
+   switching views does not move what sits under the header; the home and error
+   pages, which have no header, set their own. */
 main {
 	margin: 0 auto;
 	padding: 1.75rem 1.5rem 3rem;

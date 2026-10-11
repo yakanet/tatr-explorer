@@ -1,9 +1,7 @@
 /**
- * GitHub's own API, as a lister.
- *
- * One call to the git trees API returns the entire repository tree, so listing
- * a repository costs exactly one request out of the 60 per hour an
- * unauthenticated IP gets.
+ * Lists a repository's files through GitHub's git trees API. One recursive call
+ * returns the whole tree, so a listing spends one of the 60 requests an hour
+ * GitHub allows an unauthenticated address.
  */
 import type { ForgeAddress } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
@@ -16,14 +14,14 @@ interface TreeResponse {
 	truncated?: boolean;
 }
 
-/** What a spent budget leaves the reader, whichever limit GitHub applied. */
+/** The end of both rate-limit messages: what the reader can still do. */
 const STILL_FREE =
 	'Only listing a repository counts: reading its tasks does not, and a repository ' +
 	'already read stays here.';
 
 /**
- * The files of a repository at `branch`, through the trees API, or null when
- * GitHub has no such repository or branch.
+ * Lists the files of `ref` at `branch`, or returns null when GitHub has no such
+ * repository or branch.
  */
 export async function listViaGitHubApi(
 	ref: ForgeAddress,
@@ -49,7 +47,7 @@ export async function listViaGitHubApi(
 	return blobs.map(({ path, size }) => ({ path, size }));
 }
 
-/** GitHub's answer to `url`, or null when it has no such repository or branch. */
+/** Returns GitHub's response to `url`, or null on a 404. */
 async function askGitHub(
 	network: typeof fetch,
 	url: string,
@@ -73,7 +71,7 @@ async function askGitHub(
 				`has used them all. ${STILL_FREE}`
 		);
 	}
-	// The other limit, on requests too close together, says nothing of the hour.
+	// A 429 with requests left is GitHub's secondary limit, on requests too close together.
 	if (response.status === 429) {
 		throw new SourceError(
 			'rate-limited',

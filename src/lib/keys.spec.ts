@@ -33,7 +33,6 @@ describe('press', () => {
 	});
 
 	it('disarms a sequence a stray key interrupts', () => {
-		// Otherwise `g x g` would jump, having quietly kept the first `g` armed.
 		const { actions, pending } = type('g', 'x', 'g');
 		expect(actions).toEqual([null, null, null]);
 		expect(pending).toEqual({ sequence: 'g' });

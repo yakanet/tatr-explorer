@@ -6,11 +6,11 @@ import { parseRepoInput } from '../../repo/ref.ts';
 const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
-/** Through `open`, which is how the application reaches these. */
+/** Opens a source through `open`, as the application does. */
 const open = (repo = ref, branch?: string) =>
 	GitHubRepositorySource.open({ ...repo, branch, source: 'github' });
 
-/** GitHub's CDN answering every read with what `answer` makes. */
+/** A source whose network answers every request with `answer()`. */
 const answering = (answer: () => Response) =>
 	new GitHubRepositorySource(ref, (async () => answer()) as unknown as typeof fetch);
 
@@ -31,8 +31,6 @@ describe('reading a file', () => {
 	});
 
 	it('answers null when the network does not answer at all', async () => {
-		// A read that throws would take the whole load down; one task that cannot
-		// be read is listed as skipped instead.
 		expect(await new GitHubRepositorySource(ref, unreachable).read(path)).toBeNull();
 	});
 });
@@ -45,9 +43,6 @@ describe('the URL of a file', () => {
 	});
 
 	it('keeps the slashes of a branch that has them', () => {
-		// `feature%2Fweb-ui` is a branch of that literal name, which nobody has, so
-		// encoding the whole thing at once made every read of such a repository
-		// fail.
 		expect(open(ref, 'feature/web-ui').assetUrl(path)).toContain('/repo/feature/web-ui/tasks/');
 	});
 
@@ -69,7 +64,7 @@ describe('the URL of its page on the forge', () => {
 });
 
 describe('listing, falling back on ungh', () => {
-	/** GitHub's API and ungh each answering as told, and which of them was asked. */
+	/** A source whose GitHub API and ungh answer as told, and the hosts it asked. */
 	const hosts = (answers: Record<'api.github.com' | 'ungh.cc', () => Response>) => {
 		const asked: string[] = [];
 		const network = (async (input: RequestInfo | URL) => {

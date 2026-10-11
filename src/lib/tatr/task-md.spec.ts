@@ -82,8 +82,8 @@ describe('properties', () => {
 	});
 
 	it('keeps an empty value empty', () => {
-		// The trap: a greedy whitespace match here swallows the newline and
-		// captures the first line of the description as the value.
+		// A greedy whitespace match would swallow the newline and take the
+		// description's first line as the value.
 		const { properties, description } = parseTaskMd('# T\n\n- TAGS:\n\nBasically analyze it.\n');
 		expect(properties.get('TAGS')).toBe('');
 		expect(description.trim()).toBe('Basically analyze it.');

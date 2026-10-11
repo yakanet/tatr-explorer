@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SOURCES, openSource, parseRepoPath } from '../open.ts';
 import { ServedSource } from './source.ts';
 
-/**
- * A dev server serving a folder, which the rest of the suite runs without: the
- * constant is pasted in at compile time, so it is the one module reading it that
- * stands in for the server here.
- */
+/** Stands in for a dev server serving `my-project`, which the rest of the suite runs without. */
 vi.mock('./enabled.ts', () => ({ SERVED: 'my-project' }));
 
 describe('a dev server that serves a folder', () => {

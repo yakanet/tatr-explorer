@@ -4,15 +4,13 @@ import tasks from '#tests/fixtures/tsoding-tatr.json' with { type: 'json' };
 import { compile } from './query.ts';
 
 /**
- * Differential test against the reference implementation.
+ * Compares query results with the reference implementation.
  *
- * `tests/fixtures/tql-cli-cases.json` holds the output of the real `tatr ls`
- * binary, built from tsoding/tatr and run over its own `tasks/` folder, the
- * same folder captured in `tsoding-tatr.json`. Every case below re-runs that
- * query through this library and asserts it selects exactly the same task ids,
- * so a divergence from the C implementation fails the suite.
- *
- * To regenerate: `pnpm run fixtures`.
+ * `tests/fixtures/tql-cli-cases.json` holds what the real `tatr ls`, built from
+ * tsoding/tatr, selected over its own `tasks/` folder (captured in
+ * `tsoding-tatr.json`). Each case must select the same task ids here, so a
+ * divergence from the C implementation fails the suite. `pnpm run fixtures`
+ * regenerates it.
  */
 interface CliCase {
 	query: string;

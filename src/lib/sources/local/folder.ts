@@ -1,37 +1,21 @@
 /**
- * A folder on the reader's own machine, read as a repository.
+ * Reads a folder on the reader's machine as a repository, through one of three
+ * browser APIs:
  *
- * The one repository this viewer cannot otherwise show is the one someone is
- * working in: private, or simply not pushed. The browser can read a directory
- * the reader chooses, and three doors offer one, with differences that decide
- * the design rather than just the support matrix:
+ * - `<input type="file" webkitdirectory>`, in every browser, hands over a flat
+ *   list of files once, with no way back to the folder.
+ * - `showDirectoryPicker()`, on Chromium only, hands over a handle that can be
+ *   walked again.
+ * - a drop hands over a handle on Chromium and a legacy entry tree elsewhere,
+ *   both of which can be walked again.
  *
- * - `<input type="file" webkitdirectory>` works in every browser and hands over
- *   a flat list of files, once. There is no way back to the folder afterwards.
- * - `showDirectoryPicker()` is Chromium only and hands over a handle, which can
- *   be walked again, so a refresh is a genuine reread.
- * - a dropped folder gives a handle on Chromium and the legacy entry tree
- *   elsewhere, both of which can be walked again, which makes it the widest
- *   door of the three.
- *
- * All three are built, because the first is the floor and the others are worth
- * having where they exist. And all three produce the same thing: a name and a
- * map of paths to files. Which is why they live in one file, unlike a forge's
- * listers: those are independent services, these are one walk in three
- * dialects.
- *
- * Nothing is uploaded. The browser arbitrates the permission and the files stay
- * where they are; this module only reads them.
+ * All three produce a `LocalFolder`, so they share this file.
  */
+
 /**
- * Which door this browser has to a folder. They behave differently enough that
- * the page has to say which one it is about to use.
- *
- * `picker` asks for access to the one folder and keeps a handle, so a refresh
- * rereads it. `input` makes the browser ask by file count instead, because it
- * cannot know a page will not upload what it is given, and hands over a
- * snapshot with no way back. `none` is a browser with neither, where the offer
- * would be a button that cannot work.
+ * How this browser lets the reader pick a folder, so the page can say what will
+ * happen: `picker` keeps a handle a refresh rereads, `input` makes the browser
+ * confirm a file count and hands over a snapshot, `none` offers neither.
  */
 export function folderAccess(): 'picker' | 'input' | 'none' {
 	if (typeof window === 'undefined') return 'none';
@@ -40,12 +24,8 @@ export function folderAccess(): 'picker' | 'input' | 'none' {
 }
 
 /**
- * Whether a folder can be dropped on the page.
- *
- * A door of its own, and the widest one: the legacy entry API that carries a
- * drop is in every browser, unlike the picker, and what a drop hands back can
- * be walked again (a handle on Chromium, the entry tree elsewhere), so dropping
- * is the only way a browser without the picker gets a folder it can reread.
+ * Whether a folder can be dropped on the page. A drop is the only way a browser
+ * without `showDirectoryPicker` gets a folder it can reread.
  */
 export function canDropFolder(): boolean {
 	if (typeof DataTransferItem === 'undefined') return false;
@@ -53,59 +33,37 @@ export function canDropFolder(): boolean {
 	return 'getAsFileSystemHandle' in item || 'webkitGetAsEntry' in item;
 }
 
-/**
- * A way back to a folder already read: the handle the picker or a drop hands
- * over on Chromium, or the entry tree of a drop elsewhere. Either can be walked
- * again, which the directory input's flat list of files cannot.
- */
+/** What lets a folder be walked again: a directory handle, or the entry tree of a drop. */
 export type WayBack = FileSystemDirectoryHandle | FileSystemDirectoryEntry;
 
-/**
- * Walks a folder again by its way back, in whichever dialect it came. A walk
- * `signal` aborts stops at the next entry, rather than reading a tree nobody
- * will look at.
- */
+/** Walks a folder again through its `WayBack`, stopping at the next entry once `signal` aborts. */
 export function fromWayBack(back: WayBack, signal?: AbortSignal): Promise<LocalFolder> {
 	if ('kind' in back) return fromDirectoryHandle(back, signal);
 	return fromDirectoryEntry(back, signal);
 }
 
-/** A repository read from the disk, as much of it as this viewer looks at. */
+/** A folder read from the disk: its name, and the files this viewer reads. */
 export interface LocalFolder {
-	/** The folder's own name, which is all the identity a local source has. */
+	/** The folder's name, which is all the identity a local source has. */
 	name: string;
-	/** Repository-relative path to file, e.g. `tasks/20260907-011003/TASK.md`. */
+	/** Each file by its path from the repository root, such as `tasks/20260907-011003/TASK.md`. */
 	files: Map<string, File>;
 }
 
 /**
- * Paths worth keeping out of the map.
- *
- * A checkout holds far more than a `tasks/` folder (`node_modules` alone can
- * be a hundred thousand files), and the reader picked the repository, not a
- * subfolder of it. Only what this viewer reads is kept: the tasks, and the one
- * file that says which branch is checked out.
+ * Whether this viewer reads `path`: the tasks, and `.git/HEAD` for the branch.
+ * The reader picks a whole checkout, where `node_modules` alone can hold a
+ * hundred thousand files.
  */
 export function isWorthKeeping(path: string): boolean {
 	return path.startsWith('tasks/') || path === '.git/HEAD';
 }
 
 /**
- * Whether the folder that was picked is itself the `tasks/` folder.
- *
- * Only the directory input needs to ask: it hands over every file at once, so
- * the shape has to be read out of the paths. A handle is asked for `tasks/` by
- * name instead.
- *
- * Worth accepting at all because of what the reader is shown when they pick
- * with a directory input: the browser cannot know a page will not upload what
- * it is given, so it asks, and it names the count ("import 7,775 files?" for
- * a checkout whose `node_modules` this viewer then throws away). Picking
- * `tasks/` makes that question about forty files instead, and costs only
- * `.git/HEAD`, which is to say the branch name.
- *
- * The test is the layout itself: a task folder holds a `TASK.md`, so a folder
- * of task folders is a tasks folder.
+ * Whether the directory input was given the `tasks/` folder itself: a folder of
+ * task folders, each holding a `TASK.md`. Accepted because the browser asks the
+ * reader to confirm the file count, and `tasks/` alone keeps it small; only the
+ * branch is lost.
  */
 export function looksLikeTasksFolder(paths: Iterable<string>): boolean {
 	let holdsTasks = false;
@@ -117,11 +75,9 @@ export function looksLikeTasksFolder(paths: Iterable<string>): boolean {
 }
 
 /**
- * Reads what `<input type="file" webkitdirectory>` produced.
- *
- * The browser reports each file with a `webkitRelativePath` that begins with
- * the chosen folder's own name, which is where that name comes from: there is
- * no handle to ask.
+ * Reads the files `<input type="file" webkitdirectory>` handed over, or returns
+ * null when they carry no relative path. The folder's name is the first segment
+ * of each `webkitRelativePath`, as there is no handle to ask.
  */
 export function fromFileList(list: ArrayLike<File>): LocalFolder | null {
 	const inside = new Map<string, File>();
@@ -138,8 +94,7 @@ export function fromFileList(list: ArrayLike<File>): LocalFolder | null {
 	}
 
 	if (!name) return null;
-	// Picking `tasks/` is the same repository seen one level down, and the paths
-	// are put back the way the rest of this viewer expects them.
+	// The rest of the viewer expects every task under `tasks/`.
 	const tasks = looksLikeTasksFolder(inside.keys());
 	const files = new Map<string, File>();
 	for (const [path, file] of inside) {
@@ -151,13 +106,9 @@ export function fromFileList(list: ArrayLike<File>): LocalFolder | null {
 }
 
 /**
- * Walks a directory handle, which is the same interface the origin-private file
- * system hands out, so this code is exercised by tests without a file picker.
- *
- * Only `tasks/` is descended, and `.git/HEAD` is fetched by name. Descending
- * everything and filtering afterwards would mean walking `node_modules` and the
- * tens of thousands of loose objects under `.git` to end up with the same forty
- * files. A handle can be asked for a path directly, so it is.
+ * Reads a folder through a directory handle. Only `tasks/` is descended and
+ * `.git/HEAD` is fetched by name, so the walk never enters `node_modules` or
+ * the objects under `.git`.
  */
 export async function fromDirectoryHandle(
 	handle: FileSystemDirectoryHandle,
@@ -174,12 +125,10 @@ export async function fromDirectoryHandle(
 		}
 	}
 
-	// Either way the tasks end up under `tasks/`, where the rest of this viewer
-	// looks for them.
 	const tasks = await tasksDirectoryOf(handle);
 	if (tasks) await walk(tasks, 'tasks');
 
-	// Only a repository has a `.git` beside its tasks; a tasks folder has none.
+	// Only a repository root has a `.git` beside its tasks.
 	if (tasks && tasks !== handle) {
 		const head = await fileOrNull(await directoryOrNull(handle, '.git'), 'HEAD');
 		if (head) files.set('.git/HEAD', head);
@@ -189,16 +138,11 @@ export async function fromDirectoryHandle(
 }
 
 /**
- * The directory holding the task folders: `tasks/` in a repository, or the
- * folder itself when it *is* that one. Null for a folder that is neither.
- *
- * What the walk descends, and what a watch on the folder looks at: the rest of
- * a checkout (`.git`, `node_modules`) changes far more often than its tasks.
- *
- * And a folder that is neither is left alone. Without this the walk descended
- * the whole selection under a `tasks/` prefix (`node_modules` included), and
- * the loader, seeing paths that begin with `tasks/`, could not say there was no
- * tasks folder: the reader waited, then read "0 tasks".
+ * Returns the directory holding the task folders: `tasks/` in a repository, the
+ * folder itself when it is a tasks folder, or null for a folder that is neither,
+ * so that it is not walked and the loader reports no tasks folder. The walk and
+ * the watch stay inside it, as the rest of a checkout is large and changes far
+ * more often.
  */
 export async function tasksDirectoryOf(
 	handle: FileSystemDirectoryHandle
@@ -210,13 +154,9 @@ export async function tasksDirectoryOf(
 }
 
 /**
- * Whether this folder is itself a `tasks/` folder (the test the directory input
- * makes on paths, asked of a handle): a task folder holds a `TASK.md`, so a
- * folder of task folders is a tasks folder.
- *
- * Only the immediate children, and only until one answers: a real tasks folder
- * costs one lookup, and a mistaken selection costs one per top-level entry
- * rather than a walk of everything beneath it.
+ * Whether `dir` is itself a tasks folder, as `looksLikeTasksFolder` judges
+ * paths. It checks the immediate children only and stops at the first
+ * `TASK.md`, so a wrong pick costs one lookup per top-level entry.
  */
 async function holdsTaskFolders(dir: FileSystemDirectoryHandle): Promise<boolean> {
 	for await (const [, entry] of dir.entries()) {
@@ -233,7 +173,7 @@ async function directoryOrNull(
 	try {
 		return await dir.getDirectoryHandle(name);
 	} catch {
-		// Absent, or a file of that name: either way there is nothing to descend.
+		// Absent, or a file of that name: nothing to descend either way.
 		return null;
 	}
 }
@@ -251,14 +191,9 @@ async function fileOrNull(
 }
 
 /**
- * Walks what a dropped folder hands over: the legacy entry tree, which is the
- * only door Firefox and Safari have.
- *
- * Same strategy as the handle walk (ask for `tasks/` and `.git/HEAD` by name
- * rather than descending a checkout), expressed against a callback API. And it
- * holds the trap that API is known for: `readEntries` answers a page at a time
- * and signals the end with an empty array, so reading it once looks like it
- * worked on a small folder and silently loses the rest of a real one.
+ * Reads a dropped folder through the legacy entry tree, the only drop API on
+ * Firefox and Safari. Like the handle walk, it asks for `tasks/` and
+ * `.git/HEAD` by name.
  */
 export async function fromDirectoryEntry(
 	entry: FileSystemDirectoryEntry,
@@ -266,9 +201,9 @@ export async function fromDirectoryEntry(
 ): Promise<LocalFolder> {
 	const files = new Map<string, File>();
 
-	// `Promise.withResolvers` rather than an executor: the paging loop below calls
-	// itself from inside the callback, which is exactly the shape that reads
-	// badly nested one level deeper inside `new Promise`.
+	// `readEntries` answers a page at a time and ends with an empty array, so it
+	// is called until then: one call silently drops all but the first page.
+	// `Promise.withResolvers` keeps that recursion out of a promise executor.
 	const read = (dir: FileSystemDirectoryEntry) => {
 		const { promise, resolve, reject } = Promise.withResolvers<FileSystemEntry[]>();
 		const reader = dir.createReader();
@@ -318,9 +253,7 @@ export async function fromDirectoryEntry(
 	}
 
 	const inside = await child<FileSystemDirectoryEntry>(entry, 'tasks', 'getDirectory');
-	// Same guard as the handle walk, and needed more here: this is the door a
-	// dropped folder takes on Firefox and Safari, where nothing asked the reader
-	// to confirm a file count first.
+	// Same rule as `tasksDirectoryOf`: a folder that is neither is not walked.
 	const holdsTasks = async () => {
 		for (const found of await read(entry)) {
 			if (!found.isDirectory) continue;
@@ -344,19 +277,12 @@ export async function fromDirectoryEntry(
 	return { name: entry.name, files };
 }
 
-/** Every task file the folder holds, in the shape a listing takes. */
+/** Every file the folder holds, as listing entries with their size. */
 export function listFolder(folder: LocalFolder): { path: string; size: number }[] {
 	return [...folder.files].map(([path, file]) => ({ path, size: file.size }));
 }
 
-/**
- * The checked-out branch, for the header to show something true.
- *
- * A working tree has no branch the way a forge reference does (it is whatever
- * is checked out), but `.git/HEAD` is a file like any other, so the name is
- * readable without a git client. A detached HEAD holds a bare commit id, which
- * is not a branch and is left alone.
- */
+/** The checked-out branch `.git/HEAD` names, or undefined without one. */
 export async function readBranch(folder: LocalFolder): Promise<string | undefined> {
 	const head = folder.files.get('.git/HEAD');
 	if (!head) return undefined;
@@ -364,8 +290,9 @@ export async function readBranch(folder: LocalFolder): Promise<string | undefine
 }
 
 /**
- * The branch a `.git/HEAD` names, or nothing for a detached one. Apart from
- * the walk, as a folder the dev server serves reads the same file from Node.
+ * The branch named by the text of a `.git/HEAD`, or undefined for a detached
+ * HEAD, which holds a commit id. Separate from `readBranch`, as the dev server
+ * reads that file from Node.
  */
 export function branchFromHead(text: string): string | undefined {
 	return /^ref:\s*refs\/heads\/(.+)$/m.exec(text.trim())?.[1];

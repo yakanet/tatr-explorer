@@ -1,21 +1,17 @@
 /**
- * Completion for the query box.
+ * Computes completions for the query box.
  *
- * A query is short and its vocabulary is closed (a dozen keywords plus whatever
- * tags the repository happens to define), so completion here is not a
- * convenience, it is how a reader discovers that vocabulary at all. Tag names
- * especially: nothing else on screen lists them with what they mean.
- *
- * Kept apart from the component that draws the menu, because deciding *what* to
- * offer is a pure function of the text, the caret and the repository, and is
- * worth asserting rather than eyeballing.
+ * The vocabulary is closed (a dozen keywords plus the repository's tags), so
+ * completion is how a reader discovers it; nothing else on screen lists the
+ * tags with their meaning. It lives apart from the menu component because what
+ * to offer is a pure function of the text, the caret and the tags.
  */
 
 /** A tag a repository defines, with what `tasks/tags` says about it. */
 export interface TagOption {
 	name: string;
 	description?: string;
-	/** Tasks carrying it, among those the reader is currently looking at. */
+	/** How many of the tasks in view carry it. */
 	count: number;
 }
 
@@ -24,7 +20,7 @@ export interface Completion {
 	value: string;
 	/** Tag description, or a one-line reminder of what a keyword does. */
 	detail: string;
-	/** Only tags carry one. */
+	/** Set for tags only. */
 	count?: number;
 	kind: 'tag' | 'keyword';
 }
@@ -37,11 +33,9 @@ export interface Completions {
 }
 
 /**
- * The keywords `tatr ls` accepts, glossed.
- *
- * `.tag` is deliberately absent: the parser still takes it for backward
- * compatibility and warns, so offering it would teach the spelling upstream is
- * trying to retire.
+ * The keywords `tatr ls` accepts, each with a gloss. `.tag` is left out: the
+ * parser still accepts it with a warning, and offering it would teach a
+ * spelling upstream is retiring.
  */
 const KEYWORDS: readonly { value: string; detail: string }[] = [
 	{ value: 'and', detail: 'both sides must hold' },
@@ -62,12 +56,9 @@ const KEYWORDS: readonly { value: string; detail: string }[] = [
 const TOKEN = /[A-Za-z0-9_:.~"-]/;
 
 /**
- * Whether the caret sits inside a `~"..."` phrase.
- *
- * An unclosed quote before the caret is the whole test: quotes only ever open a
- * search, and one that has not been closed means the caret is still in it. This
- * also covers a caret several words deep, which is exactly where reading the
- * token alone fails.
+ * Whether the caret sits inside a `~"..."` phrase. An unclosed quote before the
+ * caret means it does, because quotes only open a search. This works several
+ * words deep, where the token alone cannot tell.
  */
 function insideSearch(text: string, cursor: number): boolean {
 	let quotes = 0;
@@ -89,18 +80,13 @@ export function tokenAt(text: string, cursor: number): { start: number; end: num
 }
 
 /**
- * What to offer for the token under the caret, or `null` when the caret is not
- * on one.
+ * Lists what to offer for the token under the caret, or returns `null` when the
+ * caret is not on one.
  *
  * A token opening with `:` or `.` can only become a tag, so keywords are left
- * out entirely rather than ranked below: the reader has already said which
- * half of the vocabulary they want.
- *
- * Inside a `~` search nothing is offered, since neither a tag nor a keyword can
- * appear there: a menu suggesting `:bug` into the middle of a phrase offers to
- * break the query. Detecting that cannot be done from the token alone: a phrase
- * holds spaces, `tokenAt` stops at them, and by the second word the `~"` is out
- * of view. The text before the caret is what knows.
+ * out rather than ranked below. Nothing is offered inside a `~` search, where a
+ * tag or keyword would break the phrase; `insideSearch` reads the text before
+ * the caret, because `tokenAt` stops at the spaces a phrase holds.
  */
 export function complete(
 	text: string,
@@ -119,8 +105,8 @@ export function complete(
 		.filter((tag) => tag.name.toLowerCase().includes(needle))
 		.sort(
 			(a, b) =>
-				// A prefix match is what the reader is spelling out; the rest are
-				// merely related, so they follow.
+				// Prefix matches come first, because they are what the reader is
+				// spelling out.
 				Number(b.name.toLowerCase().startsWith(needle)) -
 					Number(a.name.toLowerCase().startsWith(needle)) ||
 				b.count - a.count ||
@@ -141,22 +127,21 @@ export function complete(
 			}));
 
 	const items = [...matching, ...keywords].slice(0, 8);
-	// An offer identical to what is already typed teaches nothing.
+	// An offer identical to the typed token adds nothing.
 	if (items.length === 1 && items[0].value === token) return null;
 
 	return items.length > 0 ? { start, end, items } : null;
 }
 
-/** The text and caret position after accepting a completion. */
+/** Returns the text and caret position after accepting a completion. */
 export function apply(
 	text: string,
 	range: { start: number; end: number },
 	value: string
 ): { text: string; cursor: number } {
 	const after = text.slice(range.end);
-	// A trailing space, so the next word starts a new token rather than extending
-	// this one, which is also what closes the menu, since the caret then sits on
-	// no token at all. A query ending in a space parses the same.
+	// A trailing space makes the next word a new token and closes the menu,
+	// since the caret then sits on no token. It does not change the parse.
 	const spaced = after.startsWith(' ') ? value : `${value} `;
 	return { text: text.slice(0, range.start) + spaced + after, cursor: range.start + spaced.length };
 }

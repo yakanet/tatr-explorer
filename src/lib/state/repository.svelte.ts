@@ -1,9 +1,6 @@
 /**
- * Loading state for one repository.
- *
- * The two phases are visible on purpose: listing is one request that can be
- * rate-limited, then the task files stream in and are counted. Showing that
- * split is what lets the UI explain a failure instead of just spinning.
+ * Loading state for one repository. Listing and reading are separate phases,
+ * so the UI can tell a rate-limited listing apart from task files streaming in.
  */
 import { isFollowable, isLinked } from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
@@ -21,22 +18,21 @@ import {
 import type { Task } from '../tatr/task.ts';
 import type { TagDescriptions } from '../tatr/tags-file.ts';
 
-/** Context key for the repository shared by every view of one repository. */
+/** Context key for the repository state shared by every view of one repository. */
 export const REPOSITORY = Symbol('repository');
 
 export type Phase = 'idle' | 'listing' | 'reading' | 'ready' | 'failed';
 
 export interface Failure {
 	kind: SourceFailure | 'unknown';
-	/** The source's own sentence, under the heading the kind is given. */
+	/** The source's message, shown under the kind's heading. */
 	message: string;
 }
 
 /**
- * What the page calls each failure: the panel's heading, and the clause the
- * header adds when only a refresh failed. The sentence beneath is the
- * source's. Keyed by every kind of failure, so a new one does not compile
- * without a name.
+ * The heading of each failure kind, used by the failure panel and by the
+ * header when only a refresh failed. Typed against every kind, so a new kind
+ * does not compile without a heading.
  */
 export const FAILURE_HEADINGS = {
 	'rate-limited': 'rate limit reached',
@@ -52,72 +48,59 @@ export const FAILURE_HEADINGS = {
 export class RepositoryState {
 	phase = $state<Phase>('idle');
 	/**
-	 * Raw, like `previous`: both are replaced whole and never edited in place.
-	 * A deep proxy would cost a signal per field read, and its arrays would end
-	 * up in the comparison the cache stores, which IndexedDB refuses to clone.
+	 * The tasks read, always replaced whole. Raw because a deep proxy costs a
+	 * signal per field read, and its arrays would reach the comparison the
+	 * cache stores, which IndexedDB cannot clone.
 	 */
 	tasks = $state.raw<Task[]>([]);
 	skipped = $state<{ id: string; reason: string }[]>([]);
 	tags = $state<TagDescriptions>({ descriptions: new Map(), redefined: [] });
-	/** Files read so far, and how many there are, for the progress bar. */
+	/** Files read so far and in total, for the progress bar. */
 	done = $state(0);
 	total = $state(0);
-	/** What is being read, kept to read it again and to name one no source reads. */
+	/** The reference being read, kept to refresh it and to name it when no source reads it. */
 	ref = $state<RepoRef | null>(null);
 	fromCache = $state(false);
 	storedAt = $state(0);
 	failure = $state<Failure | null>(null);
 	/**
-	 * A refresh that could not be taken, over a reading that stands.
-	 *
-	 * Separate from `failure` because they say opposite things: that one means
-	 * there is nothing to show, this one means what is on screen is the last
-	 * reading and still true. A spent budget is the ordinary way here, and
-	 * trading a good reading for an error page would punish pressing Refresh.
+	 * The failure of a refresh, while the previous reading stays on screen.
+	 * Kept apart from `failure`, which means there is nothing to show: a spent
+	 * rate limit is the usual cause, and it must not replace a good reading
+	 * with an error page.
 	 */
 	refreshFailure = $state<Failure | null>(null);
-	/** The state the reader last saw, when this reading replaced one. */
+	/** The snapshot the reader last saw, when this reading replaced one. */
 	previous = $state.raw<Snapshot | null>(null);
 	/**
 	 * The source the reading came from, opened once per reference and kept
-	 * across its refreshes.
-	 *
-	 * Held rather than reopened from the reference wherever it is needed, so a
-	 * question about the reading (can it be taken again, where does one of its
-	 * files live) goes to the instance that produced it, and a source holding
-	 * something of its own holds it once. Raw: a class instance keeps its state
-	 * in private fields, which a proxy cannot reach, and nothing in it is read
-	 * reactively anyway.
+	 * across refreshes, since that instance may hold a subscription or a
+	 * permission. Raw because a class keeps its state in private fields, which a
+	 * proxy cannot reach.
 	 */
 	source = $state.raw<Source | null>(null);
 	/**
-	 * A refresh in flight over a reading that stays on screen until it lands.
-	 *
-	 * The phase does not move for it. Every view renders a `ready` reading, and
-	 * going back to `listing` unmounted them, losing the scroll position and
-	 * whatever was being typed, while the reading they showed was still true.
+	 * True while a refresh runs over a reading that stays on screen. The phase
+	 * stays `ready` meanwhile, because leaving it unmounts every view and loses
+	 * the scroll position and any typed input.
 	 */
 	refreshing = $state(false);
 
 	#controller: AbortController | null = null;
 
 	/**
-	 * How to name this repository on screen, at any point in a load: as its
-	 * source says, which is opened as the reading starts. A reference no source
-	 * reads, on a host nothing reads, is named `owner/name`.
+	 * The repository's name on screen: the source's label, or the reference's
+	 * own name before a source is opened or when none reads it.
 	 */
 	readonly name = $derived(this.source?.label ?? nameOf(this.ref));
 
 	readonly open = $derived(this.tasks.filter((task) => !task.closed));
 
 	/**
-	 * What moved since the reader's last reading, or null when there is nothing
-	 * to say: a first visit, or an unchanged repository.
-	 *
-	 * Null rather than an empty result, so a view has one thing to test and
-	 * cannot mark a row for having done nothing. There is no dismissing it: the
-	 * next reading that moves something replaces it, and one that moves nothing
-	 * leaves it standing.
+	 * What moved since the reader's last reading, or null on a first visit or
+	 * when nothing moved. Null rather than an empty result, so a view tests one
+	 * thing and never marks a row that did not move. It stands until a later
+	 * reading moves something.
 	 */
 	readonly changes = $derived.by((): Changes | null => {
 		if (!this.previous) return null;
@@ -126,24 +109,21 @@ export class RepositoryState {
 	});
 
 	/**
-	 * Loads a reference afresh: a source of its own, and nothing kept from the
-	 * reading before, which belonged to whatever was read last.
+	 * Loads a reference afresh, with a new source and nothing kept from the
+	 * previous reading.
 	 *
-	 * Reads nothing of this state. It runs inside the layout's effect, and a
-	 * read here would make that effect depend on what this method writes: it
-	 * re-ran, its cleanup aborted the reading in flight, and the page stayed on
-	 * its loading screen forever.
+	 * It must not read this state: it runs inside the layout's effect, and a
+	 * read would make that effect depend on what this method writes, so the
+	 * effect would re-run and abort the reading in flight.
 	 */
 	load(ref: RepoRef): Promise<void> {
 		return this.#read(ref, { refresh: false, source: null, replaces: null });
 	}
 
 	/**
-	 * Takes the reading again, past the cache. The one on screen stays until the
-	 * new one lands, read from the same source, and is what it is compared with.
-	 *
-	 * Called from a click, never from an effect, which is what lets it read the
-	 * state freely.
+	 * Reads the repository again past the cache, from the same source. The
+	 * reading on screen stays until the new one lands, and the new one is
+	 * compared with it. It may read this state because no effect calls it.
 	 */
 	refresh(): Promise<void> {
 		const { ref, source } = this;
@@ -152,19 +132,16 @@ export class RepositoryState {
 			const replaces = { shown: snapshot(this.tasks, this.storedAt), previous: this.previous };
 			return this.#read(ref, { refresh: true, source, replaces });
 		}
-		// Nothing on screen to keep, as after a failure: the loading steps again,
-		// from the source already opened, `load` being the one place that opens.
+		// Nothing on screen to keep, as after a failure: show the loading steps,
+		// but keep the opened source, since only `load` opens one.
 		return this.#read(ref, { refresh: true, source, replaces: null });
 	}
 
 	/**
-	 * Takes a reading of `ref`, from `source` when one was opened already.
-	 *
-	 * `replaces` is the reading on screen when it stays there meanwhile, with
-	 * what it was compared with, for the new one to be compared in turn; null
-	 * when there is nothing to keep, and the page shows the loading steps
-	 * instead. It is apart from `source` because a source can outlive its
-	 * reading: a failed one leaves the source behind.
+	 * Reads `ref`, from `source` when one is already open. `replaces` is the
+	 * reading that stays on screen meanwhile, or null to show the loading steps.
+	 * It is separate from `source` because a failed reading leaves its source
+	 * behind.
 	 */
 	async #read(
 		ref: RepoRef,
@@ -180,8 +157,8 @@ export class RepositoryState {
 		const standing = replaces !== null;
 
 		this.ref = ref;
-		// Before the source is opened, which throws for a reference nothing reads:
-		// the last reference's source must not stay behind for this one.
+		// Set before opening, which throws for a reference nothing reads, so the
+		// previous reference's source does not outlive it.
 		this.source = source;
 		this.refreshFailure = null;
 		this.refreshing = standing;
@@ -190,9 +167,8 @@ export class RepositoryState {
 			this.failure = null;
 			this.done = 0;
 			this.total = 0;
-			// A comparison belongs to the reading that produced it. One state serves
-			// every view, so without this a move to another repository would
-			// announce the last one's news over the new one's tasks.
+			// One state serves every view, so a comparison left here would announce
+			// the last repository's changes over the next one's tasks.
 			this.previous = null;
 		}
 
@@ -204,7 +180,7 @@ export class RepositoryState {
 				replaces,
 				signal: controller.signal,
 				onProgress: (done, total) => {
-					// The progress panel is for a page with nothing on it yet.
+					// Progress shows only on a page with nothing on it yet.
 					if (controller.signal.aborted || standing) return;
 					this.phase = 'reading';
 					this.done = done;
@@ -225,8 +201,7 @@ export class RepositoryState {
 			if (controller.signal.aborted) return;
 			this.refreshing = false;
 			if (standing) {
-				// Nothing on screen was touched, the comparison explaining it
-				// included: only renewing them failed.
+				// The reading on screen and its comparison stay untouched.
 				this.refreshFailure = describe(error);
 				return;
 			}
@@ -236,10 +211,9 @@ export class RepositoryState {
 	}
 
 	/**
-	 * Keeps the reading in step with its source, where the source can tell when
-	 * it changes, through the same refresh a click takes. Returns how to stop,
-	 * for the layout's effect: that runs it again when the source or the phase
-	 * changes, and a refresh moves neither.
+	 * Refreshes the reading whenever a followable source reports a change, and
+	 * returns the function that stops it. The layout's effect re-runs it when
+	 * the source or the phase changes; a refresh changes neither.
 	 */
 	follow(): (() => void) | undefined {
 		const source = this.source;
@@ -248,22 +222,19 @@ export class RepositoryState {
 	}
 
 	/**
-	 * Where one of the reading's files loads from, for the renderer. An arrow,
-	 * being handed over as a callback.
+	 * The URL a file of the reading loads from, for the renderer. An arrow
+	 * because it is passed as a callback.
 	 */
 	readonly assetUrl = (path: string): string | null => this.source?.assetUrl(path) ?? null;
 
-	/**
-	 * The page of one of the reading's files on the forge, or null where the
-	 * source has no page anywhere to link it to.
-	 */
+	/** The forge page of a file of the reading, or null when the source has none. */
 	fileUrl(path: string): string | null {
 		const source = this.source;
 		if (!isLinked(source)) return null;
 		return source.fileUrl(path);
 	}
 
-	/** What a marked row says on hover: how it moved, and since when. */
+	/** The hover text of a marked row: how it moved, and since when. */
 	describeMoves(moves: Movement[]): string {
 		return `${moves.join(', ')} since your reading ${describeAge(this.previous?.at ?? 0)}`;
 	}
@@ -285,17 +256,15 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * The wording is `Intl`'s, so plurals are not spelled out here. `numeric:
- * 'always'` rather than `'auto'`, which turns one day into "yesterday": a
- * cache reads better on one scale throughout.
+ * Formats ages in English. `numeric: 'always'` gives "1 day ago" rather than
+ * "yesterday", so every age reads on one scale.
  */
 const RELATIVE = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
 
 /**
- * For the refresh control: "just now", "12 minutes ago", "3 hours ago".
- *
- * The thresholds are the part worth having: `Intl` formats a number and a unit,
- * it does not choose them, and "just now" is not a unit it knows.
+ * Describes a cache's age for the refresh control: "just now", "12 minutes
+ * ago", "3 hours ago". `Intl` formats a number and a unit but does not choose
+ * them, so the thresholds live here.
  */
 export function describeAge(storedAt: number, now = Date.now()): string {
 	const seconds = Math.max(0, Math.round((now - storedAt) / 1000));
@@ -307,7 +276,7 @@ export function describeAge(storedAt: number, now = Date.now()): string {
 	return RELATIVE.format(-Math.round(hours / 24), 'day');
 }
 
-/** A reference by its name on its forge, or by its path, or nothing before there is one. */
+/** Names a reference: `owner/name` on a forge, its path otherwise, empty when there is none. */
 function nameOf(ref: RepoRef | null): string {
 	if (!ref) return '';
 	if (!isForgeRef(ref)) return ref.path;

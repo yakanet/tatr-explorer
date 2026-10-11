@@ -6,17 +6,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { tatrServedFolder } from './src/lib/sources/served/folder.server.ts';
 
 /**
- * The site is served from https://github.broutin.dev/<repository name> rather
- * than from the root, so the deploy workflow passes the repository name as
- * `BASE_PATH`.
- *
- * That domain belongs to the account rather than to this project: it is set on
- * the user site, which makes GitHub serve every project of the account under it
- * and redirect the github.io addresses there. The repository name therefore
- * stays in the path.
- *
- * An empty base is correct for `vite dev`, and for a domain pointed at this
- * project alone.
+ * The base path the site is served under, from `BASE_PATH`, which the deploy
+ * workflow sets to the repository name. The custom domain, github.broutin.dev,
+ * belongs to the account's user site, so GitHub serves each project under its
+ * repository name there.
  */
 function basePath(): '' | `/${string}` {
 	if (process.argv.includes('dev')) return '';
@@ -29,7 +22,6 @@ function basePath(): '' | `/${string}` {
 
 export default defineConfig({
 	plugins: [
-		// `TATR_FOLDER=../my-project pnpm run dev` serves that folder and opens on it.
 		tatrServedFolder(),
 		sveltekit({
 			compilerOptions: {
@@ -37,20 +29,17 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			// `404.html` is what makes client-side routing work at any path depth on
-			// GitHub Pages: it serves that file for every path it has no file for.
+			// GitHub Pages serves `404.html` for any path without a file, which lets
+			// client-side routing handle every path.
 			adapter: adapter({ fallback: '404.html' }),
 			paths: { base: basePath() }
 		})
 	],
 	server: {
 		watch: {
-			// The repository's own tasks are data the viewer reads, never code, and
-			// this very folder is the one opened to try following it. Watched, each
-			// save there reached the dev server as a change it then found no module
-			// for; ignored, a save cannot become a reload, which would take back the
-			// folder the reader opened. Anchored at the root, so a `tasks` folder
-			// under `src/` would still be watched.
+			// The repository's own tasks are data, not code: a save there must not
+			// reload the page, which would take back the folder the reader opened.
+			// Anchored at the root, so a `tasks` folder under `src/` is still watched.
 			ignored: [fileURLToPath(new URL('./tasks/**', import.meta.url))]
 		}
 	},

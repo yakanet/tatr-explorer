@@ -12,14 +12,14 @@
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
 
-	// Citations are history, like the calendar on the overview: a closed task that
-	// answered an open one is exactly what the reader is looking for.
+	// The graph includes closed tasks, because a closed task that answered an open
+	// one is what the reader is looking for.
 	const graph = $derived(buildGraph(repo.tasks));
 	const cards = $derived(starCards(graph));
 
-	/** How many links a card holds, its pivot citing itself among them. */
+	/** The number of links a card holds, counting the pivot citing itself. */
 	const linksOf = (card: StarCard) => card.links.length + (card.self ? 1 : 0);
-	/** How many links each pivot's own card holds, for a neighbour to point at it. */
+	/** The link count of each pivot's card, shown on a neighbour that leads to it. */
 	const held = $derived(new Map(cards.map((card) => [card.pivot.id, linksOf(card)])));
 
 	const SIZE = 200;
@@ -36,13 +36,12 @@
 	}
 
 	/**
-	 * A triangle pointing at `at`, arriving along the unit vector (ux, uy), plus
-	 * the coordinate where the line feeding it should stop.
+	 * Returns an arrowhead pointing at `at` along the unit vector (ux, uy), and
+	 * the point where its line should stop.
 	 *
-	 * Drawn as a polygon of our own rather than an SVG `marker`: a marker is
-	 * placed by `refX` inside its own scaled viewBox and sized in multiples of the
-	 * stroke width, which makes "the tip touches the circle" a guess. Here the tip
-	 * is a coordinate.
+	 * The head is a polygon rather than an SVG `marker`, because a marker is
+	 * placed by `refX` in its own scaled viewBox and sized in stroke widths, so
+	 * its tip cannot be set exactly on the circle.
 	 */
 	function head(at: Point, ux: number, uy: number) {
 		const tipX = at.x - ux * (at.r + 1);
@@ -52,15 +51,15 @@
 		const px = -uy * (HEAD_WIDTH / 2);
 		const py = ux * (HEAD_WIDTH / 2);
 		return {
-			// Just inside the base: a line running under the head would show
-			// through its edges.
+			// The line stops just inside the base, because a line running under
+			// the head would show through its edges.
 			x: baseX + ux,
 			y: baseY + uy,
 			points: `${tipX},${tipY} ${baseX + px},${baseY + py} ${baseX - px},${baseY - py}`
 		};
 	}
 
-	/** One spoke, rim to rim, with a head on each end it points at. */
+	/** Draws one spoke from rim to rim, with a head on each end it points at. */
 	function spoke(from: Point, to: Point, both: boolean) {
 		const dx = to.x - from.x;
 		const dy = to.y - from.y;
@@ -79,18 +78,18 @@
 	}
 
 	/**
-	 * A card's drawing: the pivot in the middle, its neighbours round it.
+	 * Lays out a card's drawing, with the pivot in the middle and its neighbours
+	 * on a ring around it.
 	 *
-	 * Going round from the left in the card's reading order, those that cite the
-	 * pivot come first, the mutual ones over the top and those it cites on the
-	 * right, so a reader who has seen one card knows which way to look on the
-	 * next. The numbers are the list's beside it.
+	 * Going round from the left in list order, the tasks citing the pivot come
+	 * first, the mutual ones over the top and the ones it cites on the right, so
+	 * every card reads the same way. The node numbers match the list beside it.
 	 */
 	function drawing(card: StarCard) {
 		const pivot: Point = { x: SIZE / 2, y: SIZE / 2, r: PIVOT_R };
 		const count = card.links.length;
 		const nodes = card.links.map(({ task, kind }, i) => {
-			// A lone neighbour sits to the right, where a reader looks next.
+			// A lone neighbour sits on the right, where a reader looks next.
 			const angle = count === 1 ? 0 : Math.PI + (i * 2 * Math.PI) / count;
 			const at: Point = {
 				x: pivot.x + RING * Math.cos(angle),
@@ -113,15 +112,15 @@
 	const anchor = (id: string) => `pivot-${id}`;
 
 	/**
-	 * The node or row under the pointer, or holding the keyboard focus: the
-	 * drawing and the list light it together, so a number is never more than a
-	 * glance from its title. Kept with its card, since a task can sit in several.
+	 * The task under the pointer or the keyboard focus, lit in the drawing and
+	 * the list together so a number is a glance from its title. It keeps its card
+	 * because a task can appear in several.
 	 */
 	let lit = $state<{ card: string; task: string } | null>(null);
 	const light = (card: StarCard, task: Task) => () =>
 		(lit = { card: card.pivot.id, task: task.id });
 	const unlight = () => (lit = null);
-	/** Which task is lit in this card, if any. */
+	/** The lit task in this card, or null. */
 	const litIn = (card: StarCard) => (lit?.card === card.pivot.id ? lit.task : null);
 
 	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -144,8 +143,8 @@
 					around {plural(cards.length, 'task', 'tasks')}.
 				{/if}
 			</h1>
-			<!-- A card holds one task's links, so what the cards no longer show at a
-			     glance is how the tasks hang together; it is said here instead. -->
+			<!-- Each card shows only one task's links, so the masthead states how
+			     the tasks group together. -->
 			{#if repo.tasks.length > 0}
 				<p class="aside">
 					{#if graph.clusters.length > 0}
@@ -171,9 +170,9 @@
 			{/if}
 		</section>
 
-		<!-- A card per pivot, and only the pivot's own links in it: a star by
-		     construction, so no line crosses another however dense the repository.
-		     A link between two of its neighbours is drawn in one of their cards. -->
+		<!-- Each card draws one pivot and only its own links, as a star, so no line
+		     crosses another however dense the repository. A link between two of
+		     its neighbours is drawn in one of their cards. -->
 		<div class="cards">
 			{#each cards as card (card.pivot.id)}
 				{@const draw = drawing(card)}
@@ -183,13 +182,10 @@
 					class:focusing={here !== null && here !== card.pivot.id}
 					id={anchor(card.pivot.id)}
 				>
-					<!-- The drawing repeats the list beside it, so it is left out of the
-					     accessibility tree and out of the tab order: the list carries the
-					     same links with the titles. -->
+					<!-- The drawing is hidden from assistive technology and the tab order,
+					     because the list beside it carries the same links with titles. -->
 					<svg viewBox="0 0 {SIZE} {SIZE}" width={SIZE} height={SIZE} aria-hidden="true">
 						{#each draw.nodes as node (node.task.id)}
-							<!-- The group carries the direction's colour, which its line
-							     and heads both take. -->
 							<g class={node.kind} class:hot={here === node.task.id}>
 								<line x1={node.line.x1} y1={node.line.y1} x2={node.line.x2} y2={node.line.y2} />
 								{#each node.line.heads as points (points)}
@@ -234,8 +230,8 @@
 										<a href={taskHref(node.task.id)} data-key-row
 											>{@html inline(node.task.title, node.task.id)}</a
 										>
-										<!-- A neighbour that is a pivot elsewhere leads on to its own
-										     card, so the reader can walk the graph a star at a time. -->
+										<!-- A neighbour with a card of its own links to it, so the
+										     reader can walk the graph one card at a time. -->
 										{#if held.has(node.task.id)}
 											<a
 												class="jump"
@@ -250,9 +246,9 @@
 									</span>
 								</li>
 							{/each}
-							<!-- `tatr graph` draws an arrow from a task citing itself back to
-							     it. A spoke has nowhere to go, so it is a line of the list,
-							     unnumbered, since the drawing has no node for it. -->
+							<!-- `tatr graph` shows a task citing itself, so the list does too,
+							     in an unnumbered row: a spoke has nowhere to go, so the drawing
+							     has no node for it. -->
 							{#if card.self}
 								<li>
 									<span class="number" aria-hidden="true"></span>
@@ -268,8 +264,8 @@
 	{/if}
 </main>
 
-<!-- One node of a drawing: the pivot when it has no number, a neighbour when it
-     has one. -->
+<!-- One node of a drawing: the pivot when `number` is null, a neighbour
+     otherwise. -->
 {#snippet dot(card: StarCard, task: Task, at: Point, number: number | null)}
 	<a
 		href={taskHref(task.id)}
@@ -339,7 +335,7 @@
 		scroll-margin-top: 1rem;
 	}
 
-	/* Where a neighbour's "+N" leads: the card it names, marked on arrival. */
+	/* The card a neighbour's "+N" link targets is outlined on arrival. */
 	.card:target {
 		outline: 2px solid var(--accent-line);
 		outline-offset: 2px;
@@ -349,9 +345,9 @@
 		flex: none;
 	}
 
-	/* An arrow says its direction three ways: its head, its side of the drawing
-	   and its colour, the last matching the glyph in the list beside it. The
-	   colour is the group's (`.in`, `.out`, `.both` below), drawn by both. */
+	/* An arrow shows its direction by its head, its side of the drawing and its
+	   colour, which matches the glyph in the list. The line and heads take the
+	   colour from their group (`.in`, `.out`, `.both` below). */
 	line {
 		stroke: currentColor;
 		stroke-width: 2;
@@ -361,14 +357,15 @@
 		fill: currentColor;
 	}
 
-	/* The text shade of orchid is for glyphs; an arrow takes the mark's. */
+	/* An incoming arrow uses the mark shade, `--link-in`; the `.in` glyph uses
+	   the text shade. */
 	g.in {
 		color: var(--link-in);
 	}
 
 	circle {
 		fill: var(--series-open);
-		/* A ring in the surface colour keeps a node clear of the line it ends. */
+		/* The surface-coloured ring separates a node from the line ending at it. */
 		stroke: var(--surface);
 		stroke-width: 2;
 	}
@@ -377,14 +374,14 @@
 		fill: var(--series-closed);
 	}
 
-	/* The pivot carries a second ring, in the text colour, so it reads as the
-	   subject of the card before its title is read. */
+	/* The pivot's ring is in the text colour, so it reads as the card's subject
+	   before its title is read. */
 	circle.pivot {
 		stroke: var(--fg);
 	}
 
-	/* What the pointer or the focus is on, in the drawing and the list at once:
-	   its node ringed, its arrow thicker, the card's other arrows faded. */
+	/* The lit task has its node ringed and its arrow thickened, and the card's
+	   other arrows fade. */
 	svg a.hot circle {
 		stroke: var(--accent-text);
 		stroke-width: 3;
@@ -422,7 +419,7 @@
 		gap: 0.5rem;
 	}
 
-	/* Padded out into the margin, so lighting a row moves nothing. */
+	/* The negative margin offsets the padding, so lighting a row moves nothing. */
 	h2,
 	li {
 		margin: 0 -0.35rem;
@@ -469,7 +466,8 @@
 		font-weight: 700;
 	}
 
-	/* As text the orchid takes its text shade; mint and the grey read as they are. */
+	/* The `.in` glyph takes the accent's text shade; the `.out` and `.both`
+	   colours are readable as text unchanged. */
 	.in {
 		color: var(--accent-text);
 	}

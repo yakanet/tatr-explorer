@@ -62,7 +62,6 @@ describe('compare', () => {
 	});
 
 	it('calls a task that arrives already closed new, not closed', () => {
-		// There is nothing for it to have moved from; it was never open here.
 		const born = make('20260202-000002', 50, [], true);
 		expect(kinds('20260202-000002', [open, born], before([open]))).toEqual(['new']);
 	});

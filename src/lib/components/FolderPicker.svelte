@@ -1,16 +1,10 @@
 <script lang="ts">
-	// Opens a folder on the reader's machine, by whichever door the browser has.
-	//
-	// Three of them, and what separates them is what they hand back rather than
-	// what they ask. `showDirectoryPicker` gives a handle, and a dropped folder a
-	// handle on Chromium or the legacy entry tree elsewhere: all of them can be
-	// walked again, so a refresh is a real reread and the reading can follow the
-	// folder. The directory input gives a flat list, once. Dropping is the widest
-	// door (the entry API behind it exists where the picker does not), so a
-	// browser without the picker still has one way to a folder it can reread.
-	//
-	// Whichever answered, the reader clicked or dropped: they have no interest in
-	// which API it was.
+	// Opens a folder on the reader's machine, through whichever API the browser
+	// has. `showDirectoryPicker` gives a handle, and a drop gives a handle on
+	// Chromium or an entry tree elsewhere: both can be walked again, so a refresh
+	// rereads the folder and the reading can follow it. The directory input gives
+	// a flat list, once. The entry API behind a drop exists where the picker does
+	// not, so a browser without the picker can still open a folder it rereads.
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -29,16 +23,13 @@
 	let input = $state<HTMLInputElement | null>(null);
 	let error = $state<string | null>(null);
 	/**
-	 * Whether a folder is being dragged over the window.
-	 *
-	 * Counted rather than set, because `dragleave` fires on the way into every
-	 * child element and a boolean would flicker off under the cursor. Leaving
-	 * the window is the one `dragleave` with no `relatedTarget`, which is what
-	 * resets the count rather than decrementing it.
+	 * Non-zero while files are dragged over the window. A count rather than a
+	 * boolean, because `dragleave` fires on entering every child element and a
+	 * boolean would flicker.
 	 */
 	let over = $state(0);
 
-	/** A dragged text selection or link is not an offer of a folder. */
+	/** Whether a drag carries files, unlike a dragged text selection or link. */
 	const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
 
 	/** The picker is Chromium only, and must be called from a real click. */
@@ -92,9 +83,9 @@
 	}
 
 	/**
-	 * Answering `dragover` is what makes a drop possible; not answering it is
-	 * also what makes the browser *navigate* to the dropped folder, leaving the
-	 * page. So the whole window answers, whether or not the offer is showing.
+	 * Accepts a file drag anywhere in the window. Without `preventDefault` on
+	 * `dragover` the drop is refused, and the browser navigates to the dropped
+	 * folder, leaving the page.
 	 */
 	function hovered(event: DragEvent) {
 		if (droppable && carriesFiles(event)) event.preventDefault();
@@ -105,8 +96,8 @@
 		event.preventDefault();
 		over = 0;
 
-		// Read out of the transfer before anything is awaited: the item list is
-		// emptied when this event's turn ends, so awaiting first finds nothing.
+		// Read the items before any await, because the browser empties the list
+		// once this handler returns.
 		const items = [...(event.dataTransfer?.items ?? [])];
 		const asHandles = items.some((item) => typeof item.getAsFileSystemHandle === 'function');
 		const pending = asHandles
@@ -114,9 +105,8 @@
 			: items.map((item) => item.webkitGetAsEntry());
 
 		try {
-			// Anything falsy: the API is specified to answer null for an item that
-			// is not a file, and Chrome answers `undefined` for one a script made.
-			// Either way there is no folder in it.
+			// The spec answers null for an item that is not a file, and Chrome
+			// answers `undefined` for one a script made, so any falsy value is skipped.
 			const folder = (await Promise.all(pending)).find(
 				(one): one is WayBack =>
 					!!one && ('kind' in one ? one.kind === 'directory' : one.isDirectory)
@@ -128,17 +118,14 @@
 
 			await opened(await fromWayBack(folder), folder);
 		} catch {
-			// A rejection here is what silence looks like: without this the reader
-			// drops a folder, nothing happens, and nothing says why.
+			// Without this, a rejected drop would do nothing and say nothing.
 			error = 'That folder could not be read.';
 		}
 	}
 </script>
 
-<!-- The target is the window, not a rectangle beside the button. A dashed box
-     is decoration while nobody is dragging, and too small a thing to aim at the
-     moment somebody is; this way it is the largest target the page can offer
-     and costs no pixels until it is wanted. -->
+<!-- The drop target is the whole window rather than a box beside the button:
+     the largest target, taking no space until a drag starts. -->
 <svelte:window ondragenter={entered} ondragleave={left} ondragover={hovered} ondrop={dropped} />
 
 <span class="offer">
@@ -186,8 +173,8 @@
 		place-items: center;
 		padding: 1.5rem;
 		background: color-mix(in oklab, var(--bg) 82%, transparent);
-		/* Nothing inside it may take the drag events: a child would answer
-		   `dragleave` on the way in and the veil would blink. */
+		/* Its children must not take drag events, or entering one would fire
+		   `dragleave` and the veil would blink. */
 		pointer-events: none;
 	}
 
@@ -220,8 +207,8 @@
 		color: var(--muted);
 	}
 
-	/* Present for the browsers without a picker, and never the thing clicked:
-	   a file input cannot be styled, and the button above it can. */
+	/* The fallback for browsers without a picker, clicked through the button
+	   because a file input cannot be styled. */
 	input {
 		position: absolute;
 		width: 1px;

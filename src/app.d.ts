@@ -3,8 +3,8 @@
 declare global {
 	interface Window {
 		/**
-		 * File System Access, which the DOM library does not declare yet: it is
-		 * Chromium only, so every call site has to check for it anyway.
+		 * File System Access, which the DOM library does not declare. Optional, as
+		 * it is Chromium only.
 		 */
 		showDirectoryPicker?(options?: {
 			mode?: 'read' | 'readwrite';
@@ -13,9 +13,8 @@ declare global {
 	}
 
 	/**
-	 * File System Observer (Chrome and Edge 133 and later), undeclared for the
-	 * same reason: what reports a change under a folder's handle. Declared as
-	 * possibly absent, which is what a page has to assume of it.
+	 * File System Observer, which reports changes under a handle (Chrome and Edge
+	 * 133 and later). The DOM library does not declare it, and it may be absent.
 	 */
 	var FileSystemObserver:
 		(new (callback: (records: FileSystemChangeRecord[]) => void) => FileSystemObserver) | undefined;
@@ -32,16 +31,15 @@ declare global {
 	}
 
 	/**
-	 * The name of the folder the dev server serves, or false: replaced at compile
-	 * time by the plugin in `src/lib/sources/served/folder.server.ts`, and read in
-	 * `src/lib/sources/served/enabled.ts` alone.
+	 * The name of the folder the dev server serves, or false, defined at compile
+	 * time by the plugin in `src/lib/sources/served/folder.server.ts`.
 	 */
 	const __TATR_SERVED__: string | false;
 
 	interface DataTransferItem {
 		/**
-		 * File System Access again, and undeclared for the same reason: a dropped
-		 * folder arrives as a handle on Chromium and as a legacy entry elsewhere.
+		 * File System Access, which the DOM library does not declare: Chromium hands
+		 * a dropped folder over as a handle.
 		 */
 		getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 	}

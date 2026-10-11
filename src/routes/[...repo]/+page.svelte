@@ -23,36 +23,35 @@
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
 
-	// The dashboard is the whole repository at a glance. Filtering happens in the
-	// list; a chart that filtered itself would leave the reader on a picture to
-	// interpret instead of on the tasks they asked for.
+	// The overview shows the whole repository and ignores the query. A click on a
+	// chart opens the filtered list, because a chart that filtered itself would
+	// leave the reader with a picture instead of the tasks.
 	const all = $derived(repo.tasks);
 	const stats = $derived(counts(all));
 	const summary = $derived(summarise(all));
 
-	// Priority and tags describe what is left to do, so they count open tasks
-	// only, as `tatr ls` does. Clicking one then lands on those same tasks
-	// rather than on a list padded with everything already finished.
+	// The priority and tag charts count open tasks only, as `tatr ls` does,
+	// because they describe what is left to do.
 	const openTasks = $derived(repo.open);
 	const priorities = $derived(byPriority(openTasks));
 	const tags = $derived(byTag(openTasks));
 	const top = $derived(topByPriority(openTasks, 8));
 
-	// The calendar is history, so it keeps both series and is not a filter.
+	// The month chart counts open and closed tasks because it shows history, and
+	// its columns do not filter.
 	const months = $derived(byMonth(all));
 
 	const maxPriority = $derived(Math.max(1, ...priorities.map((bucket) => bucket.count)));
 	const maxTag = $derived(Math.max(1, ...tags.map((bucket) => bucket.count)));
 	const maxMonth = $derived(Math.max(1, ...months.map((bucket) => bucket.open + bucket.closed)));
 
-	/** The list showing exactly what a figure counted; the layout reads the query from it. */
+	/** The list URL for a query; the layout reads the query back from it. */
 	const listOf = (text: string, status: Status) =>
 		resolve('/[...repo]/list', { repo: formatRepoPath(ref) }) + searchFor(text, status);
 
 	/**
-	 * Clicking a bar means "show me those tasks", so it opens the filtered list:
-	 * open only, matching what the bar counted, whatever status was chosen
-	 * before.
+	 * Opens the list filtered on a bar's term and on open tasks, which is what
+	 * the bar counted, whatever status the reader chose before.
 	 */
 	const pick = (term: string) => goto(listOf(term, 'open'));
 
@@ -76,8 +75,8 @@
 	{#if repo.phase === 'ready'}
 		<section class="masthead panel">
 			<div class="lead">
-				<!-- The command this view stands for, as the list's stands for
-				     `tatr ls`: the overview is what `tatr summary` would say. -->
+				<!-- The prompt names `tatr summary`, the CLI command this view stands
+				     for, as the list names `tatr ls`. -->
 				<p class="prompt">
 					$ tatr summary <span class="since"
 						>· {months.length > 0 ? `since ${monthName(months[0].month)}` : 'no dates yet'}</span
@@ -89,10 +88,10 @@
 						>{:else}<span class="detail">.</span>{/if}
 				</h1>
 			</div>
-			<!-- Each figure keeps one tint wherever it appears, so the colour
-			     says which count it is before the label does. Each opens the list
-			     on exactly the tasks it counts, the same number at the top of it:
-			     untagged is counted over every task, so it brings the closed ones. -->
+			<!-- Each figure keeps the same tint wherever it appears, so the colour
+			     identifies the count before the label does. Each links to the list
+			     of exactly the tasks it counts: untagged counts every task, so its
+			     list includes closed ones. -->
 			<ul class="figures">
 				<li class="closed">
 					<a href={listOf('', 'closed')}><strong>{stats.closed}</strong> <span>closed</span></a>
@@ -184,10 +183,9 @@
 						{@const total = bucket.open + bucket.closed}
 						<div class="month" title="{bucket.month}: {bucket.open} open, {bucket.closed} closed">
 							<div class="stack">
-								<!-- The column is bottom-anchored, so the first segment drawn sits on
-								     top and is the one carrying the rounded data end. A month with
-								     nothing keeps its slot as a short pill, so quiet reads as quiet
-								     rather than as missing. -->
+								<!-- The column is anchored at the bottom, so the first segment sits on
+								     top and carries the rounded end. A month with no tasks keeps a
+								     short pill, so it reads as empty rather than missing. -->
 								{#if bucket.closed > 0}
 									<div class="seg closed" style:height="{(bucket.closed / maxMonth) * 100}%"></div>
 								{/if}
@@ -241,13 +239,13 @@
 		gap: var(--card-gap);
 	}
 
-	/* What a card holds sits this far in; the hero and the leaderboard set their
-	   own below, which is why this rule comes first. */
+	/* This rule comes first because the masthead and the leaders list override
+	   the card padding below. */
 	.panel {
 		padding: 1.5rem 1.625rem;
 	}
 
-	/* The hero: the one sentence the page exists to say, and three counts. */
+	/* The masthead holds the summary sentence and three counts. */
 	.masthead {
 		display: flex;
 		flex-wrap: wrap;
@@ -292,8 +290,8 @@
 		list-style: none;
 	}
 
-	/* A link that does not look like a button: no border, no fill change. It
-	   says so on hover by underlining its label, and on focus by the ring. */
+	/* A figure is a link without border or fill change, so it does not look
+	   like a button. Hover underlines its label, and focus shows the ring. */
 	.figures a {
 		display: flex;
 		flex-direction: column;
@@ -435,8 +433,8 @@
 		width: 9ch;
 	}
 
-	/* A pill on a pill: the empty part of the bar is drawn, so a short bar
-	   still reads as a share of something. */
+	/* The track draws the empty part of the bar, so a short bar still reads as
+	   a share of a whole. */
 	.track {
 		flex-grow: 1;
 		display: block;
@@ -481,13 +479,13 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		/* The gap shows the card behind, so the two series never touch. */
+		/* The gap keeps the two series from touching. */
 		gap: 3px;
 		margin: 0 auto;
 	}
 
-	/* A column is a pill standing up: round where the data ends and at the
-	   foot, and cut square where two segments meet. */
+	/* A column is rounded at its top and its foot, and square where two
+	   segments meet. */
 	.seg {
 		min-height: 3px;
 	}

@@ -35,8 +35,6 @@ describe('toColumns', () => {
 	});
 
 	it('counts a closed task as done even when still tagged', () => {
-		// A task left tagged after being finished is finished, and a card belongs
-		// to exactly one column.
 		const [backlog, progress, done] = toColumns([make('20260101-000001', 90, [IN_PROGRESS], true)]);
 		expect(ids(done.tasks)).toEqual(['20260101-000001']);
 		expect(progress.tasks).toEqual([]);
@@ -58,8 +56,6 @@ describe('toColumns', () => {
 	});
 
 	it('orders done newest first, ignoring priority', () => {
-		// Priority stops meaning anything once a task is closed; upstream task
-		// 20260304-115038 says as much.
 		const [, , done] = toColumns([
 			make('20260101-000001', 110, [], true),
 			make('20260303-000001', 10, [], true),
@@ -69,8 +65,7 @@ describe('toColumns', () => {
 	});
 
 	it('handles several tasks in progress, which upstream has', () => {
-		// The convention is one at a time; tsoding/tatr carries seven, so a board
-		// that assumed one would drop a card.
+		// The convention is one at a time, but tsoding/tatr has seven.
 		const [, progress] = toColumns(all);
 		expect(progress.tasks.length).toBeGreaterThan(1);
 	});
@@ -95,8 +90,7 @@ describe('toColumns under a query', () => {
 		const [backlog, progress, done] = toColumns(all, scoped);
 		expect(progress.tasks).toHaveLength(7);
 		expect(progress.total).toBe(7);
-		// Nothing else in the repository carries the tag, and the totals still say
-		// how much was set aside.
+		// No other task carries the tag, yet the totals still count them.
 		expect([backlog.tasks.length, backlog.total]).toEqual([0, 26]);
 		expect([done.tasks.length, done.total]).toEqual([0, 46]);
 	});
@@ -108,8 +102,7 @@ describe('toColumns under a query', () => {
 	});
 
 	it('counts a task in the column it belongs to, matched or not', () => {
-		// A closed task rejected by the query still raises Done's total, never
-		// Backlog's: the query cannot move a card between columns.
+		// The query filters cards; it never moves one to another column.
 		const columns = toColumns([make('20260101-000001', 90, [], true)], () => false);
 		expect(columns.map((column) => column.total)).toEqual([0, 0, 1]);
 	});

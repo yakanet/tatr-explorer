@@ -19,16 +19,15 @@
 	let input = $state<HTMLInputElement | null>(null);
 	let toggle = $state<HTMLButtonElement | null>(null);
 
-	// Whichever way the reader left (a link, the field, Back), the menu was
-	// about the page they left.
+	// Any navigation closes the menu, which was about the page left behind.
 	afterNavigate(() => {
 		open = false;
 	});
 
 	/**
-	 * Gives the focus back to the address the menu was opened from. The focus
-	 * moves first, so leaving the field for the address does not count as
-	 * leaving the menu.
+	 * Closes the menu and gives the focus back to the address. The focus moves
+	 * first, so leaving the field for the address does not count as leaving the
+	 * menu.
 	 */
 	function close() {
 		toggle?.focus();
@@ -36,8 +35,8 @@
 	}
 
 	/**
-	 * `HEAD` means the default branch, as it does to git, which refuses it as a
-	 * branch name, so no branch can be hidden behind it.
+	 * Opens the branch typed. `HEAD` means the default branch, as in git, which
+	 * refuses it as a branch name.
 	 */
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -53,7 +52,7 @@
 		else goto(onBranch(ref, branch));
 	}
 
-	/** Escape is owned here, so the focus returns to the address rather than the page. */
+	/** Handles Escape here, so the focus returns to the address rather than the page. */
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || !open) return;
 		event.preventDefault();
@@ -63,9 +62,9 @@
 	const outside = (target: EventTarget | null) => target instanceof Node && !root?.contains(target);
 
 	/**
-	 * Tabbing out closes the menu. A focus that goes nowhere does not: Safari
-	 * focuses no link on a click, and closing then would take the link away
-	 * before the click lands. A click elsewhere is `onpointerdown`'s to handle.
+	 * Closes the menu when the focus moves to an element outside it. A focus
+	 * going nowhere is ignored, because Safari focuses no link on a click, and
+	 * closing would remove the link before the click lands.
 	 */
 	function onfocusout(event: FocusEvent) {
 		if (outside(event.relatedTarget)) open = false;
@@ -78,8 +77,8 @@
 
 <svelte:window {onpointerdown} />
 
-<!-- A container catching what its button, field and links let bubble up, not a
-     control of its own: hence no role to give it. -->
+<!-- A container for the events its children bubble up, not a control, so it
+     has no role. -->
 <div class="branch" role="presentation" bind:this={root} {onkeydown} {onfocusout}>
 	<button
 		class="address"
@@ -125,9 +124,8 @@
 						><span class="name">HEAD</span> <span class="detail">the default branch</span></a
 					>
 				</li>
-				<!-- The cache is read as the menu opens rather than with the page,
-				     since most readers never open it; storage can be unavailable,
-				     and typing a name still works then. -->
+				<!-- The cache is read when the menu opens, since most readers never
+				     open it. Typing a name still works when storage is unavailable. -->
 				{#await openStore()
 					.keys()
 					.catch(() => []) then keys}
@@ -152,9 +150,8 @@
 		position: relative;
 	}
 
-	/* The address as the header always showed it, with a branch glyph to say
-	   what clicking it does. Pulled into its own padding, so the text stays
-	   where the plain label stood. */
+	/* A branch glyph says what clicking the address does. The negative margin
+	   cancels the padding, so the text stays aligned with the header. */
 	.address {
 		display: inline-flex;
 		align-items: center;

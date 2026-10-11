@@ -14,26 +14,18 @@
 
 	let panel = $state<HTMLElement | null>(null);
 
-	/**
-	 * A page advertises only the keys that do something on it. The homepage has
-	 * no views to switch between and no branch to choose, so neither `1`-`9` nor
-	 * `b` is listed there.
-	 */
+	/** Which optional bindings do something on this page. */
 	const offered = $derived({ view: views.length > 0, branch });
 	const shown = $derived(BINDINGS.filter(({ needs }) => !needs || offered[needs]));
 
-	// Opened from the keyboard, so it has to be closable from the keyboard.
+	// Opened from the keyboard, so it takes the focus to be closed from it.
 	$effect(() => {
 		panel?.focus();
 	});
 
 	/**
-	 * Escape is handled here rather than left to the shortcut layer.
-	 *
-	 * The panel takes the focus when it opens, so a key pressed in it starts
-	 * from inside, and the panel used to stop every key from propagating, which
-	 * swallowed the one shortcut it advertises in its own list. Owning Escape is
-	 * both shorter and the reason nothing has to be stopped now.
+	 * Closes the panel on Escape. Other keys propagate, so the shortcut layer
+	 * still handles `?`, which the panel lists.
 	 */
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key !== 'Escape') return;
@@ -42,9 +34,8 @@
 	}
 </script>
 
-<!-- A backdrop that closes on click, with the panel stopping the click that
-     lands on it. Not a <dialog>: it would take Escape and the modal keyboard
-     with it, and the shortcut layer has to keep both. -->
+<!-- A backdrop that closes on click; the panel stops its own clicks. Not a
+     <dialog>, which would take Escape and the keyboard from the shortcut layer. -->
 <div class="backdrop" role="presentation" onclick={onclose}>
 	<div
 		class="panel"

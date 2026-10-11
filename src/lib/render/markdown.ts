@@ -1,45 +1,33 @@
 /**
  * Renders a task's markdown for display.
  *
- * The source is a `TASK.md` from an arbitrary third-party repository, so it is
- * hostile input. Rather than rendering raw HTML and scrubbing it afterwards,
- * this never lets HTML in at all: markdown-it runs with `html: false`, so any
- * markup in the source is escaped into text, and its link validator refuses
- * `javascript:` and `data:` URLs outright. There is nothing left to sanitise,
- * which is a stronger position than sanitising well.
- *
- * Relative links still have to be rewritten. A task refers to its attachments
- * as `./screenshot.png`, which means nothing once the markdown leaves the
- * repository, so they are resolved against the task's own folder, wherever the
- * source serves it: a CDN for a forge, a `blob:` for a folder on the disk.
+ * A `TASK.md` comes from an arbitrary repository, so it is hostile input.
+ * markdown-it runs with `html: false`, which escapes any markup into text, and
+ * its link validator refuses `javascript:` and `data:` URLs, so no HTML is left
+ * to sanitise. Relative links, such as `./screenshot.png`, are resolved against
+ * the task's own folder, wherever its source serves it.
  */
 import MarkdownIt, { type StateCore, type Token } from 'markdown-it';
 import { scanHuidSpans } from '../tatr/huid.ts';
 
 export interface RenderOptions {
 	/**
-	 * Where a file of the repository loads from, or `null` for one it does not
-	 * have: a raw endpoint for a forge, a `blob:` for a file already in memory.
-	 *
-	 * Handed in, as the reading's source answers it: only the source knows, and
-	 * a source opened here again from a reference would be a second one.
+	 * The URL a repository file loads from, or `null` when there is none: a raw
+	 * endpoint for a forge, a `blob:` for a file in memory. Passed in because
+	 * only the reading's source knows it.
 	 */
 	assetUrl: (path: string) => string | null;
 	/** The task whose folder relative links resolve against. */
 	taskId: string;
 	/**
-	 * Where a task id written in a body points, or `null` for an id that leads
-	 * nowhere: one this repository does not have, or this task's own.
-	 *
-	 * Handed in rather than built here: the href has to carry the `BASE_PATH`
-	 * the deployed site is served under, which is `$app/paths`' business, and
-	 * this is a plain module under unit test. Every page that renders a body
-	 * already holds the same builder for its own links.
+	 * The page a task id in a body links to, or `null` for an id this repository
+	 * does not have, or for this task's own. Passed in because the href carries
+	 * the `BASE_PATH`, which `$app/paths` resolves and this plain module cannot.
 	 */
 	taskUrl?: (id: string) => string | null;
 }
 
-/** Only the repository's own CDN may load an image, so a task cannot beacon readers. */
+/** The only host an absolute image may load from, so a task cannot track its readers. */
 const IMAGE_HOST = 'https://raw.githubusercontent.com/';
 
 /** True for a link that points inside the repository rather than out of it. */
@@ -72,34 +60,29 @@ export function resolveAttachment(options: RenderOptions, url: string): string |
 }
 
 /**
- * Marks a link this module made, so the rule that rewrites the source's links
- * leaves it alone: a task page's href has no scheme either, and would otherwise
- * be resolved as an attachment and end up pointing into the raw files.
- *
- * `markup` is where markdown-it's own linkify records the same thing.
+ * The `markup` of a task link this module made, as markdown-it's linkify marks
+ * its own. The link rewriter skips it, because a task page's href has no
+ * scheme and would otherwise be resolved as an attachment.
  */
 const TASK_LINK = 'tatr_task_id';
 
 /**
- * Turns a task id written in a body into a link to that task's page.
+ * Links each task id written in a body to that task's page, in the sentence
+ * that gives the reason for the reference.
  *
- * Bodies cite each other by id constantly, and the reason for a reference is in
- * the sentence holding it, so that is where the link belongs, rather than only
- * in the References panel beside it.
- *
- * Done as markdown-it's own linkify is done: a core rule that splits `text`
- * tokens once the inline parse is over. Which is what makes an id inside a code
- * span stay literal without asking (a code span is not a text token), and what
- * makes an id inside an existing link need stepping over, or the anchor nests.
+ * Like markdown-it's linkify, a core rule splits `text` tokens after the inline
+ * parse. An id in a code span therefore stays literal, since a code span is not
+ * a text token, and an id inside an existing link is skipped so that anchors do
+ * not nest.
  */
 function linkTaskIds(
 	md: InstanceType<typeof MarkdownIt>,
 	taskUrl: (id: string) => string | null
 ): void {
 	md.core.ruler.push('tatr_task_ids', (state) => {
-		// A title is rendered inline into a row that is itself a link, and an
-		// anchor inside an anchor is taken apart by the browser, along with the
-		// row link the keyboard follows. Titles keep their ids as text.
+		// A title renders inline inside a row that is itself a link, and the
+		// browser breaks a nested anchor apart, row link included, so ids in a
+		// title stay text.
 		if (state.inlineMode) return;
 
 		for (const token of state.tokens) {
@@ -130,7 +113,7 @@ function withTaskLinks(
 	return out;
 }
 
-/** One text token, cut at each id that resolves, or handed back untouched. */
+/** Splits a text token at each id that resolves, or returns it untouched. */
 function splitTaskIds(
 	state: StateCore,
 	token: Token,
@@ -147,8 +130,8 @@ function splitTaskIds(
 
 	for (const span of scanHuidSpans(token.content)) {
 		const url = taskUrl(span.id);
-		// Ids that lead nowhere are most of them: our own tasks cite upstream's,
-		// which this repository does not have. Left as the text they were.
+		// An id with no page, such as one citing another repository's task,
+		// stays text.
 		if (!url) continue;
 
 		const before = token.content.slice(cursor, span.start);
@@ -171,8 +154,8 @@ function splitTaskIds(
 
 function createRenderer(options: RenderOptions): InstanceType<typeof MarkdownIt> {
 	const md = new MarkdownIt({
-		html: false, // escape any markup in the source
-		linkify: false, // only explicit links become links
+		html: false,
+		linkify: false,
 		breaks: false,
 		typographer: false
 	});
@@ -183,8 +166,8 @@ function createRenderer(options: RenderOptions): InstanceType<typeof MarkdownIt>
 
 	md.renderer.rules.link_open = (tokens, idx, opts, env, self) => {
 		const token = tokens[idx];
-		// Already pointing at a page of this site, and no source can claim this
-		// marker: `markup` is the parser's, not the document's.
+		// A task link already points at this site. A document cannot forge the
+		// marker, since only the parser sets `markup`.
 		if (token.markup === TASK_LINK) return defaultLinkOpen(tokens, idx, opts, env, self);
 
 		const href = String(token.attrGet('href') ?? '');
@@ -194,7 +177,7 @@ function createRenderer(options: RenderOptions): InstanceType<typeof MarkdownIt>
 			if (resolved) token.attrSet('href', resolved);
 			else token.attrs = (token.attrs ?? []).filter(([name]) => name !== 'href');
 		} else {
-			// External destinations open away from the page and cannot reach back.
+			// An external page opens in a new tab, without access to this one.
 			token.attrSet('rel', 'noopener noreferrer');
 			token.attrSet('target', '_blank');
 		}
@@ -226,9 +209,8 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
 }
 
 /**
- * Renders a single line without wrapping it in a paragraph, for titles, which
- * routinely carry inline code in this format (`` `tatr ls` relative paths are
- * broken ``). Showing the backticks raw would be showing the file, not the task.
+ * Renders one line without a paragraph, for titles, which often carry inline
+ * code (`` `tatr ls` relative paths are broken ``).
  */
 export function renderInline(source: string, options: RenderOptions): string {
 	return createRenderer(options).renderInline(source);

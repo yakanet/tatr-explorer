@@ -1,15 +1,10 @@
 /**
- * The keyboard map, kept apart from the listener that feeds it.
+ * The keyboard map, kept apart from its listener so that what a keystroke
+ * means can be tested without a DOM.
  *
- * Deciding what a keystroke means is a pure function of the key and whatever
- * half-finished sequence preceded it, so it is worth asserting rather than
- * driving a browser to find out. The listener's own job (ignoring keys typed
- * into a field, ignoring modified keys) is the part that needs a DOM.
- *
- * The bindings are the ones a reader of this format already has in their
- * fingers: `j`/`k` and `g g` from vi, `/` and `?` from less, `1`-`9` from
- * anything with tabs, `b` for branch. Arrows do whatever their vi twin does, so
- * nothing here has to be learned to be usable.
+ * The bindings come from tools a reader already knows: `j`/`k` and `g g` from
+ * vi, `/` and `?` from less, `1`-`9` from tabbed apps, `b` for branch. Arrows do what
+ * their vi twin does.
  */
 
 export type Action =
@@ -29,10 +24,7 @@ export type Action =
 	/** Open the header's field for reading another branch. */
 	| { kind: 'branch' };
 
-/**
- * What a partly-typed sequence leaves behind. Only `g` starts one, so this is a
- * single slot rather than a buffer: `g g` is the whole of the grammar.
- */
+/** The sequence typed so far: a single slot, since `g g` is the only sequence. */
 export interface Pending {
 	sequence: 'g' | null;
 }
@@ -59,11 +51,8 @@ const SIMPLE: Record<string, Action> = {
 };
 
 /**
- * Reads one keystroke.
- *
- * Anything unrecognised clears a pending sequence rather than holding it: `g x`
- * has to be inert, or a stray key would leave `g` armed and turn the reader's
- * next `g` into a jump they did not ask for.
+ * Reads one keystroke. Any key but `g` clears a pending `g`, so a stray key
+ * cannot leave it armed and turn the next `g` into an unwanted jump.
  */
 export function press(key: string, pending: Pending = NOTHING_PENDING): Pressed {
 	if (pending.sequence === 'g') {
@@ -88,17 +77,13 @@ interface Binding {
 	keys: string;
 	does: string;
 	/**
-	 * The action that only some pages offer: a nav to switch between, a branch
-	 * to choose. The help panel leaves the binding out elsewhere rather than
-	 * advertise a key that is inert there.
+	 * The action this binding needs, which only some pages offer. The help panel
+	 * hides the binding elsewhere rather than list a key that does nothing there.
 	 */
 	needs?: Extract<Action['kind'], 'view' | 'branch'>;
 }
 
-/**
- * Every binding, for the help panel. Ordered as it should be read, not as the
- * table above happens to be written.
- */
+/** Every binding, for the help panel, in reading order rather than the order of `SIMPLE`. */
 export const BINDINGS: readonly Binding[] = [
 	{ keys: 'j / k', does: 'move down and up' },
 	{ keys: '↓ / ↑', does: 'the same' },

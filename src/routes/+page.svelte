@@ -13,7 +13,7 @@
 	import { openStore } from '#lib/sources/store.ts';
 	import { describeAge } from '#lib/state/repository.svelte.ts';
 
-	/** The two ways in, in the order the tabs read. */
+	/** The two places a reader can open tasks from, in tab order. */
 	const WHERE = [
 		{ id: 'remote', name: 'A repository' },
 		{ id: 'local', name: 'A folder' }
@@ -21,8 +21,9 @@
 
 	let where = $state<(typeof WHERE)[number]['id']>('remote');
 	/**
-	 * Read once, in the browser: the local panel only ever renders after a click,
-	 * so the prerendered HTML never carries an answer to correct.
+	 * The folder access this browser offers, read once. The prerendered HTML
+	 * never shows a wrong answer, because the local panel renders only after a
+	 * click.
 	 */
 	const access = folderAccess();
 	let input = $state('');
@@ -30,7 +31,7 @@
 
 	let helping = $state(false);
 
-	/** Arrow keys move between tabs, which is what makes them tabs. */
+	/** Moves between tabs with the arrow keys, as the ARIA tab pattern expects. */
 	function move(event: KeyboardEvent) {
 		const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
 		if (step === 0) return;
@@ -44,9 +45,9 @@
 	let suggestions = $state<Suggestion[]>([]);
 
 	/**
-	 * The cache decides what to offer, so this runs in the browser only: the
-	 * page is prerendered, and the static HTML ships with nothing in this slot
-	 * rather than with a guess that would flash and be replaced.
+	 * Reads the suggestions from the cache in the browser only, so the
+	 * prerendered HTML leaves the slot empty rather than shipping a guess that
+	 * would flash and be replaced.
 	 */
 	$effect(() => {
 		let alive = true;
@@ -56,7 +57,7 @@
 				if (alive) suggestions = toSuggestions(rows, formatRepoPath);
 			})
 			.catch(() => {
-				// Storage can be unavailable; the fallback is still worth showing.
+				// Storage can be unavailable, and the fallback is still worth showing.
 				if (alive) suggestions = toSuggestions([], formatRepoPath);
 			});
 		return () => {
@@ -75,7 +76,7 @@
 		goto(resolve('/[...repo]', { repo: formatRepoPath(ref) }));
 	}
 
-	/** "64 tasks, 23 still open", or why the fallback is offered. */
+	/** Describes a suggestion, such as "64 tasks, 23 still open", or why the fallback is offered. */
 	function describe(one: Suggestion): string {
 		if (one.storedAt === null) return "This viewer's own backlog";
 		const tasks = `${one.total} ${one.total === 1 ? 'task' : 'tasks'}`;
@@ -87,10 +88,9 @@
 	<title>tatr explorer</title>
 </svelte:head>
 
-<!-- The page a reader arrives on was the only one without a keyboard. There is
-     no nav here to switch between, so `1`-`9` stay unwired rather than being
-     given something invented for them; what is left is walking the
-     repositories, opening one, `/` for the box, and `?` for the list. -->
+<!-- The landing page has no views to switch between, so `1`-`9` stay unbound.
+     The other shortcuts walk and open the repositories, focus the box with `/`,
+     and show the key list with `?`. -->
 <Shortcuts
 	onhelp={() => (helping = !helping)}
 	ondismiss={() => (helping = false)}
@@ -111,8 +111,8 @@
 		Nothing is uploaded: the files are read in your browser.
 	</p>
 
-	<!-- Two ways in, one at a time: each needs a line of explanation, and stacked
-	     they read as one crowded instruction rather than a choice. -->
+	<!-- The two ways in are tabs, shown one at a time, because each needs a line
+	     of explanation and stacked they read as one crowded instruction. -->
 	<div class="segmented tabs" role="tablist" aria-label="Where the tasks are">
 		{#each WHERE as option (option.id)}
 			<button
@@ -157,8 +157,9 @@
 				<button type="submit" class="action primary">Open</button>
 			</form>
 
-			<!-- The parser takes all four, and nothing on screen admitted it. It reads
-			     a remote on any host, but only GitHub is served, so the line says so. -->
+			<!-- The line lists the four forms the parser accepts. It names GitHub
+			     because the parser reads a remote on any host but only GitHub is
+			     supported. -->
 			<p class="accepts">
 				Accepts <code>owner/name</code>, a GitHub URL or SSH remote, or
 				<code>owner/name@branch</code>.
@@ -169,7 +170,8 @@
 			{/if}
 		</div>
 	{:else}
-		<!-- The one repository a public URL cannot reach is the one being worked in. -->
+		<!-- A folder covers the repository a public URL cannot reach: the one being
+		     worked in. -->
 		<div role="tabpanel" id="panel-local" aria-labelledby="tab-local">
 			{#if access === 'none'}
 				<p class="accepts">
@@ -181,8 +183,9 @@
 					<FolderPicker />
 					<span class="hint">private, unpushed, offline: whatever is checked out right now</span>
 				</div>
-				<!-- What the browser is about to ask depends on which door it has, and
-				     a surprise dialog reads as a warning about this site. -->
+				<!-- The text announces what the browser will ask, which depends on its
+				     folder access, because an unexpected dialog reads as a warning
+				     about this site. -->
 				{#if access === 'picker'}
 					<p class="accepts">
 						Your browser will ask for access to that one folder, and <strong>Refresh</strong> will reread
@@ -199,8 +202,9 @@
 		</div>
 	{/if}
 
-	<!-- First, being the folder the server was started for, and under a heading
-	     of its own: it was neither read before nor is it a suggestion. -->
+	<!-- The served folder comes first, under its own heading, because the dev
+	     server was started for it and it is neither a past reading nor a
+	     suggestion. -->
 	{#if SERVED}
 		<section class="recent">
 			<h2>Served by this dev server</h2>
@@ -263,7 +267,8 @@
 		text-wrap: balance;
 	}
 
-	/* Mid-sentence, so it does not hang into the space before it. */
+	/* The highlight sits mid-sentence here, so it must not hang into the space
+	   before it. */
 	h1 code {
 		margin-left: 0;
 		font-size: 1em;

@@ -21,8 +21,8 @@
 	const id = $derived(page.params.id ?? '');
 	const task = $derived(repo.tasks.find((candidate) => candidate.id === id));
 
-	// Bodies are not cached, so a task opened from a cached repository fetches
-	// its own prose. It costs no quota and takes about 30 ms.
+	// Descriptions are not cached, so a task opened from a cached repository
+	// fetches its own.
 	let body = $state<string | null>(null);
 	let loadingBody = $state(false);
 
@@ -31,10 +31,8 @@
 		if (!current) return;
 		if (current.description !== undefined) {
 			body = current.description;
-			// Reachable while a fetch is in flight: a refresh replaces the task
-			// with one that carries its description, and this branch is what the
-			// next run takes. Without the reset the page keeps saying it is
-			// reading a body it already has.
+			// A refresh can replace the task with one that carries its description
+			// while a fetch is in flight, so the loading flag is cleared here too.
 			loadingBody = false;
 			return;
 		}
@@ -60,10 +58,9 @@
 	const renderOptions = $derived({
 		assetUrl: repo.assetUrl,
 		taskId: id,
-		// An id this repository does not have (most of the ones our tasks cite
-		// are upstream's) would lead a reader to `No such task`, and this task's
-		// own id to the page it is written on. Resolved against the same list the
-		// References panel uses, so a body links exactly what the panel lists.
+		// Only ids of other tasks in this repository become links: an unknown id
+		// would lead to `No such task`, and this task's own id to this page. The
+		// References panel uses the same list, so the body links what it lists.
 		taskUrl: (other: string) =>
 			other !== id && repo.tasks.some((candidate) => candidate.id === other)
 				? taskHref(other)
@@ -72,15 +69,15 @@
 	const render = (source: string) => renderMarkdown(source, renderOptions);
 	const inline = (source: string) => renderInline(source, renderOptions);
 
-	/** Tasks this one points at, and tasks pointing back at it. */
+	/** The files in the task's folder beside its TASK.md. */
 	const attachments = $derived(task?.attachments ?? []);
 
-	/** `null` when a path climbs out of `tasks/`, which the panel then shows inert. */
+	/** The URL of an attached file, or null when its path climbs out of `tasks/`. */
 	const attachmentUrl = (name: string) =>
 		task ? resolveAttachment({ assetUrl: repo.assetUrl, taskId: task.id }, name) : null;
 
-	// A task citing itself is neither a task it refers to nor one referring here,
-	// which together would read "mutual": it has a line of its own.
+	// A task citing itself is left out of both lists, where it would read as
+	// "mutual", and gets a row of its own.
 	const outgoing = $derived(
 		(task?.references ?? [])
 			.filter((other) => other !== id)
@@ -94,14 +91,11 @@
 	const mutual = $derived(new Set(incoming.map((other) => other.id)));
 
 	/**
-	 * The file this page is a reading of, on the forge.
-	 *
-	 * Where a reader goes for the history, the blame and the raw markdown, none
-	 * of which this viewer computes: the format holds no modification date, and
-	 * asking the API for one costs a request per task.
+	 * The task's TASK.md on the forge, where the reader finds its history, blame
+	 * and raw markdown. The viewer does not show those because the format holds
+	 * no modification date and the API would cost a request per task. It is null
+	 * when the source has no page to link to, such as a local folder.
 	 */
-	// Absent for a folder on this machine, which is the source saying there is no
-	// page anywhere to link this file to, rather than this view knowing that.
 	const fileUrl = $derived(repo.fileUrl(`tasks/${id}/TASK.md`));
 
 	const listHref = $derived(resolve('/[...repo]/list', { repo: formatRepoPath(ref) }));
@@ -113,9 +107,8 @@
 
 <main>
 	{#if repo.phase !== 'ready'}
-		<!-- The reading's progress, or why there is none, as every other view says
-		     it: a failed reading has to say so, and a local folder lost to a reload
-		     has to be offered again, not waited for. -->
+		<!-- RepoStatus shows the progress or the failure, as on every other view, so
+		     a local folder lost on reload is offered again rather than waited for. -->
 		<div class="wide"><RepoStatus {repo} {ref} /></div>
 	{:else if !task}
 		<section class="panel">
@@ -213,10 +206,10 @@
 					<h2>Files</h2>
 					<ul class="files">
 						{#each attachments as file (file.path)}
-							<!-- Through resolveAttachment, which refuses a path climbing out of
-							     tasks/ and pins the host, exactly as a link in the body goes.
-							     Opened in a new tab: these are raw files, not pages of this
-							     site. -->
+							<!-- The URL comes from resolveAttachment, which refuses a path
+							     climbing out of tasks/ and pins the host, as for a link in the
+							     body. It opens in a new tab because it is a raw file, not a page
+							     of this site. -->
 							{@const href = attachmentUrl(file.name)}
 							<li>
 								{#if href}
@@ -258,15 +251,16 @@
 		align-items: start;
 	}
 
-	/* Across both columns: the panel belongs to neither the article nor the
-	   sidebar, and its own markup is another component's to style. */
+	/* The status and not-found panels span both columns because they belong to
+	   neither the article nor the sidebar. `.wide` wraps RepoStatus, whose
+	   markup this page cannot style. */
 	.wide,
 	main > section {
 		grid-column: 1 / -1;
 	}
 
-	/* The sidebar goes under the article on a narrow screen, rather than
-	   squeezing it or pushing the page sideways. */
+	/* Below 50rem the sidebar goes under the article rather than squeezing it
+	   or pushing the page sideways. */
 	@media (max-width: 50rem) {
 		main {
 			grid-template-columns: minmax(0, 1fr);
@@ -296,8 +290,8 @@
 		margin-bottom: 0.875rem;
 	}
 
-	/* The status as the file writes it, in a pill: lilac while open, grey once
-	   closed, so the word and the tint agree. */
+	/* The status pill takes the accent while open and grey once closed, so the
+	   tint agrees with the word. */
 	.status {
 		display: inline-flex;
 		align-items: center;
@@ -338,30 +332,26 @@
 	}
 
 	/*
-	 * A body is a journal: the original description, then whatever was appended
-	 * after it, split on `---`. The bullets mark where each entry starts and the
-	 * rule joins them, so the shape says "added over time" on its own.
+	 * A body is a journal: the description, then each entry appended after a
+	 * `---`. A bullet marks where each entry starts and a rule joins them, so the
+	 * shape shows entries added over time.
 	 *
-	 * They are deliberately all the same colour. Highlighting the last one coded
-	 * nothing the reader could not already see (it is the one at the bottom),
-	 * and a colour that carries no meaning still asks to be decoded. Dating them
-	 * instead is not an option here: not one of the 97 journal entries in
-	 * tsoding/tatr carries a date. The `## NOTE(<huid>)` headings that do are a
-	 * different convention, written inside a body rather than between entries,
-	 * and markdown already renders them.
+	 * All bullets share one colour, because a colour with no meaning still asks
+	 * to be decoded. Entries are not dated: no journal entry in tsoding/tatr
+	 * carries a date.
 	 */
 	.entry {
 		display: flex;
 		gap: 1rem;
 		position: relative;
-		/* Where a bullet's centre sits: its top margin plus half its height. */
+		/* A bullet's centre: its top margin plus half its height. */
 		--bullet-mid: calc(0.65rem + 3.5px);
 	}
 
 	/* The rule runs the height of every entry, so it reaches the end of the text
-	   rather than stopping at the last bullet, which read as unfinished whenever
-	   the last entry was long. It starts at the first bullet's centre, since
-	   nothing precedes it there. */
+	   rather than stopping at the last bullet, which looks unfinished after a
+	   long entry. It starts at the first bullet's centre, since nothing precedes
+	   it. */
 	.entry::before {
 		content: '';
 		position: absolute;
@@ -369,9 +359,8 @@
 		bottom: 0;
 		left: 3px;
 		width: 1px;
-		/* The bullets' own colour: `--border` disappears against the card in dark
-		   mode, being a step away from the surface it sits on. At 1px against a
-		   7px dot it still reads as the lighter of the two. */
+		/* The rule takes the bullets' colour because `--border` disappears against
+		   the card in dark mode. At 1px beside a 7px dot it still reads lighter. */
 		background: var(--baseline);
 	}
 
@@ -379,8 +368,8 @@
 		top: var(--bullet-mid);
 	}
 
-	/* A single entry is not a sequence, so it gets no rule at all: a line down
-	   the side of one block reads as a quotation, not as a journal. */
+	/* A single entry gets no rule, because a line beside one block reads as a
+	   quotation rather than a journal. */
 	.entry.first.last::before {
 		display: none;
 	}
@@ -392,14 +381,14 @@
 		margin-top: 0.65rem;
 		border-radius: 50%;
 		background: var(--baseline);
-		/* Above the rule, and it paints over the piece running behind it. */
+		/* The bullet sits above the rule, and its ring hides the rule behind it. */
 		position: relative;
 		z-index: 1;
 		box-shadow: 0 0 0 3px var(--surface);
 	}
 
-	/* A description is read, so it wraps at the width a line of a TASK.md has
-	   in an editor rather than at the card's. */
+	/* The description wraps at the width of a TASK.md line in an editor rather
+	   than at the card's, to keep lines readable. */
 	.prose {
 		flex-grow: 1;
 		max-width: 72ch;
@@ -408,8 +397,8 @@
 		min-width: 0;
 	}
 
-	/* Underlined as well as coloured, so a link in running text is not told
-	   apart by hue alone. */
+	/* Links in the description are underlined as well as coloured, so they are
+	   not told apart by hue alone. */
 	.prose :global(a) {
 		color: var(--accent-strong);
 		text-decoration: underline;

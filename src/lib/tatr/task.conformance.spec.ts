@@ -4,14 +4,13 @@ import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json'
 import { compareByPriority, readTask } from './task.ts';
 
 /**
- * Differential test of the parser against the reference implementation.
+ * Compares the parser with the reference implementation over tsoding/tatr.
  *
- * `tsoding-tatr-raw.json` holds the 79 `TASK.md` files of tsoding/tatr verbatim;
- * `tatr-ls-output.json` holds what the compiled `tatr ls` binary printed for the
- * same folder. Every field the CLI shows (status, priority, tags, title) is
- * re-derived here and compared, so a divergence from the C parser fails the suite.
- *
- * To regenerate: `pnpm run fixtures`.
+ * `tsoding-tatr-raw.json` holds its 79 `TASK.md` files verbatim, and
+ * `tatr-ls-output.json` what the compiled `tatr ls` printed for them. Every
+ * field the CLI shows (status, priority, tags, title) is compared, so a
+ * divergence from the C parser fails the suite. `pnpm run fixtures` regenerates
+ * both.
  */
 interface CliRow {
 	id: string;
@@ -64,9 +63,8 @@ describe('conformance with the tatr parser', () => {
 		for (const [id, source] of Object.entries(sources)) {
 			for (const key of readTask(id, source)!.properties.keys()) keys.add(key);
 		}
-		// Upstream's 20260912-102943 exists to exercise `[other properties]`, which
-		// the spec now documents and the CLI ignores: `FOO` and `DUPLICATE` sit
-		// among the three, and are kept rather than dropped.
+		// Upstream's 20260912-102943 exercises `[other properties]`, which the
+		// format's spec documents and the CLI ignores; `FOO` and `DUPLICATE` are kept.
 		expect([...keys].sort()).toEqual(['DUPLICATE', 'FOO', 'PRIORITY', 'STATUS', 'TAGS']);
 	});
 
@@ -95,15 +93,13 @@ describe('conformance with the tatr parser', () => {
 		);
 		const nodes = new Set(edges.flatMap((edge) => edge.split('->')));
 
-		// Measured on the real repository. Counting these correctly means honouring
-		// team suffixes: `20260826-204052` cites `20260830-000838-rexim`, an edge a
-		// pattern without the suffix silently misses.
+		// These counts need team suffixes: `20260826-204052` cites
+		// `20260830-000838-rexim`, which a pattern without the suffix misses.
 		expect(edges).toHaveLength(36);
 		expect(nodes.size).toBe(36);
 
-		// The hub, upstream's mass-update task, cited by eight others. One of them,
-		// 20260912-102943, names it only in its title, which a scan of the body
-		// alone would miss.
+		// Upstream's mass-update task is cited by eight others, one of them
+		// (20260912-102943) only in its title, which a body-only scan would miss.
 		const incoming = edges.filter((edge) => edge.endsWith('->20260828-211200'));
 		expect(incoming).toHaveLength(8);
 	});

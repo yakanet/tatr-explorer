@@ -77,7 +77,7 @@ describe('byTag', () => {
 
 describe('byMonth', () => {
 	it('matches the real repository, including its bursts', () => {
-		// Only five months have anything; the quiet ones are the point.
+		// Only five months have tasks.
 		expect(byMonth(all)).toEqual([
 			{ month: '2025-12', open: 0, closed: 2 },
 			{ month: '2026-01', open: 0, closed: 0 },
@@ -191,8 +191,6 @@ describe('summarise', () => {
 	});
 
 	it('names the month a quiet repository stopped at, not a duration', () => {
-		// "nothing new in seven months" reads as a countdown from today and invites
-		// the reader to work out when that was; the month itself does not.
 		const tasks = [make('20260101-000001', 100, ['bug']), make('20260201-000001', 100, ['bug'])];
 		expect(summarise(tasks, new Date('2026-09-07T00:00:00Z')).detail).toBe(
 			'the latest arrived in February 2026'

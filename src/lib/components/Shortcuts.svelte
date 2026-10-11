@@ -9,21 +9,19 @@
 		modal = false
 	}: {
 		/**
-		 * Switch to the view at this position in the nav. Absent where there is
-		 * no nav, as on the homepage, and `1`-`9` then do nothing rather than
-		 * being wired to something invented for them.
+		 * Switches to the view at this position in the nav. Absent where there is
+		 * no nav, as on the homepage, where `1`-`9` then do nothing.
 		 */
 		onview?: (index: number) => void;
-		/** `b`: absent where there is no branch to choose, a folder or the homepage. */
+		/** `b`: absent where there is no branch to choose, as for a folder or on the homepage. */
 		onbranch?: () => void;
 		onhelp: () => void;
 		/** Escape, which the layout uses to close whatever it has open. */
 		ondismiss: () => void;
 		/**
-		 * True while something modal is open. Navigation then does nothing: moving
-		 * the focus would take it out of a dialog that claims `aria-modal`, and a
-		 * row lighting up behind a panel is nobody's intent. Cheaper than trapping
-		 * the focus, and this layer is what opened the panel, so it already knows.
+		 * True while something modal is open. Navigation then does nothing,
+		 * because moving the focus would take it out of a dialog that claims
+		 * `aria-modal`. This is simpler than trapping the focus.
 		 */
 		modal?: boolean;
 	} = $props();
@@ -31,29 +29,19 @@
 	let pending = $state<Pending>(NOTHING_PENDING);
 
 	/**
-	 * Whatever the reader can walk with `j`/`k`, in the order it is drawn.
-	 *
-	 * Read from the document rather than registered by each view: a view says
-	 * what is navigable by marking it, and one implementation then serves the
-	 * list, the graph and the dashboard alike. Marking a focusable element is
-	 * also what keeps Enter working without a line of code: the row *is* a link.
+	 * The elements `j`/`k` walk, in document order. Views mark them with
+	 * `data-key-row` rather than registering them, so one implementation serves
+	 * every view, and Enter works because a marked row is a link.
 	 */
 	const rows = () => [...document.querySelectorAll<HTMLElement>('[data-key-row]')];
 
 	/**
-	 * Where the focus sits among them, or -1 when it sits elsewhere.
+	 * The index of the row holding the focus, or -1 when the focus is elsewhere.
 	 *
-	 * Two ways of sitting somewhere, and only one of them is obvious. The focus
-	 * may be the mark or inside it (a link inside a marked node), which the
-	 * containment test finds. Or it may be a *cousin*: a list row marks its
-	 * title link, and the tag buttons beside it live in another cell, so
-	 * neither element contains the other. A reader who tabbed to a tag was
-	 * nowhere, and `j` restarted from the top instead of moving one row.
-	 *
-	 * `closest('[data-key-row]')` does not answer that, whatever this task
-	 * first claimed: it walks ancestors, and no ancestor of the tag carries the
-	 * mark. What does answer it is walking up until an ancestor is found that
-	 * *holds* a mark: the first one that does is the row itself.
+	 * The focus may be on a marked element or inside it. It may also sit beside
+	 * one: a list row marks its title link, while its tag buttons live in
+	 * another cell. `closest` cannot find that row, since no ancestor of a tag
+	 * carries the mark, so this walks up to the first ancestor holding a mark.
 	 */
 	function current(items: HTMLElement[]): number {
 		const active = document.activeElement;
@@ -65,23 +53,18 @@
 		for (let node = active.parentElement; node; node = node.parentElement) {
 			const marks = node.querySelectorAll<HTMLElement>('[data-key-row]');
 			if (marks.length === 0) continue;
-			// One mark is a row. More than one means the walk has climbed out of
-			// the row into something holding all of them, and the focus is beside
-			// the list rather than in it, where `j` should land on the first row
-			// rather than move on from it.
+			// An ancestor holding several marks is the whole list, so the focus is
+			// beside the list rather than in a row.
 			return marks.length === 1 ? items.indexOf(marks[0]) : -1;
 		}
 		return -1;
 	}
 
 	/**
-	 * Moves the focus and says so, with an attribute the views style.
-	 *
-	 * `:focus-visible` cannot carry this: the browser decides when to match it,
-	 * and a focus moved by script only qualifies if the browser judges the
-	 * current interaction to be a keyboard one, which it does not reliably do
-	 * for a focus *we* moved. Since `j`/`k` are useless without a visible focus,
-	 * the mark has to be ours rather than the browser's guess.
+	 * Moves the focus and marks it with `data-key-focus`, which the views style.
+	 * `:focus-visible` is not enough, because browsers do not reliably match it
+	 * for a focus moved by script, and `j`/`k` are useless without a visible
+	 * focus.
 	 */
 	function focus(item: HTMLElement | undefined) {
 		if (!item) return;
@@ -91,12 +74,12 @@
 		}
 		item.setAttribute('data-key-focus', '');
 		item.focus();
-		// `nearest` scrolls only when it has to, so walking a visible list does
-		// not yank the page about.
+		// `nearest` scrolls only when needed, so walking a visible list keeps the
+		// page still.
 		item.scrollIntoView({ block: 'nearest' });
 	}
 
-	/** The mark belongs to the focus, so it leaves with it. */
+	/** Removes the focus mark from the element that loses the focus. */
 	function onfocusout(event: FocusEvent) {
 		if (event.target instanceof HTMLElement) event.target.removeAttribute('data-key-focus');
 	}
@@ -121,10 +104,8 @@
 	}
 
 	/**
-	 * Whether a keystroke belongs to whatever the reader is typing into.
-	 *
-	 * Without this, `j` in the query box would walk the list instead of spelling
-	 * a word. Escape is the exception: leaving a field is exactly what it is for.
+	 * Whether the keystroke's target is a field being typed into, so that `j` in
+	 * the query box types a letter. Escape still leaves the field.
 	 */
 	function isTyping(target: EventTarget | null): boolean {
 		if (!(target instanceof HTMLElement)) return false;
@@ -151,8 +132,7 @@
 		if (!pressed.action) return;
 
 		const action = pressed.action;
-		// The panel owns Escape while it is up, and `?` still toggles it. Nothing
-		// else reaches the page behind.
+		// Behind a modal panel, only `?` and Escape still act.
 		if (modal && action.kind !== 'help' && action.kind !== 'dismiss') return;
 		if (action.kind === 'search') {
 			const box = document.querySelector<HTMLElement>('[data-key-search]');

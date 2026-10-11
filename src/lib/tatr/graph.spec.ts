@@ -6,7 +6,7 @@ import { readTask, type Task } from './task.ts';
 
 /**
  * `tatr-graph-edges.json` holds the arrows the compiled `tatr graph` wrote into
- * its `graph.dot` for tsoding/tatr, sorted. To regenerate: `pnpm run fixtures`.
+ * its `graph.dot` for tsoding/tatr, sorted. `pnpm run fixtures` regenerates it.
  */
 const sources = rawTasks as Record<string, string>;
 const all = Object.entries(sources).map(([id, source]) => readTask(id, source)!);
@@ -197,9 +197,8 @@ describe('star cards', () => {
 	});
 
 	it('lets a task appear in more than one card', () => {
-		// a cites b and c; d cites b and c too. Two pivots, a and d, each with b
-		// and c beside it, or b and c as pivots. Either way some task is shown
-		// twice, which is the point: a card holds a pivot's own links only.
+		// a and d both cite b and c, so whichever tasks become pivots, some task
+		// appears in two cards.
 		const tasks = [
 			make('20260101-000001', '20260101-000002 20260101-000003'),
 			make('20260101-000002'),

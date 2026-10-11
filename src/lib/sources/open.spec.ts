@@ -8,10 +8,10 @@ import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/f
 import { GitHubRepositorySource } from './github/source.ts';
 import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 
-/** The folder on this machine, as one of our URLs names it. */
+/** The reference to the folder on this machine, as this site's URL names it. */
 const LOCAL = parseRepoPath('local')!;
 
-/** `source`, which a spec has just made sure has the capability `is` tests for. */
+/** `source`, narrowed to the capability `is` checks, or a throw when it lacks it. */
 function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
 	if (!is(source)) throw new Error(`${source.label} lacks what ${is.name} asks for`);
 	return source;
@@ -29,8 +29,6 @@ describe('the registry', () => {
 	});
 
 	it('gives no path and no host to two sources', () => {
-		// The property a record depends on: with disjoint addresses there is no
-		// precedence to encode, so nothing rests on the order of the keys.
 		const addresses = Object.values(SOURCES).flatMap((sourceClass) => {
 			if ('path' in sourceClass.address) return [sourceClass.address.path];
 			return [...sourceClass.address.hosts];
@@ -41,12 +39,10 @@ describe('the registry', () => {
 
 describe('our own addresses', () => {
 	it('read a forge address on any host, a host nothing reads included', () => {
-		// So that a link to one opens a page that says so, rather than a 404.
 		expect(parseRepoPath('owner/repo')).toEqual({
 			...parseForgePath('owner/repo'),
 			source: 'github'
 		});
-		// No source reads it, and the reference says so, rather than being none.
 		expect(parseRepoPath('gitlab.com/group/project')).toMatchObject({
 			host: 'gitlab.com',
 			source: null
@@ -59,7 +55,7 @@ describe('our own addresses', () => {
 	});
 
 	it('leave the served folder out where none is served, as here and in a build', () => {
-		// The dev server defines which folder it serves; these specs run with none.
+		// Only the dev server serves a folder, and these specs run without one.
 		expect(parseRepoPath('served')).toBeNull();
 	});
 });
@@ -92,10 +88,8 @@ describe('openSource', () => {
 		closeFolder();
 		const source = openSource(LOCAL);
 		expect(source).toBeInstanceOf(LocalFolderSource);
-		// With no folder behind it, as after a reload, it still names the reading.
+		// No folder is open, as after a reload, and the reading still has a name.
 		expect(source.label).toBe('a folder on this machine');
-		// The two capabilities whose absence says what a folder is: nowhere to
-		// cache it, and no page anywhere to link one of its files to.
 		expect(isCached(source)).toBe(false);
 		expect(isLinked(source)).toBe(false);
 	});
@@ -106,18 +100,13 @@ function dropped(path: string, text: string): File {
 	return fileList('my-project', { [path]: text })[0];
 }
 
-/**
- * What each source does when asked, rather than what it says about itself,
- * through `openSource`, the one way the application opens a source.
- */
+/** What each source does, opened through `openSource` as the application opens it. */
 describe('reading through a forge', () => {
 	const ref = parseRepoPath('owner/repo')!;
 
 	it('can be refreshed, having only a request to spend', async () => {
 		const source = openSource(ref);
 		expect(isRereadable(source)).toBe(true);
-		// Nothing for the source to do: a forge's refresh is the loader ignoring
-		// the cache.
 		await expect(having(source, isRereadable).reread()).resolves.toBeUndefined();
 	});
 });
@@ -146,23 +135,20 @@ describe('reading through a folder', () => {
 	});
 
 	it('cannot be refreshed when the folder came from a directory input', () => {
-		// No handle was kept, so there is no way back to the folder: the view
-		// offers to reopen rather than a Refresh that would do nothing.
+		// A directory input gives no handle, so there is no way back to the folder.
 		const source = open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
 		expect(isRereadable(source)).toBe(false);
 	});
 
 	it('is one source for every reading of the folder, until another is picked', async () => {
-		// Coming back to the folder finds it as it was last read, and the URLs it
-		// handed out still good.
+		// Coming back to the folder finds it as last read, and the URLs it handed out still valid.
 		open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
 		expect(openSource(LOCAL)).toBe(openSource(LOCAL));
 	});
 
 	it('lets go of its folder when another is picked, rather than reading that one', async () => {
-		// A source is the folder it was opened on, never whichever is open now:
-		// a write from the reading being replaced would otherwise land in the
-		// folder just picked, which may be another worktree with the same task ids.
+		// Otherwise a write from the replaced reading would land in the folder
+		// just picked, which may be another worktree with the same task ids.
 		const before = open([dropped('tasks/20260101-000001/TASK.md', '# before\n')]);
 		open([dropped('tasks/20260101-000001/TASK.md', '# after\n')]);
 
@@ -176,9 +162,8 @@ describe('reading through a folder', () => {
 	});
 
 	it('keeps the URL of an unchanged file through a refresh, until the folder goes', async () => {
-		// The views go on showing a reading until the next one lands, and a body
-		// that is not rendered again still links to what was handed out before;
-		// one that is comes out as the same HTML.
+		// A view shows the old reading, and links to its URLs, until the next one
+		// lands; a body rendered again then comes out as the same HTML.
 		const handle = directory('my-project', { 'tasks/20260101-000001/shot.png': 'png' });
 		openFolder(await fromDirectoryHandle(handle), handle);
 		const source = openSource(LOCAL);
@@ -195,8 +180,8 @@ describe('reading through a folder', () => {
 	});
 
 	it('can be refreshed when it was dropped on Firefox, reading what changed on disk', async () => {
-		// The entry tree of a drop walks again on demand, no dialog: measured on
-		// Firefox, and what turns its "Reopen…" into a Refresh.
+		// A drop's entry tree walks again without a dialog (checked on Firefox),
+		// so a dropped folder offers Refresh rather than "Reopen…".
 		const tree = { 'tasks/20260101-000001/TASK.md': '# before\n' };
 		const entry = entryTree('my-project', tree);
 		openFolder(await fromDirectoryEntry(entry), entry);
@@ -209,15 +194,15 @@ describe('reading through a folder', () => {
 	});
 
 	it('keeps the later of two overlapping refreshes, whichever finishes last', async () => {
-		// A change followed and a click overlap; the walk started first, holding
-		// the older tree, may well be the last one done. The later reading aborts
-		// the earlier one's signal, as the page does.
+		// A followed change and a click can overlap, and the first walk, holding
+		// the older tree, may finish last. The later reading aborts the earlier
+		// one's signal, as the page does.
 		const path = 'tasks/20260101-000001/TASK.md';
 		const older = directory('my-project', { [path]: '# older\n' });
 		const newer = directory('my-project', { [path]: '# newer\n' });
 		const { promise: held, resolve: release } = Promise.withResolvers<void>();
 		let holding = true;
-		// The walk starts at `tasks/`, which the first one reaches late and old.
+		// The first walk is held at `tasks/`, then reads the older tree.
 		const handle = {
 			...newer,
 			async getDirectoryHandle(name: string) {
@@ -244,7 +229,7 @@ describe('reading through a folder', () => {
 describe('following a folder', () => {
 	const task = { 'tasks/20260101-000001/TASK.md': '# a\n', '.git/HEAD': 'ref: refs/heads/main\n' };
 
-	/** What `FileSystemObserver` would be asked, and a way to report a change. */
+	/** A fake `FileSystemObserver`: what it was asked, and a way to report a change. */
 	const observer = (fails = false) => {
 		const seen = { observed: '', recursive: false, disconnected: false };
 		let report: (records: FileSystemChangeRecord[]) => void = () => {};

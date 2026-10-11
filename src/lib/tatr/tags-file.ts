@@ -1,13 +1,11 @@
 /**
- * Parser for the optional `tasks/tags` file, which documents what each tag means:
+ * Parses the optional `tasks/tags` file, which describes each tag, as
+ * `src/tatr.c` does:
  *
  *     <tag-name> [,] <tag-description>
  *
- * The separator is any run of whitespace and commas, so `tql,, Tatr Query
- * Language` (which exists upstream) names the tag `tql` and describes it as
- * `Tatr Query Language`.
- *
- * Behaviour taken from `src/tatr.c`.
+ * The separator is any run of whitespace and commas, so upstream's `tql,, Tatr
+ * Query Language` describes the tag `tql` as `Tatr Query Language`.
  */
 
 export interface TagDescriptions {

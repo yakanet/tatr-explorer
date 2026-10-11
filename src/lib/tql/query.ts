@@ -1,8 +1,7 @@
 /**
- * TQL: the Tatr Query Language, as accepted by `tatr ls`.
+ * Parses and evaluates TQL, the Tatr Query Language that `tatr ls` accepts.
  *
- * The grammar and the diagnostics of `src/query.c`, with one addition of
- * our own. The grammar:
+ * It follows the grammar and diagnostics of `src/query.c`, plus `~`:
  *
  *     expr    ::= or
  *     or      ::= and *( 'or' and )
@@ -11,27 +10,23 @@
  *     primary ::= ':' tag | '~' word | '~' '"' words '"' | '[' expr ']'
  *               | 'not' primary | 'any' | 'tagged' | 'priority' | number | huid
  *
- * Square brackets group instead of parentheses, and comparisons are spelled as
- * words, so a query survives a shell without quoting.
+ * Square brackets group instead of parentheses, and comparisons are words, so a
+ * query survives a shell without quoting.
  *
- * A `huid` is a task id, and selects the task whose id is exactly that: no
- * prefix matching, so `20260830-000838` does not find `20260830-000838-rexim`.
+ * A `huid` selects the task with exactly that id, so `20260830-000838` does not
+ * find `20260830-000838-rexim`.
  *
- * `~` searches titles, and it is the one thing the C implementation has no
- * notion of. The divergence is deliberate and one-directional: every query the
- * CLI accepts still behaves identically here, but a query written with `~` will
- * not run there. A browser reader has no `grep` beside the tool, so the
- * alternative was a second input box next to this language, which read as two
- * unrelated ways to say one thing.
+ * `~` searches titles, which the C implementation cannot do. The divergence runs
+ * one way: every query the CLI accepts behaves identically here, but a query
+ * using `~` will not run there. A reader in a browser has no `grep` to reach
+ * for, and a second search box beside the query would be two unrelated ways to
+ * say one thing. It is `~` rather than a quoted string because the match is
+ * loose (every word, any order, case ignored) and quotes promise a phrase
+ * everywhere else; here quotes only group words.
  *
- * `~` rather than a bare quoted string, because the match is loose (every word,
- * in any order, case ignored) and quotes promise a phrase everywhere else.
- * With `~` carrying that meaning, quotes are left doing the one honest job of
- * grouping words that contain spaces.
- *
- * Evaluation is typed: `and`, `or` and `not` take booleans, the comparison
- * operators take integers, and the whole query must yield a boolean. Type errors
- * are reported at the offending token rather than silently coerced.
+ * Evaluation is typed: `and`, `or` and `not` take booleans, comparisons take
+ * integers, and the query must yield a boolean. A type error is reported at the
+ * offending token rather than coerced.
  */
 
 import { isValidHuid } from '../tatr/huid.ts';
@@ -61,17 +56,14 @@ export interface TqlTask {
 	readonly id: string;
 	readonly tags: readonly string[];
 	readonly priority: number;
-	/** Read by `~` only, and absent from the C implementation's own query task. */
+	/** Read only by `~`, which the C implementation lacks. */
 	readonly title: string;
 }
 
 /**
- * Whether a title satisfies a `~` term.
- *
- * Every word has to appear, in any order and in any position, so
- * `~"support windows"` finds "Windows support"; typing the words in the wrong
- * order otherwise would not. Case is ignored; nothing else is normalised,
- * because titles are shown verbatim and a reader is matching what they see.
+ * Whether a title satisfies a `~` term: every word appears, in any order and
+ * case ignored, so `~"support windows"` finds "Windows support". Nothing else is
+ * normalised, because titles are shown verbatim and a reader matches what they see.
  */
 export function matchesTitle(title: string, search: string): boolean {
 	const words = search.toLowerCase().split(/\s+/).filter(Boolean);
@@ -83,7 +75,7 @@ export function matchesTitle(title: string, search: string): boolean {
 
 export class TqlError extends Error {
 	readonly span: Span;
-	/** Printed above the diagnostic, where the CLI prints one. */
+	/** Help printed above the diagnostic, for the errors where the CLI prints one. */
 	readonly help?: string;
 
 	constructor(message: string, span: Span, help?: string) {
@@ -95,12 +87,8 @@ export class TqlError extends Error {
 }
 
 /**
- * What `src/query.c` prints above this particular diagnostic, verbatim.
- *
- * Two primaries with nothing between them is the mistake a reader makes first
- * (`~support not ~mac` instead of `~support and not ~mac`), and the answer to
- * it is the list of things that could have gone in the gap, not the name of the
- * token that could not.
+ * The help `src/query.c` prints, verbatim, above an unexpected infix operator,
+ * such as two primaries with no operator between them (`~support not ~mac`).
  */
 const INFIX_HELP = `Supported infix operators:
 
@@ -108,11 +96,8 @@ const INFIX_HELP = `Supported infix operators:
     lt  le  gt  ge  eq  ne   - comparison operators`;
 
 /**
- * What `src/query.c` prints above the two diagnostics about a missing or
- * unrecognised primary, with `~` added to the list.
- *
- * Adding to it is the honest consequence of adding the primary: an aid that
- * enumerates the vocabulary and omits a word of it would be worse than none.
+ * The help `src/query.c` prints above a missing or unrecognised primary, with
+ * `~` added, because a list of the vocabulary that omits a word would mislead.
  */
 const PRIMARY_HELP = `What are primary expressions:
 
@@ -153,10 +138,10 @@ interface Token {
 }
 
 /**
- * Splits a query into tokens. Brackets are single-character tokens; everything
- * else runs until a bracket or whitespace, which is why tags may not contain
- * either, except inside quotes, where a run of anything up to the closing
- * quote belongs to the token, so `~"windows support"` stays one piece.
+ * Splits a query into tokens. Brackets are single-character tokens; any other
+ * token runs until a bracket or whitespace, so a tag cannot contain either.
+ * Inside quotes, everything up to the closing quote belongs to the token, so
+ * `~"windows support"` stays one piece.
  */
 export function tokenize(source: string): Token[] {
 	const tokens: Token[] = [];
@@ -177,8 +162,8 @@ export function tokenize(source: string): Token[] {
 			if (source[i] === '"') {
 				i += 1;
 				while (i < source.length && source[i] !== '"') i += 1;
-				// Left unclosed at the end of the source, which the parser reports:
-				// an unterminated quote is the normal state halfway through typing.
+				// An unclosed quote runs to the end and is left for the parser to report,
+				// because it is the normal state while typing.
 				if (i < source.length) i += 1;
 				continue;
 			}
@@ -195,7 +180,7 @@ export function parse(source: string): Node {
 	return parseWithWarnings(source).node;
 }
 
-/** Like {@link parse}, but also reports deprecated syntax rather than hiding it. */
+/** Like {@link parse}, but also returns warnings for deprecated syntax. */
 export function parseWithWarnings(source: string): ParseResult {
 	const tokens = tokenize(source);
 	const warnings: TqlWarning[] = [];
@@ -224,10 +209,8 @@ export function parseWithWarnings(source: string): ParseResult {
 
 		if (token.text.startsWith('~')) {
 			const rest = token.text.slice(1);
-			// Where the missing piece belongs, not on the sigil asking for it. The
-			// CLI puts the caret one past `[` and at the end of the line for
-			// `[:bug`, both of which read as "type it here"; a caret under the `~`
-			// reads as "the `~` is wrong", which it is not.
+			// The caret goes where the missing text belongs, as the CLI places it after
+			// `[` and `[:bug`; a caret under the `~` would say the `~` is wrong.
 			const missing: Span = { start: token.span.end, end: token.span.end };
 			if (rest.length === 0) {
 				throw new TqlError('Search text is expected here.', missing, PRIMARY_HELP);
@@ -236,13 +219,12 @@ export function parseWithWarnings(source: string): ParseResult {
 				return { kind: 'text', value: rest, span: token.span };
 			}
 			if (rest.length < 2 || !rest.endsWith('"')) {
-				// An unclosed quote is an unclosed bracket: same mistake, so the same
-				// words the CLI uses for `[:bug`: `Expected `]`.`, no help block,
-				// because naming the character that is missing is the whole advice.
+				// Worded as the CLI reports the unclosed bracket in `[:bug`, with no help
+				// block, since an unclosed quote is the same mistake.
 				throw new TqlError('Expected `"`.', missing);
 			}
 			const phrase = rest.slice(1, -1);
-			// Lower case and unpunctuated, like the `empty tag` printed for `:`.
+			// Worded like the CLI's `empty tag` for `:`: lower case, no full stop.
 			if (phrase.trim().length === 0) throw new TqlError('empty search', token.span);
 			return { kind: 'text', value: phrase, span: token.span };
 		}
@@ -266,7 +248,7 @@ export function parseWithWarnings(source: string): ParseResult {
 		if (token.text === 'tagged') return { kind: 'tagged', span: token.span };
 		if (token.text === 'priority') return { kind: 'priority', span: token.span };
 
-		// The shape alone, as `is_valid_huid` reads it: `tatr ls 20260231-000000`
+		// Checks the shape alone, as `is_valid_huid` does: `tatr ls 20260231-000000`
 		// parses and finds nothing, so refusing it here would be a divergence.
 		if (isValidHuid(token.text)) return { kind: 'id', id: token.text, span: token.span };
 
@@ -392,28 +374,20 @@ export function evaluate(node: Node, task: TqlTask): boolean {
 }
 
 /**
- * Parses once and returns a predicate. Prefer this when filtering a list, so the
- * query is not re-parsed per task.
- */
-/**
- * A stand-in task, so `compile` can settle the types before anything real is
- * matched.
+ * A stand-in task that `compile` evaluates once, to check types before any real
+ * task is matched.
  *
- * The language is typed but its checks run during evaluation, so `priority`
- * parses and compiles perfectly (an integer where a boolean is required), and
- * without this the error would surface from the matcher, one task in, wherever
- * that happens to be called from. It cost a page a 500 once already.
- *
- * One witness settles every branch, because `and` and `or` evaluate both sides
- * before testing either, exactly as the C implementation does. No branch can
- * hide behind a short circuit that never happens.
+ * Type checks run during evaluation, so `priority` parses (an integer where a
+ * boolean is required) and would otherwise throw from the matcher on the first
+ * task. One witness reaches every branch, because `and` and `or` evaluate both
+ * sides before testing either, as the C implementation does.
  */
 const WITNESS: TqlTask = { id: '', tags: [], priority: 0, title: '' };
 
 /**
- * Compiles a query into a matcher, throwing {@link TqlError} for a syntax *or* a
- * type error: the caller cannot tell the difference apart, and should not have
- * to remember that one of the two arrives later than the other.
+ * Compiles a query into a matcher, parsing it once for all tasks. Throws
+ * {@link TqlError} for a syntax or a type error alike, so the caller handles
+ * both in one place, before matching.
  */
 export function compile(source: string): (task: TqlTask) => boolean {
 	const node = parse(source);
@@ -423,15 +397,12 @@ export function compile(source: string): (task: TqlTask) => boolean {
 }
 
 /**
- * Renders an error the way the CLI does: the source, a caret under the offending
+ * Renders an error as the CLI does: the source, a caret under the offending
  * token, then the message.
  *
- * One caret, never a run of them under the whole token: `report_compile_query_
- * diagnostic` prints `"%*s", cursor, "^"`, so the width only positions it. An
- * underline would read better and is not what the reader sees in their terminal.
- *
- * The CLI's `ERROR: ` prefix is left off, being what separates a message from
- * ordinary output on a terminal. Here the diagnostic has a panel of its own.
+ * It prints one caret, not an underline, because `report_compile_query_diagnostic`
+ * prints `"%*s", cursor, "^"`. The CLI's `ERROR: ` prefix is left off, because
+ * here the diagnostic has a panel of its own.
  */
 export function formatDiagnostic(
 	source: string,

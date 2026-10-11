@@ -1,11 +1,7 @@
 /**
- * A repository on GitHub, as a source. This folder's entry, as `source.ts` is
- * in every source folder.
- *
- * Listing a repository spends the reader's budget of 60 API requests an hour;
- * reading its files does not, as they come from raw.githubusercontent.com, a
- * CDN with no rate limit at all (64 files in a fifth of a second, measured). So
- * the listing has a fallback, ungh, and the files need none.
+ * Reads a repository on GitHub: the listing from the API, the files from
+ * raw.githubusercontent.com, a CDN with no rate limit. Only the listing spends
+ * the reader's 60 requests an hour, so only the listing has a fallback, ungh.
  */
 import { formatRepoName, repoKey, type ForgeAddress, type ForgeRef } from '../../repo/ref.ts';
 import type { Branched, Cached, Linked, Rereadable } from '../capabilities.ts';
@@ -26,12 +22,12 @@ const RAW = 'https://raw.githubusercontent.com';
 export class GitHubRepositorySource implements Source, Cached, Rereadable, Linked, Branched {
 	static readonly address: Address = { hosts: [HOST] };
 
-	// Only a reference read as GitHub's reaches it, which is a forge's.
+	// The registry passes only references on GitHub's hosts, which are always a ForgeRef.
 	static open(ref: ForgeRef): GitHubRepositorySource {
 		return new GitHubRepositorySource(ref);
 	}
 
-	// Polite to the CDN while still finishing in well under a second.
+	// Polite to the CDN, and still fast enough to read a repository in under a second.
 	readonly concurrency = 12;
 	readonly cost = {
 		listing: 'one request',
@@ -43,11 +39,10 @@ export class GitHubRepositorySource implements Source, Cached, Rereadable, Linke
 	readonly #ref: ForgeAddress;
 	readonly #network: typeof fetch;
 
-	/** `network` is what a spec substitutes for GitHub. */
+	/** `network` lets a spec stand in for GitHub. */
 	constructor(ref: ForgeAddress, network: typeof fetch = fetch) {
 		this.#ref = ref;
-		// The trees API and raw both accept `HEAD`, so the request that would
-		// resolve a default branch by name is never made.
+		// The trees API and raw both accept `HEAD`, which saves resolving the default branch.
 		this.branch = ref.branch ?? 'HEAD';
 		this.#network = network;
 		this.label = formatRepoName(ref);
@@ -55,12 +50,10 @@ export class GitHubRepositorySource implements Source, Cached, Rereadable, Linke
 	}
 
 	/**
-	 * Asks GitHub's API, then ungh when GitHub would not answer: ungh is a free
-	 * third party with no uptime promised, so the normal path does not depend on
-	 * it. A repository missing from one is missing from both, so that is not
-	 * asked twice. When neither answered, a spent budget is what is reported,
-	 * rather than the last failure: it is the cause, and the one thing the
-	 * reader can wait out.
+	 * Asks GitHub's API, then ungh when GitHub fails: ungh promises no uptime, so
+	 * the normal path does not depend on it. A 404 from either is final, as ungh
+	 * only relays GitHub. When both fail, a spent budget is reported over the last
+	 * failure, being the one cause the reader can wait out.
 	 */
 	async list(signal?: AbortSignal): Promise<Listing> {
 		const failures: unknown[] = [];
@@ -82,38 +75,33 @@ export class GitHubRepositorySource implements Source, Cached, Rereadable, Linke
 		return readText(this.#network, this.assetUrl(path), signal);
 	}
 
-	/** A file's raw contents, from the CDN that costs no budget. */
+	/** The file on raw.githubusercontent.com. */
 	assetUrl(path: string): string {
 		return `${RAW}/${this.#ref.owner}/${this.#ref.name}/${this.#at(path)}`;
 	}
 
 	/**
-	 * A file's page on GitHub, where its history and its blame are. This viewer
-	 * computes no history: the format holds no date, and dating a task through
-	 * the API would cost a request each, against sixty an hour.
+	 * The file's page on GitHub, for its history: the format holds no date, and
+	 * dating a task through the API would cost one request per task.
 	 */
 	fileUrl(path: string): string {
 		return `https://${HOST}/${this.#ref.owner}/${this.#ref.name}/blob/${this.#at(path)}`;
 	}
 
-	/**
-	 * Read again at the price of one request, which is what the reader is asking
-	 * for, and with nothing to prepare: the loader ignores the cache.
-	 */
+	/** Has nothing to prepare: on a refresh, the loader skips the cache. */
 	async reread(): Promise<void> {}
 
 	/**
-	 * The branch and a path, one segment at a time: a URL carries
-	 * `feature/web-ui` as two segments, and `feature%2Fweb-ui` would be a branch
-	 * of that literal name, which no repository has.
+	 * Joins the branch and `path`, encoding each segment apart: GitHub reads
+	 * `feature%2Fweb-ui` as a branch of that literal name, not `feature/web-ui`.
 	 */
 	#at(path: string): string {
 		return `${encodePath(this.branch)}/${encodePath(path)}`;
 	}
 
 	/**
-	 * GitHub answers 404 alike for a branch, a repository and a private one, so
-	 * the three are named together rather than told apart at another request.
+	 * The not-found message, naming every cause: GitHub answers 404 alike for a
+	 * missing branch, a missing repository and a private one.
 	 */
 	#missing(): string {
 		if (this.#ref.branch) {

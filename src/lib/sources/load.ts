@@ -1,22 +1,14 @@
 /**
  * Loads a source's tasks: list once, then read the task files in parallel.
  *
- * The source is handed in rather than opened here. Which source serves a
- * reference is decided once, by whoever holds the reading, so that every later
- * question about that reading (can it be taken again, where does a file live)
- * goes to the same instance instead of to a copy rebuilt from the reference.
+ * The caller passes the source in rather than this module opening it, so that
+ * every later question about the reading goes to the same instance.
  *
- * A source that is `Cached` is cached and never expires on its own: quota
- * is only ever spent on a first visit or on an explicit refresh, so the reader
- * decides when to pay for fresh data. Revalidating is no way around it: a
- * conditional request answering 304 was measured to spend quota all the same
- * when unauthenticated. {@link LoadResult.storedAt} carries the age so the UI
- * can show it next to that refresh control.
- *
- * Only metadata is cached: descriptions are more than half the bytes and cost
- * no quota to read again. What the graph needs from those descriptions, the
- * referenced task ids, is extracted at parse time and kept, so dropping the
- * prose costs no feature.
+ * The cache of a `Cached` source never expires on its own, so quota is spent
+ * only on a first visit or an explicit refresh; revalidating would not help, as
+ * an unauthenticated 304 still spends quota. Only metadata is cached:
+ * descriptions are over half the bytes and cost no quota to read again, and
+ * the task ids they reference are extracted at parse time.
  */
 import { collectAttachments } from '../tatr/attachments.ts';
 import { comparedWith, type Replaced, type Snapshot } from '../tatr/changes.ts';
@@ -29,21 +21,21 @@ import { SourceError, type Source } from './contract.ts';
 import { openStore, type RepoStore } from './store.ts';
 
 export interface LoadOptions {
-	/** Parallel reads, when the source's own preference is not the one to test. */
+	/** Overrides the source's `concurrency`, for a spec. */
 	concurrency?: number;
 	signal?: AbortSignal;
 	/** Called as task files arrive, for progressive rendering. */
 	onProgress?: (done: number, total: number) => void;
-	/** Ignore any cached copy and fetch again. This is what the refresh control does. */
+	/** Ignores any cached copy and reads again, as the refresh control does. */
 	refresh?: boolean;
 	/**
 	 * The reading this one replaces: what was on screen, and what that was
 	 * compared with. The result is compared with the first, or keeps the second
-	 * when it moved nothing (see `comparedWith`).
+	 * when nothing moved (see `comparedWith`).
 	 *
-	 * Given by the caller, who has it on screen, rather than looked up in the
-	 * cache: a folder has no cache and changes all the same, and what the reader
-	 * last saw is what is in front of them, not what another tab last stored.
+	 * The caller passes it rather than the loader reading the cache: a folder
+	 * has no cache, and another tab may have stored a reading this one never
+	 * showed.
 	 */
 	replaces?: Replaced | null;
 	/** Where to cache; defaults to IndexedDB, falling back to memory. */
@@ -57,13 +49,12 @@ export interface LoadResult {
 	skipped: { id: string; reason: string }[];
 	tags: TagDescriptions;
 	fromCache: boolean;
-	/** When this view of the repository was fetched, in epoch milliseconds. */
+	/** When this reading was fetched, in epoch milliseconds. */
 	storedAt: number;
 	branch: string;
 	/**
-	 * The state the reader last saw, when this reading replaced one, so a
-	 * refresh can say what moved. Null on a first visit, replaced by a reading
-	 * that moved something and kept by one that moved nothing.
+	 * What the reader saw before this reading, so a refresh can say what moved.
+	 * Null on a first visit, and kept as it was by a reading that moved nothing.
 	 */
 	previous: Snapshot | null;
 }
@@ -89,19 +80,15 @@ async function pooled<T, R>(
 	return results;
 }
 
-/** What is cached: no descriptions, and none of the fields describing this retrieval. */
+/** What is cached: the result without `fromCache` and `storedAt`, and without descriptions. */
 type CachedLoad = Omit<LoadResult, 'fromCache' | 'storedAt'>;
 
-/** Strips the bodies before storing. References were extracted at parse time. */
+/** Drops the task descriptions before storing. */
 function withoutDescriptions(tasks: Task[]): Task[] {
 	return tasks.map(({ description: _description, ...rest }) => rest);
 }
 
-/**
- * Turns the files that were read into tasks, listing what could not be read
- * rather than dropping it. Shared by both sources: a folder on the disk and a
- * repository on a forge arrive here as the same pairs of path and text.
- */
+/** Turns the files read into tasks, listing those it cannot read or parse as skipped. */
 function assemble(
 	contents: { path: string; text: string | null }[],
 	attachments: ReturnType<typeof collectAttachments>
@@ -134,30 +121,24 @@ function assemble(
 const TASK_FILE = /^tasks\/[^/]+\/TASK\.md$/;
 
 /**
- * Loads a repository, or the folder the reader has open: one path, because the
- * source answers for what used to be branched on here.
- *
- * Whether it is `Cached` is the whole of it. A source that spends an API budget
- * names a place to be cached, and the reader's quota is protected; a source that
- * reads a folder for nothing names none, and there is no cache to go stale.
+ * Loads a source's tasks. A `Cached` source is read from its cache unless
+ * `refresh` is set, and its cache is written after a fresh reading; any other
+ * source is read every time.
  */
 export async function loadRepository(
 	source: Source,
 	options: LoadOptions = {}
 ): Promise<LoadResult> {
-	// For a forge a refresh is this function ignoring the cache; for a folder it
-	// is the folder being walked again, which only the source can do.
 	if (options.refresh && isRereadable(source)) await source.reread(options.signal);
 
 	const store = options.store ?? openStore();
 
 	if (isCached(source) && !options.refresh) {
 		const cached = await store.read<CachedLoad>(source.cacheKey);
-		// IndexedDB stores structured clones, so Date and Map come back intact.
 		if (cached) {
 			return {
 				...cached.value,
-				// A record written before this field existed has nothing behind it.
+				// A record stored before `previous` existed lacks it.
 				previous: cached.value.previous ?? null,
 				fromCache: true,
 				storedAt: cached.storedAt
@@ -167,8 +148,7 @@ export async function loadRepository(
 
 	const listing = await source.list(options.signal);
 	const taskFiles = listing.entries.filter((entry) => TASK_FILE.test(entry.path));
-	// Free: the whole tree came down in the listing, and these are the entries
-	// that were being discarded.
+	// Costs no request: the listing already holds every attachment's entry.
 	const attachments = collectAttachments(listing.entries);
 	if (!listing.entries.some((entry) => entry.path.startsWith('tasks/'))) {
 		throw new SourceError(
@@ -188,7 +168,7 @@ export async function loadRepository(
 		}
 	);
 
-	// Tag descriptions are optional, and their absence is not an error.
+	// A repository may have no tags file.
 	const tagsFile = listing.entries.some((entry) => entry.path === 'tasks/tags')
 		? await source.read('tasks/tags', options.signal)
 		: null;
@@ -208,20 +188,13 @@ export async function loadRepository(
 		await store.write(source.cacheKey, stored, storedAt);
 	}
 
-	// The caller gets the bodies it just paid for; only the cache goes without.
+	// Only the cache drops the descriptions; the caller keeps those just read.
 	return { ...payload, fromCache: false, storedAt };
 }
 
-/**
- * Reads one task's body on demand, for the detail view. Free of the API budget,
- * and roughly 30 ms, so it is cheaper to re-read than to keep every description
- * in storage.
- */
+/** Reads one task's description on demand, for the detail view, as the cache does not keep it. */
 export async function loadTaskDescription(source: Source, id: string): Promise<string | null> {
-	// One read, wherever the file is: a fetch of a raw URL, or a file already in
-	// memory.
 	const text = await source.read(`tasks/${id}/TASK.md`);
-	// `null` is a file that could not be read; an empty one is a file that says
-	// nothing, and those are not the same answer even where they look alike.
+	// Only an unreadable file gives null: an empty one has an empty description.
 	return text === null ? null : parseTaskMd(text).description;
 }

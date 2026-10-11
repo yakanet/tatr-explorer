@@ -16,21 +16,20 @@
 	let { data } = $props();
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
-	// Shared with the dashboard, so a filter set on a chart survives the move here.
 	const query = getContext<QueryState>(QUERY);
 
 	const visible = $derived(
 		query
 			.apply(repo.tasks)
-			// Priority descending, as `tatr ls` does by default.
+			// Highest priority first, as `tatr ls` sorts.
 			.toSorted((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
 	);
-	// What the status admits, before the text narrows it.
+	// The tasks the status admits, before the text filters them.
 	const admitted = $derived(query.pool(repo.tasks));
 	const pool = $derived(admitted.length);
 
-	// Counted over what the reader is actually looking at, so the tally beside a
-	// tag agrees with the list they get by picking it.
+	// Tag counts cover the tasks the status admits, so the count beside a tag
+	// matches the list that picking it shows.
 	const tagOptions = $derived(
 		byTag(admitted).map(({ tag, count }) => ({
 			name: tag,
@@ -45,9 +44,8 @@
 		goto(url, { shallow: true, replace: true });
 	}
 
-	// An address that arrived without a status (typed, or from before there was
-	// one) is rewritten to carry the status in force, so coming back to it
-	// through history shows what was shown rather than whatever was chosen since.
+	// The URL is rewritten on mount to carry the current status, so going back
+	// to it through history shows the same tasks rather than a status chosen since.
 	onMount(syncUrl);
 
 	function toggleTag(tag: string) {
@@ -74,9 +72,6 @@
 		{#if visible.length === 0}
 			<p class="empty">No task matches this query.</p>
 		{:else}
-			<!-- The card scrolls rather than the page: on a phone the columns are
-			     wider than the screen, and a page that slides sideways loses the
-			     header with it. -->
 			<div class="sheet panel">
 				<table>
 					<thead>
@@ -149,8 +144,9 @@
 		max-width: 70rem;
 	}
 
-	/* A card like every other surface, holding the table so the table can be
-	   wider than a phone without the page scrolling sideways. */
+	/* The card scrolls sideways rather than the page, because on a phone the
+	   table is wider than the screen and a sliding page would take the header
+	   with it. */
 	.sheet {
 		overflow-x: auto;
 	}
@@ -192,8 +188,8 @@
 		width: 3.5rem;
 	}
 
-	/* Inline after the title here, so the word space it inherits from the flow is
-	   not quite enough to clear a bordered badge. */
+	/* The moved badge follows the title inline, and the inherited word space is
+	   too narrow to clear its border. */
 	.title [data-moved] {
 		margin-left: 0.25rem;
 	}
@@ -233,7 +229,7 @@
 		color: var(--accent-text);
 	}
 
-	/* A closed task is still worth reading, one step quieter. */
+	/* A closed task's title is one step quieter but stays readable. */
 	tr.closed .title {
 		color: var(--ink-2);
 	}

@@ -7,15 +7,10 @@ import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
 import { readTask, type Task } from '../tatr/task.ts';
 
-/**
- * The wording comes from `Intl`, so what is worth pinning here are the
- * thresholds and the rounding: `Intl` formats a number and a unit, it does not
- * pick them, and "just now" is not a unit it knows.
- */
-
 const NOW = 1_000_000_000;
 const ago = (ms: number) => describeAge(NOW - ms, NOW);
 
+// The wording is `Intl`'s; these pin the thresholds and the rounding.
 describe('describeAge', () => {
 	it.each([
 		[0, 'just now'],
@@ -54,7 +49,6 @@ describe('what moved since the last reading', () => {
 	});
 
 	it('is null when the repository did not move, rather than an empty result', () => {
-		// One thing for a view to test, and no way to announce nothing.
 		expect(reading([open], [open]).changes).toBeNull();
 	});
 
@@ -67,27 +61,26 @@ describe('what moved since the last reading', () => {
 });
 
 /**
- * Readings of a real source: a folder on this machine, which can be rewritten
- * between two of them, and whose grant a reload takes back. No mock stands in
- * for `loadRepository`, the point being what the state does with what the
- * loader answers, and a source that can genuinely answer it is already here.
+ * The tests below read a real folder source instead of mocking
+ * `loadRepository`: a folder can be rewritten between two readings, which
+ * exercises what the state does with each answer.
  */
 const TASK = 'tasks/20260101-000001/TASK.md';
 const taskAt = (priority: number, status = 'OPEN') =>
 	`# a\n\n- STATUS: ${status}\n- PRIORITY: ${priority}\n`;
 
-/** Opens the folder, holding one task at that priority, as a directory input would. */
+/** Opens a folder holding one task at that priority, as a directory input does. */
 const opened = (priority = 90) => {
 	openFolder(fromFileList(fileList('my-project', { [TASK]: taskAt(priority) }))!);
 	return parseRepoPath('local')!;
 };
 
-/** The folder on the disk, which an editor rewrites between two readings. */
+/** The folder's files on disk, rewritten between two readings. */
 let disk: Record<string, string> = {};
 
 /**
- * Opens the folder with a way back to it, as a drop would, holding `tree`: a
- * refresh then reads what changed on the disk since.
+ * Opens a folder holding `tree` with its directory entry, as a drop does, so a
+ * refresh reads what changed on disk since.
  */
 const picked = async (tree: Record<string, string> = { [TASK]: taskAt(90) }) => {
 	disk = tree;
@@ -105,8 +98,6 @@ describe('a refresh', () => {
 	afterEach(() => closeFolder());
 
 	it('keeps the reading on screen while it runs', async () => {
-		// Going back to `listing` unmounted every view, which render a reading
-		// only once it is ready.
 		const repo = new RepositoryState();
 		const ref = opened();
 		await repo.load(ref);
@@ -160,8 +151,6 @@ describe('a refresh', () => {
 	});
 
 	it('reads the source the reading came from, where a new reading opens its own', async () => {
-		// The instance is what will hold a subscription or a permission, so it has
-		// to be the same one from one refresh to the next.
 		const repo = new RepositoryState();
 		await repo.load(opened());
 		const first = repo.source;
@@ -169,7 +158,6 @@ describe('a refresh', () => {
 		await repo.refresh();
 		expect(repo.source).toBe(first);
 
-		// Another folder handed over, which only a new reading opens.
 		await repo.load(opened());
 		expect(repo.source).not.toBe(first);
 		expect(repo.changes).toBeNull();
@@ -183,8 +171,8 @@ describe('following', () => {
 	});
 
 	it('reads a folder again as it changes, and says what moved', async () => {
-		// The focus is the cue where nothing observes the folder, which is how a
-		// folder dropped on Firefox is followed.
+		// Without an observer, as for a folder dropped on Firefox, window focus
+		// triggers the new reading.
 		vi.stubGlobal('window', new EventTarget());
 		const repo = new RepositoryState();
 		await repo.load(await picked());
@@ -228,8 +216,7 @@ describe('a refresh that fails', () => {
 		await repo.load(await picked());
 		expect(repo.phase).toBe('ready');
 
-		// The tasks gone from the disk; a spent API budget arrives at the same
-		// place from the other source.
+		// Removing the tasks stands in for a spent rate limit on a forge source.
 		delete disk[TASK];
 		await repo.refresh();
 
@@ -249,7 +236,7 @@ describe('a refresh that fails', () => {
 	});
 
 	it('is tried again from the source already opened, `load` being the one that opens', async () => {
-		// A repository picked before its first task was written.
+		// A folder picked before its first task exists.
 		const repo = new RepositoryState();
 		await repo.load(await picked({}));
 		const first = repo.source;
@@ -269,12 +256,12 @@ describe('a refresh that fails', () => {
 		delete disk[TASK];
 		await repo.refresh();
 
-		// Same tasks on screen, so the badges that explain them stay too.
+		// The same tasks stay on screen, so the badges explaining them stay too.
 		expect(repo.changes?.total).toBe(1);
 	});
 
 	it('is cleared by the refresh that works', async () => {
-		// The tasks gone for a moment, as a checkout of a branch without them does.
+		// The tasks vanish briefly, as when checking out a branch without them.
 		const repo = new RepositoryState();
 		await repo.load(await picked());
 		delete disk[TASK];

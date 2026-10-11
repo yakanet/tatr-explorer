@@ -1,21 +1,15 @@
 /**
- * What every source does, asked of each one over the same tree.
+ * The behaviour every source must have, checked on each one over the same
+ * tree. `contract.ts` declares what a source has; this spec fails when a new
+ * source does the wrong thing with it.
  *
- * `contract.ts` says what a source has; this says what it must do with it, which
- * is what the author of a new source most needs to be told, and in a form that
- * fails when they get it wrong. What only one source does stays in its own
- * spec.
+ * `SUBJECTS` is keyed like `SOURCES`, so a source added to the registry and not
+ * here does not compile. It lives here rather than in `tests/support`, because
+ * nothing else builds these subjects.
  *
- * How each source is built for it is said here too, in a table keyed like the
- * registry: a source added to `SOURCES` and not here does not compile, where a
- * contract each source had to remember to call would let a new one go
- * unchecked in silence. Here rather than with the fakes the specs share,
- * because nothing but this contract builds them.
- *
- * Only what every source does is asked. A forge cannot tell a missing file's
- * URL from a present one's without a listing, so what `assetUrl` answers for a
- * file that is not there is left to each source's own spec, and so is the branch
- * a listing names, which a folder reads out of `.git/HEAD` and a forge does not.
+ * Each source's own spec checks what `assetUrl` answers for a missing file,
+ * which a forge cannot know without a listing, and the branch a listing names,
+ * which a folder reads from `.git/HEAD`.
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -39,19 +33,18 @@ import { FollowedServedSource, ServedSource } from './served/source.ts';
 import { SourceError, type Listing, type Source } from './contract.ts';
 import { memoryStore } from './store.ts';
 
-/** One way a source comes to be, as the contract builds it. */
+/** One way to build a source for the contract. */
 interface Subject {
-	/** How the source came to be, which names its tests. */
+	/** How the source was built, which names its tests. */
 	name: string;
 	/**
-	 * A source holding `tree`, paths from the repository root to contents. A
-	 * change to `tree` is there for the source to find when it reads again, as
-	 * on a repository that moves.
+	 * A source holding `tree`, a map from paths to contents. A later change to
+	 * `tree` is there for the source to find when it reads again.
 	 */
 	holding(tree: Record<string, string>): Promise<Source>;
-	/** A source whose listing fails, the way this one's fails in practice. */
+	/** A source whose listing fails, the way this one fails in practice. */
 	broken(): Source;
-	/** Carries a change to `tree` where the source reads, when that is not `tree` itself. */
+	/** Copies a change to `tree` to where the source reads, when that is not `tree` itself. */
 	sync?(tree: Record<string, string>): Promise<unknown>;
 }
 
@@ -64,7 +57,7 @@ const TREE: Readonly<Record<string, string>> = {
 	'tasks/tags': 'ui , screens\n'
 };
 
-/** The paths under `tasks/`, in order: all a folder keeps, and all compared here. */
+/** The paths under `tasks/`, sorted: a folder keeps nothing else, so nothing else is compared. */
 function underTasks(paths: string[]): string[] {
 	return paths.filter((path) => path.startsWith('tasks/')).toSorted();
 }
@@ -96,8 +89,7 @@ function honoursTheContract(subject: Subject): void {
 			expect(source.label).not.toBe('');
 			expect(source.cost.listing).not.toBe('');
 			expect(source.concurrency).toBeGreaterThanOrEqual(1);
-			// A source that is not `Cached` has no key; one that is says what it is
-			// cached under, which an empty key would leave every such source sharing.
+			// An empty key would make every such source share one cache entry.
 			expect(cacheKeyOf(source)).not.toBe('');
 		});
 
@@ -113,8 +105,6 @@ function honoursTheContract(subject: Subject): void {
 		});
 
 		it('reads a file it does not hold as null, rather than throwing', async () => {
-			// A read that threw would take the whole load down, where one task that
-			// cannot be read is listed as skipped.
 			expect(await (await holding()).read('tasks/20260101-000003/TASK.md')).toBeNull();
 		});
 
@@ -157,10 +147,8 @@ function honoursTheContract(subject: Subject): void {
 		});
 
 		it('follows its changes only where it can be read again', async () => {
-			// A change is answered by the same refresh a click takes, which a
-			// reading that cannot be taken again would answer with nothing: a
-			// `follow` without a `reread` is no capability, and is never followed.
-			// What following does is each source's own, and its spec says it.
+			// A `follow` without a `reread` is no capability (see `Followable`).
+			// What following does is left to each source's spec.
 			const source = await holding();
 			expect(isFollowable(source)).toBe('follow' in source);
 		});
@@ -179,8 +167,7 @@ function honoursTheContract(subject: Subject): void {
 			expect(await source.write(path, written, TREE[path])).toBe('written');
 			expect(await source.read(path)).toBe(written);
 
-			// Over the text first read again: the write just made is a change this
-			// one never read, and is what an editor's save would be.
+			// The write just made stands for an editor's save, which `expected` predates.
 			expect(await source.write(path, '# Lost\n', TREE[path])).toBe('changed');
 			expect(await source.read(path)).toBe(written);
 		});
@@ -195,10 +182,10 @@ function honoursTheContract(subject: Subject): void {
 }
 
 /**
- * GitHub over `tree`, through both of its doors: the trees API that lists it,
- * and the CDN that serves each file. Read when asked, so a change to `tree`
- * is there the next time either door is knocked on. Called with a `this`, it
- * refuses, as the browser's own `fetch` does with any but the window.
+ * A fake network serving `tree` as GitHub does: the trees API lists it, the CDN
+ * serves each file. It reads `tree` on every request, so a change shows on the
+ * next one. Called with a `this`, it throws, as the browser's `fetch` does
+ * unless called on the window.
  */
 function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 	return async function (this: unknown, input: RequestInfo | URL) {
@@ -212,7 +199,7 @@ function forge(tree: Readonly<Record<string, string>>): typeof fetch {
 			}));
 			return Response.json({ tree: blobs, truncated: false });
 		}
-		// `/owner/repo/HEAD/tasks/...`: the file's path is what follows the branch.
+		// `/owner/repo/HEAD/tasks/...`: the file's path follows the branch.
 		const path = decodeURIComponent(url.pathname.split('/').slice(4).join('/'));
 		if (!Object.hasOwn(tree, path)) return new Response('not found', { status: 404 });
 		return new Response(tree[path]);
@@ -223,10 +210,13 @@ function openGitHubOver(network: typeof fetch): Source {
 	return new GitHubRepositorySource(parseForgePath('owner/repo')!, network);
 }
 
-/** What a door hands over for a folder: the folder, and a way back to it when it has one. */
+/**
+ * One way a browser hands over a folder (a directory input, a picker, a drop):
+ * the folder, and a way back to it when there is one.
+ */
 type Door = (tree: Record<string, string>) => Promise<[LocalFolder, WayBack?]>;
 
-/** A folder handed over through `door`, as a source. */
+/** A subject for a folder handed over through `door`. */
 function through(name: string, door: Door): Subject {
 	return {
 		name,
@@ -238,19 +228,19 @@ function through(name: string, door: Door): Subject {
 	};
 }
 
-/** Nothing open: where every reload leaves a folder, the browser taking its grant back. */
+/** No folder open, as after every reload, when the browser takes its grant back. */
 function forgotten(): Source {
 	closeFolder();
 	return LocalFolderSource.open();
 }
 
-/** The dev channel, with nothing said on it: the contract only asks that it is there. */
+/** A dev channel on which nothing is sent: the contract only needs one to exist. */
 const SILENT = { on() {}, off() {} } as unknown as ViteHotContext;
 
 /**
- * Every source, once per way it comes to be. Each entry is called inside its
- * own `describe`, so the hooks a source needs (a folder to close, a scratch
- * folder) are its own.
+ * Every source, once per way it can be built. Each entry runs inside its own
+ * `describe`, so a source's hooks (a folder to close, a scratch folder) stay
+ * its own.
  */
 const SUBJECTS = {
 	github: () => [
@@ -261,8 +251,7 @@ const SUBJECTS = {
 		}
 	],
 
-	// One per door a browser offers to a folder: they hand over different
-	// things, and each must read as a source.
+	// One per `Door`: each hands over different things, and each must read as a source.
 	local: () => {
 		afterEach(() => closeFolder());
 		return [
@@ -280,8 +269,7 @@ const SUBJECTS = {
 		];
 	},
 
-	// Followed over the dev channel, as the application always opens it, and
-	// without one, as a spec can.
+	// With the dev channel, as the application opens it, and without, as a spec can.
 	served: () => {
 		const scratch = scratchFolder();
 		const served = (name: string, open: (network: typeof fetch) => Source): Subject => ({
@@ -291,7 +279,7 @@ const SUBJECTS = {
 				return open(await serving(scratch()));
 			},
 			broken: () => open(unreachable),
-			// The folder is on the disk, where a change to the tree has to be written.
+			// This source reads the disk, so a change to `tree` has to be written there.
 			sync: (tree) => writeTree(scratch(), tree)
 		});
 		return [

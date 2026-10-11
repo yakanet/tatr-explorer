@@ -13,7 +13,6 @@ describe('parseTagsFile', () => {
 		);
 		expect(descriptions.get('bug')).toBe('unintended behavior of the system that needs correction');
 		expect(descriptions.get('stream')).toBe('good stream topic');
-		// Any run of commas and whitespace separates, so the doubled comma is fine.
 		expect(descriptions.get('tql')).toBe('Tatr Query Language');
 	});
 

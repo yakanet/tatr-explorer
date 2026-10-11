@@ -1,10 +1,7 @@
 /**
- * The query, shared by every view of a repository.
- *
- * It is global state on purpose: the dashboard's charts are both a
- * visualisation and a control, so clicking a tag bar has to filter the list,
- * the counts and the other charts at once. Keeping it in the URL means a
- * filtered view is a link someone can send.
+ * The query shared by every view of a repository. It is shared because a
+ * chart is also a control: clicking a tag bar filters the list, the counts and
+ * the other charts at once. It lives in the URL so a filtered view is a link.
  */
 import { compile, parseWithWarnings, TqlError, type Node, type TqlWarning } from '../tql/query.ts';
 import { STATUSES, type Status } from '../tql/command.ts';
@@ -12,19 +9,19 @@ import type { Task } from '../tatr/task.ts';
 
 export const QUERY = Symbol('query');
 
-/** A query once compiled: what it matches, and what the bar shows about it. */
+/** A compiled query: what it matches, and what the query bar shows about it. */
 interface Compiled {
 	source: string;
 	match: (task: Task) => boolean;
 	error: TqlError | null;
 	warnings: TqlWarning[];
-	/** Its tree, when it compiled; null when it is empty or in error. */
+	/** The parsed tree, or null when the query is empty or in error. */
 	node: Node | null;
 }
 
 /**
- * A query as URL parameters. The status is written only when one is given, so
- * a view that has no use for it leaves it out of its address.
+ * Writes a query as URL parameters. The status is written only when given, so
+ * a view that ignores it leaves it out of its address.
  */
 export function searchFor(text: string, status?: Status): string {
 	const params = new URLSearchParams();
@@ -36,7 +33,7 @@ export function searchFor(text: string, status?: Status): string {
 
 export class QueryState {
 	text = $state('');
-	/** `tatr ls` hides closed tasks unless asked; so does this. */
+	/** Open by default, as `tatr ls` hides closed tasks unless asked. */
 	status = $state<Status>('open');
 
 	readonly #compiled = $derived.by((): Compiled => {
@@ -49,8 +46,8 @@ export class QueryState {
 			const { node, warnings } = parseWithWarnings(source);
 			return { source, match, error: null, warnings, node };
 		} catch (error) {
-			// An incomplete or ill-typed query is the normal state while typing, so
-			// it filters nothing rather than emptying the screen under the reader.
+			// A query is often incomplete while typing, so an error filters nothing
+			// rather than emptying the screen.
 			return {
 				source,
 				match: () => true,
@@ -62,13 +59,8 @@ export class QueryState {
 	});
 
 	/**
-	 * The query as it was compiled, which is what an error's columns count from.
-	 *
-	 * Whoever renders a diagnostic gets handed this rather than `text`: the two
-	 * differ by the trim, and printing the untrimmed line above a caret measured
-	 * on the trimmed one slid the source right and left the caret pointing at
-	 * nothing: leading spaces being invisible, the reader saw a caret accusing
-	 * a character several columns from the one it meant.
+	 * The trimmed query that was compiled. A diagnostic renders this rather than
+	 * `text`, because an error's columns count from the trimmed source.
 	 */
 	get source(): string {
 		return this.#compiled.source;
@@ -82,18 +74,15 @@ export class QueryState {
 		return this.#compiled.warnings;
 	}
 
-	/** The query's tree, once it compiled; null when it is empty or in error. */
+	/** The parsed tree, or null when the query is empty or in error. */
 	get node(): Node | null {
 		return this.#compiled.node;
 	}
 
 	/**
-	 * Whether one task satisfies the query, ignoring the closed toggle.
-	 *
-	 * The board needs the two apart: its Done column *is* the closed tasks, so
-	 * filtering them out before the columns are built would empty it rather than
-	 * narrow it. An unparsable query matches everything, so a half-typed one
-	 * leaves the screen alone instead of blanking it.
+	 * Whether a task satisfies the query, ignoring the status. The board needs
+	 * the two apart: its Done column is the closed tasks, so filtering those out
+	 * first would empty it. A query in error matches everything.
 	 */
 	matches(task: Task): boolean {
 		return this.#compiled.error ? true : this.#compiled.match(task);
@@ -112,23 +101,20 @@ export class QueryState {
 	}
 
 	/**
-	 * The query as a view's address carries it, so a filtered view is a link: the
-	 * list uses the text and the status, the board the text alone, the other
-	 * views neither. The list writes its status even when it is `open`, so that
-	 * each of its addresses is a whole query; one without a status would read,
-	 * coming back to it through history, as "keep the status chosen since".
+	 * The query in a view's address: the text and the status for the list, the
+	 * text alone for the board. The list writes its status even when `open`, so
+	 * going back through history restores it instead of keeping the status
+	 * chosen since.
 	 */
 	searchOf(view: 'list' | 'board'): string {
 		return view === 'list' ? searchFor(this.text, this.status) : searchFor(this.text);
 	}
 
 	/**
-	 * Takes from a URL what it carries, and leaves the rest as it is: a link to a
-	 * task's page, or to a view that has no use for the status, should not wipe
-	 * what the reader chose. A URL naming a status names the whole query, so a
-	 * count's link to `?status=closed` clears a text left from before.
-	 * `closed=1` is how the status was written before it had three values, and
-	 * still opens as `all`.
+	 * Reads the query from a URL and leaves untouched what it does not carry, so
+	 * a link to a task or to the board keeps the reader's status. A URL naming a
+	 * status names the whole query and clears the text. `closed=1` opens as
+	 * `all`, for links written before the status had three values.
 	 */
 	read(params: Pick<URLSearchParams, 'get' | 'has'>): void {
 		const named = params.get('status');

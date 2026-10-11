@@ -20,9 +20,8 @@
 		tags: TagOption[];
 		onchange?: () => void;
 		/**
-		 * False where choosing open or closed means nothing. On the board the
-		 * closed tasks are a column of their own, and a switch that emptied it
-		 * would be answering a question the columns already answer.
+		 * False where the status means nothing, as on the board, whose closed
+		 * tasks have a column of their own.
 		 */
 		chooseStatus?: boolean;
 	} = $props();
@@ -35,11 +34,9 @@
 	const found = $derived(dismissed ? null : complete(query.text, caret, tags));
 
 	/**
-	 * The `tatr ls` that lists what is shown, or why none does.
-	 *
-	 * Only where the status is chosen: a board shows open and closed tasks at
-	 * once, in columns, which is no listing any command produces. And not over
-	 * a query in error, whose diagnostic is the thing to read.
+	 * The `tatr ls` command that lists what is shown, or why none can. None on
+	 * the board, whose columns no command produces, nor over a query in error,
+	 * whose diagnostic matters more.
 	 */
 	const echo = $derived.by(() => {
 		if (!chooseStatus || query.error) return null;
@@ -53,20 +50,20 @@
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = true;
-			// Rearmed by every click, so a second one keeps the word up its full time.
+			// Restarted on every click, so a second click shows the word its full time.
 			clearTimeout(copiedTimer);
 			copiedTimer = setTimeout(() => (copied = false), 1500);
 		} catch {
-			// Refused, by an insecure context or a denied permission: the command
-			// is still on screen to be selected by hand.
+			// An insecure context or a denied permission refuses the copy; the
+			// command stays on screen to select by hand.
 		}
 	}
 
-	// The menu is rebuilt on every keystroke, so the highlight has to be clamped
-	// rather than remembered: what was third a moment ago may not exist now.
+	// The menu is rebuilt on every keystroke, so the highlight is clamped to the
+	// items that remain.
 	const selected = $derived(found ? Math.min(active, found.items.length - 1) : 0);
 
-	/** The caret can move without the text changing: an arrow key, a click. */
+	/** Records the caret, which an arrow key or a click moves without changing the text. */
 	function track() {
 		caret = field?.selectionStart ?? query.text.length;
 	}
@@ -96,17 +93,15 @@
 
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			// Consumed only when there is a menu to close, so a second Escape
-			// falls through to the shortcut layer and gives up the field. One
-			// keystroke doing both would leave the reader unable to close the menu
-			// without also leaving the box.
+			// Consumed only when a menu is open, so the first Escape closes the menu
+			// and the second, reaching the shortcut layer, leaves the field.
 			if (found) event.preventDefault();
 			dismissed = true;
 			return;
 		}
 
-		// An arrow reopens a menu Escape closed. Dismissing it is about getting it
-		// out of the way, not about refusing it until the next keystroke.
+		// An arrow reopens a menu that Escape closed, since Escape only moved it
+		// out of the way.
 		if (!found && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
 			dismissed = false;
 			return;
@@ -127,8 +122,8 @@
 			event.preventDefault();
 			active = last;
 		} else if (event.key === 'Tab' || event.key === 'Enter') {
-			// Enter would otherwise submit nothing and Tab would leave the field,
-			// both of which lose a menu the reader is looking at.
+			// Otherwise Enter would submit nothing and Tab would leave the field,
+			// both closing the menu.
 			event.preventDefault();
 			accept(found.items[selected].value);
 		}
@@ -170,8 +165,8 @@
 								aria-selected={i === selected}
 								class:active={i === selected}
 							>
-								<!-- Pointer down rather than click: the field blurs first
-								     otherwise, which closes the menu before the click lands. -->
+								<!-- Pointer down rather than click: otherwise the field blurs
+								     first and closes the menu before the click lands. -->
 								<button type="button" onpointerdown={() => accept(item.value)}>
 									<span class="value mono" class:keyword={item.kind === 'keyword'}
 										>{item.value}</span
@@ -183,14 +178,13 @@
 						{/each}
 					</ul>
 
-					<!-- The grammar is small enough to print in full, which saves the
-					     reader guessing that comparisons are words and groups are
-					     brackets. -->
+					<!-- The whole grammar fits here, so the reader need not guess that
+					     comparisons are words and groups are brackets. -->
 					<p class="grammar mono">
 						~word &nbsp; priority lt 50 &nbsp; not tagged &nbsp; [ a or b ]
 					</p>
-					<!-- Said out loud, because a menu that answers the keyboard and never
-					     says so is a menu people reach for with the mouse. -->
+					<!-- Listed, because readers reach for the mouse when a menu does not
+					     say it answers the keyboard. -->
 					<p class="keys">
 						<kbd>↑</kbd><kbd>↓</kbd> choose <kbd>⏎</kbd> insert <kbd>esc</kbd> close
 					</p>
@@ -204,8 +198,8 @@
 			><strong>{matched}</strong> matched <span class="of">/ {pool} shown</span></span
 		>
 		{#if chooseStatus}
-			<!-- `tatr ls`, `tatr ls -c`, and both at once. Radios, so the arrow keys
-			     move the choice and a screen reader hears one choice of three. -->
+			<!-- `tatr ls`, `tatr ls -c`, and both. Radios, so the arrow keys move the
+			     choice and a screen reader announces one choice of three. -->
 			<div class="segmented status" role="radiogroup" aria-label="Which tasks">
 				{#each STATUSES as status (status)}
 					<label>
@@ -218,16 +212,16 @@
 	</div>
 
 	{#if query.error}
-		<!-- The help and the source line read in grey, the message alone in the
-		     danger colour: it is the one line that says what to change. -->
+		<!-- Only the message takes the danger colour, as the one line that says
+		     what to change. -->
 		{@const report = formatDiagnostic(query.source, query.error)}
 		{@const cut = report.lastIndexOf('\n') + 1}
 		<pre class="diagnostic">{report.slice(0, cut)}<span class="message">{report.slice(cut)}</span
 			></pre>
 	{:else}
 		{#if echo?.kind === 'command'}
-			<!-- The prompt is not part of the command: it stays out of a selection,
-			     and the button copies the command alone. -->
+			<!-- The prompt is not part of the command, so it stays out of a
+			     selection and out of the copy. -->
 			<p class="echo">
 				<span class="shell" aria-hidden="true">$</span>
 				<code>{echo.text}</code>
@@ -236,8 +230,8 @@
 				</button>
 			</p>
 		{:else if echo?.kind === 'ours'}
-			<!-- Said exactly where a reader might otherwise carry the query to a
-			     terminal and watch it fail. -->
+			<!-- Shown here, before the reader carries the query to a terminal where
+			     it would fail. -->
 			<p class="echo">
 				<span>
 					{#if echo.titles.length > 0}
@@ -259,10 +253,8 @@
 </div>
 
 <style>
-	/* The query is a control of the view rather than of the site, so it sits in
-	   the view's column: as wide as what it filters, and nearer to it than to
-	   the header, which spans the page. Two bars of one width, one under the
-	   other, read as the same thing said twice. */
+	/* The query controls the view, not the site, so it sits in the view's
+	   column, as wide as what it filters. */
 	.query {
 		display: grid;
 		gap: 0.5rem;
@@ -312,7 +304,7 @@
 		color: var(--accent-text);
 	}
 
-	/* A keyword is grammar, not data, so it does not wear the accent. */
+	/* A keyword is grammar, not data, so it takes no accent. */
 	.value.keyword {
 		color: var(--fg);
 	}
@@ -368,8 +360,7 @@
 		color: var(--muted);
 	}
 
-	/* The status, a segmented control sized to sit inside the bar and pulled into
-	   its padding so the two curves stay concentric. */
+	/* Pulled into the bar's padding, so the two curves stay concentric. */
 	.status {
 		margin-right: -0.6rem;
 		padding: 0.1875rem;
@@ -392,8 +383,7 @@
 		border-radius: var(--radius-lg);
 	}
 
-	/* Under the bar, in its voice but quieter: a footnote to the query rather
-	   than a second control. */
+	/* Quieter than the bar: a footnote to the query, not a second control. */
 	.echo {
 		display: flex;
 		flex-wrap: wrap;
@@ -415,7 +405,7 @@
 		user-select: none;
 	}
 
-	/* The site's quiet button, sized down to sit in a line of small text. */
+	/* The site's quiet button, sized down for a line of small text. */
 	.copy {
 		min-height: auto;
 		padding: 0.1rem 0.6rem;

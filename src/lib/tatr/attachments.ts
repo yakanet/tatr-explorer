@@ -1,27 +1,21 @@
 /**
- * The files a task folder holds besides its `TASK.md`.
+ * Lists the files a task folder holds besides its `TASK.md`.
  *
- * The listing already knows them (it downloads the whole tree in one request
- * and then keeps only the `TASK.md` entries), so showing them costs nothing but
- * the lines that were being thrown away. Sizes come from the same place, so a
- * file can be listed with its weight without being fetched.
- *
- * On tsoding/tatr there are seven, four of them screenshots and one task
- * carrying four on its own. Six of the seven are already linked from the body
- * and render there, which is why this list is not about reachability: it says
- * what a task carries without the reader having to read a long body to find out.
+ * The tree listing already returns every path with its size, so the list costs
+ * no extra request. Most attachments are also linked from the body; the list
+ * shows what a task carries without reading the body.
  */
 
-/** Whatever a listing reports: a path from the repository root, sometimes a size. */
+/** One file as a listing reports it: a path from the repository root, sometimes a size. */
 export interface Listed {
 	path: string;
 	size?: number;
 }
 
 export interface Attachment {
-	/** Path within the task folder, so a nested file keeps its shape. */
+	/** Path within the task folder, so a nested file keeps its folders. */
 	name: string;
-	/** Path from the repository root, which is what a raw URL needs. */
+	/** Path from the repository root, which a raw URL needs. */
 	path: string;
 	size?: number;
 }
@@ -29,11 +23,10 @@ export interface Attachment {
 const IN_TASK = /^tasks\/([^/]+)\/(.+)$/;
 
 /**
- * Groups a listing's entries by task id.
+ * Groups a listing's entries by task id, leaving out `TASK.md` and dotfiles.
  *
- * Dotfiles are left out. The only unreferenced file upstream is a `.gitignore`,
- * which is tooling rather than something the task carries, and a rule that
- * excludes hidden files is the one cut that needs no guessing about intent.
+ * Dotfiles are tooling, such as upstream's one `.gitignore`, and excluding
+ * hidden files needs no guess about what the author meant to attach.
  */
 export function collectAttachments(entries: readonly Listed[]): Map<string, Attachment[]> {
 	const byTask = new Map<string, Attachment[]>();
@@ -44,7 +37,7 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
 
 		const [, id, name] = match;
 		if (name === 'TASK.md') continue;
-		// Hidden at any depth: `tasks/x/.git/config` is not an attachment either.
+		// A hidden folder hides its contents too, such as `tasks/x/.git/config`.
 		if (name.split('/').some((segment) => segment.startsWith('.'))) continue;
 
 		const attachment: Attachment =
@@ -67,10 +60,9 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
 const UNITS = ['B', 'kB', 'MB'] as const;
 
 /**
- * A size worth reading at a glance: two significant figures at most, and the
- * unit that keeps the number small. Absent sizes render as nothing rather than
- * as a zero, because a listing that does not report one has not said it is
- * empty.
+ * Formats a byte count in the unit that keeps the number small, with at most
+ * one decimal. An absent size renders as an empty string, not zero, because a
+ * listing that omits a size has not said the file is empty.
  */
 export function formatSize(bytes: number | undefined): string {
 	if (bytes === undefined) return '';

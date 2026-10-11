@@ -1,9 +1,6 @@
 /**
- * The name of the folder the dev server serves, or false.
- *
- * Read here and nowhere else, so that a spec can say which. The value is pasted
- * in at compile time by the plugin in `folder.server.ts`, and the bundler
- * folds a false away with whatever it guards: the source is registered only when
- * a folder is served, and a build carries none of it.
+ * The name of the folder the dev server serves, or false. The plugin in
+ * `folder.server.ts` defines it at compile time, and the bundler drops what a
+ * false guards. Read in this module alone, so a spec can mock it.
  */
 export const SERVED: string | false = __TATR_SERVED__;

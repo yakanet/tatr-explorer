@@ -1,14 +1,8 @@
 /*
- * A button: a pill, quiet by default.
- *
- * A class rather than a bare `button` rule, because half the buttons on this
- * site are not this (a tag is a button, a dashboard row is a button) and a
- * global element selector would repaint them all.
- *
- * `.action` is the quiet one: Refresh, Try again, Close. Reading is what a
- * reader came for, and refetching spends their request budget, so none of
- * those deserves the accent. `.action.primary` carries it, for the one thing a
- * view exists to do: opening a repository.
+ * A pill button. `.action` is quiet (Refresh, Try again, Close), since none of
+ * those is what a reader came for. `.action.primary` takes the accent, for
+ * opening a repository. A class rather than a `button` rule, because tags and
+ * dashboard rows are buttons too.
  */
 .action {
 	min-height: var(--target);
@@ -27,7 +21,7 @@
 	background: var(--tint);
 }
 
-/* Disabled only while what it starts is under way, which the cursor says. */
+/* A button is disabled only while its action runs, hence the progress cursor. */
 .action:disabled {
 	color: var(--muted);
 	cursor: progress;
@@ -41,12 +35,11 @@
 }
 
 /*
- * One choice out of a few, shown as a segmented control: the current one filled
- * with the accent, the others on a grey track. The header's views, the home
- * page's two ways in and the query's status are the same idiom, so they are one
- * rule. The current item is whichever the markup already marks for assistive
- * technology (a link's `aria-current`, a tab's `aria-selected`, a radio's
- * `checked`), so the look cannot drift from what a screen reader announces.
+ * A segmented control: the current choice filled with the accent, the others
+ * on a grey track. It serves the header's views, the home page's two ways in
+ * and the query's status. The current item is the one the markup marks for
+ * assistive technology (`aria-current`, `aria-selected`, `checked`), so the
+ * look cannot drift from what a screen reader announces.
  */
 .segmented {
 	display: inline-flex;
@@ -82,8 +75,8 @@
 	font-weight: 700;
 }
 
-/* A segment that is a radio keeps its input for the keyboard and for assistive
-   technology, out of sight: the segment itself shows the choice. */
+/* A radio segment keeps its input, hidden, for the keyboard and assistive
+   technology; the segment itself shows the choice. */
 .segmented input[type='radio'] {
 	position: absolute;
 	opacity: 0;
@@ -91,12 +84,11 @@
 }
 
 /*
- * A text field drawn as a pill. The box rather than the input owns the border
- * and the focus ring (see `keyboard.css`), because it also holds what sits
- * beside the input: a glyph on the home page, a prompt and the status in the
- * query bar. The ring follows the text field only, so the status, which rings
- * its own segment, does not light the whole bar as well; `:not([type])` is what
- * tells the text field from the status's radios.
+ * A text field drawn as a pill. The box owns the border and the focus ring
+ * (see `keyboard.css`), because it also holds what sits beside the input, such
+ * as the query bar's prompt and status. `:not([type])` tells the text field
+ * from the status's radios, so focusing the status, which rings its own
+ * segment, does not ring the whole bar.
  */
 .input-pill {
 	background: var(--surface);
@@ -118,8 +110,8 @@
 	color: var(--muted);
 }
 
-/* A field whose content was refused: the query bar marks it with a class, the
-   branch field through the input's own validity. */
+/* A refused field: the query bar marks it with a class, the branch field
+   through the input's own validity. */
 .input-pill.invalid,
 .input-pill:has(input:invalid) {
 	border-color: var(--danger);

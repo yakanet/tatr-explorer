@@ -7,18 +7,13 @@ import { parseHuid, scanHuids } from './huid.ts';
 import { isClosed, parseTaskMd, readPriority, readTags } from './task-md.ts';
 
 /**
- * Task ids mentioned in a `TASK.md`, deduplicated and sorted.
+ * Lists the task ids mentioned in a `TASK.md`, deduplicated and sorted.
  *
- * Ids appear bare, wrapped as `TASK(...)`, and as the timestamp of a journal
- * entry in `NOTE(...)`. The reference implementation makes no distinction
- * between those: it scans the whole file, title and properties included, and
- * keeps whatever looks like an id. So does this, since an id in a title is an
- * arrow in `tatr graph` like any other (the task's own id included, which
- * `tatr graph` draws as an arrow from the task back to itself).
- *
- * What separates a real reference from a note's timestamp is that only the
- * former names a task that exists, which is a question for the caller holding
- * the repository (see `buildGraph`).
+ * Like the reference implementation, it scans the whole file, title and
+ * properties included, and keeps anything shaped like an id: bare, as
+ * `TASK(...)`, or as a `NOTE(...)` timestamp. `tatr graph` draws an arrow for
+ * each, the task's own id included. Only a caller holding the repository can
+ * drop timestamps, by keeping ids that name an existing task (see `buildGraph`).
  */
 export function extractReferences(taskMd: string): string[] {
 	return [...new Set(scanHuids(taskMd))].sort();
@@ -27,7 +22,7 @@ export function extractReferences(taskMd: string): string[] {
 export interface Task {
 	/** Folder name, which is also the creation timestamp. */
 	id: string;
-	/** `null` when the id's digits are no real instant. */
+	/** `null` when the id's digits form no real instant. */
 	created: Date | null;
 	/** Team suffix, when the id carries one. */
 	suffix?: string;
@@ -41,21 +36,19 @@ export interface Task {
 	/** Every property, including keys outside the documented three. */
 	properties: Map<string, string>;
 	/**
-	 * Task ids this task mentions anywhere in its file, deduplicated, its own
-	 * among them when it cites itself. Extracted at parse time so the
-	 * cross-reference graph survives without keeping every description around:
-	 * the ids cost about 2 kB for a 64-task repository, the descriptions 24 kB.
+	 * Task ids mentioned anywhere in the file, deduplicated, its own included.
+	 * They are extracted at parse time so the graph works from the cache, which
+	 * keeps no description.
 	 */
 	references: string[];
 	/**
-	 * Other files in the task's folder, from the listing rather than from the
-	 * body: `readTask` only sees one file, so the loader fills this in. Names
-	 * and sizes only, which is metadata and stays in the cache.
+	 * Other files in the task's folder. The loader fills this in from the listing,
+	 * because `readTask` sees only `TASK.md`.
 	 */
 	attachments?: Attachment[];
 	/**
-	 * The body. Present when the task was just read, absent when it came from the
-	 * cache, which stores metadata only; fetch it with `loadTaskDescription`.
+	 * The body. It is absent when the task came from the cache, which stores
+	 * metadata only; `loadTaskDescription` fetches it.
 	 */
 	description?: string;
 	/** True when the title line was missing its `#`, which voids the properties. */
@@ -63,8 +56,8 @@ export interface Task {
 }
 
 /**
- * Builds a task. Returns `null` when the folder name is not a HUID: the CLI
- * skips those entries rather than failing.
+ * Builds a task, or returns `null` when the folder name is not a HUID, because
+ * the CLI skips such folders rather than failing.
  */
 export function readTask(id: string, taskMd: string): Task | null {
 	const huid = parseHuid(id);
@@ -87,12 +80,12 @@ export function readTask(id: string, taskMd: string): Task | null {
 	return huid.suffix ? { ...task, suffix: huid.suffix } : task;
 }
 
-/** Default CLI order: priority descending, so the most urgent comes first. */
+/** Orders by priority, highest first, the default order of `tatr ls`. */
 export function compareByPriority(a: Task, b: Task): number {
 	return b.priority - a.priority;
 }
 
-/** `tatr ls -id`: lexicographic by id, which is chronological. */
+/** Orders by id, which is chronological, as `tatr ls -id` does. */
 export function compareById(a: Task, b: Task): number {
 	return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }

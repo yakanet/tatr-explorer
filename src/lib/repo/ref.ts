@@ -1,40 +1,38 @@
 /**
- * A reference to what the site reads: a repository on a forge, or a source
- * that lives at one of this site's own paths.
- *
- * References round-trip through the site's own URLs, so that every repository
- * gets a unique, shareable address. A reference names the source that reads
- * it, by its key in the registry, which decides it once, as the URL is read.
+ * References to what the site reads: a repository on a forge, or a source at
+ * one of this site's own paths. A reference round-trips through the site's
+ * URLs, so every repository has one shareable address, and it names the source
+ * that reads it, chosen once when the URL is read.
  */
 import type { SourceId } from '../sources/open.ts';
 
 /**
- * Where a repository is on a forge: `/{owner}/{name}`, optionally prefixed with
- * a forge host and suffixed with `@{branch}`, on any host.
+ * A repository's address on a forge: `/{owner}/{name}`, optionally prefixed
+ * with a host and suffixed with `@{branch}`.
  */
 export type ForgeAddress = {
 	/** Forge host, e.g. `github.com`. */
 	host: string;
 	owner: string;
 	name: string;
-	/** `undefined` means "whatever the forge reports as the default branch". */
+	/** `undefined` means the forge's default branch. */
 	branch?: string;
 };
 
-/** A repository on a forge, and the source that reads it: none on a host nothing reads. */
+/** A repository on a forge, with the source that reads it, or null on a host no source reads. */
 export interface ForgeRef extends ForgeAddress {
 	readonly source: SourceId | null;
 }
 
 /**
- * A source that lives at one of this site's own paths, `/local`, and nowhere
- * else: no URL anyone else follows reaches it (a folder on this machine is a
- * session, not an address).
+ * A source at one of this site's own paths, such as `/local`. Its URL reaches
+ * nothing for anyone else, because a folder on this machine is a session, not
+ * an address.
  */
 export interface PathRef {
 	readonly source: SourceId;
 	readonly path: string;
-	/** Never one: declared so that a reference with a branch is known to be a forge's. */
+	/** Never set: declared so that a reference with a branch is known to be a forge's. */
 	readonly branch?: undefined;
 }
 
@@ -51,9 +49,9 @@ export function isForgeRef<T extends ForgeAddress>(ref: T | PathRef): ref is T {
 const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 /**
- * A leading path segment is a forge host rather than an owner when it looks like
- * a domain. This is unambiguous because forge account names cannot contain dots,
- * even though repository names can (e.g. `sveltejs/svelte.dev`).
+ * Whether a leading path segment is a forge host rather than an owner, by
+ * looking like a domain. Account names cannot contain dots, though repository
+ * names can (`sveltejs/svelte.dev`), so this is unambiguous.
  */
 function isHost(segment: string): boolean {
 	return segment.includes('.') && !segment.startsWith('.') && !segment.endsWith('.');
@@ -70,12 +68,10 @@ function build(host: string, owner: string, name: string, branch?: string): Forg
 }
 
 /**
- * Parses a forge address out of the `[...repo]` portion of one of our own URLs.
- *
- * Accepts `owner/name`, `host/owner/name`, and either form suffixed with
- * `@branch`. Branch names may contain slashes. One segment is never a forge
- * address, which needs an owner too: that is what leaves a path of this site
- * free to be a source's.
+ * Parses a forge address from the `[...repo]` part of the site's URLs:
+ * `owner/name` or `host/owner/name`, optionally suffixed with `@branch`, which
+ * may contain slashes. A single segment is never a forge address, which leaves
+ * it free for a source's path.
  */
 export function parseForgePath(path: string): ForgeAddress | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');
@@ -92,11 +88,9 @@ export function parseForgePath(path: string): ForgeAddress | null {
 }
 
 /**
- * Parses whatever a user pastes into the repository picker: a browser URL, an
- * SSH remote, or the bare `owner/name` shorthand.
- *
- * A GitHub tree URL carries its branch, so `/owner/name/tree/dev/tasks` resolves
- * to branch `dev`.
+ * Parses what a user pastes into the repository picker: a browser URL, an SSH
+ * remote, or `owner/name`. A GitHub tree URL such as
+ * `/owner/name/tree/dev/tasks` gives branch `dev`.
  */
 export function parseRepoInput(input: string): ForgeAddress | null {
 	const trimmed = input.trim();
@@ -127,26 +121,21 @@ function fromHostAndPath(host: string, path: string): ForgeAddress | null {
 	if (segments.length < 2) return null;
 
 	const [owner, name, keyword, ...rest] = segments;
-	// GitHub spells a branch view `/tree/<branch>/<path>`; GitLab (`/-/tree/`) and
-	// Gitea (`/src/branch/`) spell it otherwise, which a second forge will have to
-	// teach this. Branch and path are not separable there without asking the
-	// forge, so we take the first segment: a pasted URL for a slash-containing
-	// branch loses its tail. Our own `@branch` syntax has no such ambiguity.
+	// Only GitHub's `/tree/<branch>/<path>` is recognised. Branch and path cannot
+	// be told apart without asking the forge, so a branch containing a slash
+	// keeps only its first segment; `@branch` has no such ambiguity.
 	const branch = keyword === 'tree' && rest.length > 0 ? rest[0] : undefined;
 
 	return build(host, owner, name, branch);
 }
 
 /**
- * Whether a name could be a branch, by the rules `git check-ref-format` applies:
- * a name git would refuse cannot exist, and refusing it here saves the request
- * that would only say so.
+ * Whether a name could be a branch under `git check-ref-format`, which saves a
+ * request for a name git would refuse.
  *
- * Two characters are refused on our own account, for now. `#` and `%` are legal
- * in git, but our URLs carry the branch unencoded, reading the first as the end
- * of the path and the second as an escape. Encoding the branch where a URL is
- * built would lift this, and fix the same gap in the homepage's field, which
- * accepts `owner/name@branch` unchecked.
+ * `#` and `%` are refused too, though git allows them, because the site's URLs
+ * carry the branch unencoded and read them as the end of the path and as an
+ * escape.
  */
 export function isBranchName(name: string): boolean {
 	if (name === '' || name === '@') return false;
@@ -155,12 +144,12 @@ export function isBranchName(name: string): boolean {
 	return !/\.\.|\/\/|@\{|^\/|\/$|\.$|\.lock$|(^|\/)\./.test(name);
 }
 
-/** `owner/name`: how a repository is named on its forge, host and branch aside. */
+/** A repository's name on its forge, `owner/name`, without host or branch. */
 export function formatRepoName(address: ForgeAddress): string {
 	return `${address.owner}/${address.name}`;
 }
 
-/** Renders a reference, or a forge address, back into the path of our own URLs. */
+/** Renders a reference or a forge address as a path of the site's URLs. */
 export function formatRepoPath(ref: ForgeAddress | PathRef): string {
 	if (!isForgeRef(ref)) return ref.path;
 	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;

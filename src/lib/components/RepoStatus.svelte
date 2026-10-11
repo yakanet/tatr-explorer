@@ -8,7 +8,7 @@
 	let { repo, ref }: { repo: RepositoryState; ref: RepoRef } = $props();
 
 	const percent = $derived(repo.total === 0 ? 0 : Math.round((repo.done / repo.total) * 100));
-	/** What reading costs, which the source says: a request, or nothing at all. */
+	/** What a reading costs, in the source's words: a request, or nothing. */
 	const cost = $derived(repo.source?.cost);
 	/** The gesture that opens the source again, where trying again cannot. */
 	const reopener = $derived(reopenerOf(ref));
@@ -32,9 +32,8 @@
 		{#if cost}<p class="note">{cost.files}</p>{/if}
 	</section>
 {:else if repo.phase === 'failed' && repo.failure}
-	<!-- The heading is the page's name for the failure; the sentence is the
-	     source's, which alone knows its budget, its fallbacks, or that a reload
-	     took its folder back. -->
+	<!-- The heading names the failure kind; the message is the source's, which
+	     alone knows its rate limit, its fallbacks or a folder it lost. -->
 	<section class="panel" class:warn={repo.failure.kind === 'rate-limited'}>
 		<h2>{FAILURE_HEADINGS[repo.failure.kind]}</h2>
 		<p>{repo.failure.message}</p>
@@ -72,7 +71,7 @@
 		font-size: 1rem;
 	}
 
-	/* The headings are written as the clause the header uses, in lower case. */
+	/* The headings are lower case because the header reuses them mid-sentence. */
 	h2::first-letter {
 		text-transform: uppercase;
 	}
@@ -115,7 +114,7 @@
 		color: var(--muted);
 	}
 
-	/* The same pill on a track the dashboard's bars are. */
+	/* The same pill and track as the dashboard's bars. */
 	.bar {
 		height: 8px;
 		border-radius: var(--radius-full);

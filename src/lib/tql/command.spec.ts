@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { lsEcho, type Status } from './command.ts';
 import { parse } from './query.ts';
 
-/** What the query bar hands over: a query that compiled, its tree (none when empty), a status. */
+/** Calls `lsEcho` as the query bar does: a trimmed query, its tree (null when empty), a status. */
 function echo(source: string, status: Status) {
 	const query = source.trim();
 	if (!query) return lsEcho(query, null, status);
@@ -21,7 +21,7 @@ describe('the tatr ls command a query is', () => {
 	});
 
 	it('quotes the query as one argument, brackets and all', () => {
-		// Brackets group in TQL and glob in a shell: zsh refuses `[:bug]` unquoted.
+		// zsh refuses `[:bug]` unquoted.
 		expect(echo(' [:bug or :ui] and priority ge 100 ', 'open')).toEqual({
 			kind: 'command',
 			text: "tatr ls '[:bug or :ui] and priority ge 100'"

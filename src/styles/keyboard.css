@@ -1,21 +1,16 @@
 /*
- * One visible focus ring for the whole site, because the keyboard is a first
- * way to use it rather than a fallback: `j`/`k` move the focus itself, so a
- * reader who cannot see where it is cannot navigate at all.
+ * One visible focus ring for the whole site, because `j`/`k` move the focus
+ * and a reader who cannot see it cannot navigate.
  *
- * `:focus-visible` rather than `:focus`, so a click does not leave a ring
- * behind: the browser already knows which of the two the reader used. An
- * outline rather than a shadow: it follows a pill's or a card's radius all the
- * same, the offset leaves a gap in whatever is behind, forced-colours mode
- * repaints it instead of dropping it, and a card's own `box-shadow` cannot
- * override it.
+ * `:focus-visible`, so a click leaves no ring. An outline rather than a shadow,
+ * because it follows the radius, survives forced-colours mode and is not
+ * overridden by a card's own `box-shadow`.
  *
- * Inside `:where()`, so it weighs nothing and the rules that remove it win: a
- * pill's text field, a table row's link, the keyboard panel. As a plain list it
- * broke in the build only. Vite targets browsers that predate `:has()`, so the
- * minifier wraps a list holding one in `:is(…)`, which takes the weight of its
- * heaviest member, `.input-pill:has(…)`. `:where()` is as forgiving as `:is()`
- * (a browser without `:has()` keeps the rest of the ring) and adds no weight.
+ * Inside `:where()`, so it has no specificity and the rules that remove it
+ * win. A plain selector list would not: Vite targets browsers without
+ * `:has()`, so the minifier wraps the list in `:is(…)`, which takes the weight
+ * of `.input-pill:has(…)`. Like `:is()`, `:where()` keeps the rest of the ring
+ * in a browser without `:has()`.
  */
 :where(
 	:focus-visible,
@@ -26,27 +21,20 @@
 	outline-offset: 2px;
 }
 
-/* A navigable row is styled by the view that draws it: the mark goes on a link
-   or a button, but what should light up is the row, the card or the node around
-   it, and only the view knows which. `data-key-focus` is the keyboard layer's
-   own mark, set because a focus moved by script cannot rely on the browser
-   choosing to match `:focus-visible`. */
+/* The keyboard layer's focus mark. A view may light up the row, card or node
+   around the marked element instead, since only the view knows which. */
 [data-key-focus] {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 
 /*
- * A row inside a table is a line, not a word: an inline anchor's own ring marks
- * the few words it wraps, while the reader needs to see which line they are on.
- * So the table row carries the mark instead, as a band in the accent's wash,
- * the same lilac a selected completion takes, so "the cursor is here" looks the
- * same everywhere.
+ * In a table, the focused row shows as a band in the accent's wash, like a
+ * selected completion, because a link's own ring would mark only its few words.
  *
- * These live here rather than in each view because `data-key-focus` is set at
- * runtime, and Svelte's scoped CSS prunes selectors it cannot find in the
- * markup: the rule would be dropped as unused. The convention is shared
- * anyway: any view putting a `data-key-row` inside a `tr` gets this.
+ * Global because `data-key-focus` is set at runtime, and Svelte's scoped CSS
+ * drops a selector it cannot find in the markup. Any view putting a
+ * `data-key-row` inside a `tr` gets this.
  */
 tr:has([data-key-row]:focus-visible),
 tr:has([data-key-row][data-key-focus]) {

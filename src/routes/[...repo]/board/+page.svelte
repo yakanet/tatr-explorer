@@ -18,23 +18,17 @@
 	const ref = $derived(data.ref);
 	const repo = getContext<RepositoryState>(REPOSITORY);
 
-	// Shared with the list, so a filter set in one is still there in the other.
 	const query = getContext<QueryState>(QUERY);
 
-	/*
-	 * The query narrows each column, and the closed toggle has no say here.
-	 *
-	 * Closed tasks are a column on this view, so hiding them would empty a column
-	 * headed "closed", a question the board answers by its shape. The bar drops
-	 * the switch rather than reinterpreting it, and `matches` is the query without
-	 * the status filter that `apply` would have imposed.
-	 */
+	// The query filters each column without its status, because closed tasks
+	// have their own column and the status would empty it. `matches` leaves the
+	// status out, and the query bar hides its status switch.
 	const columns = $derived(toColumns(repo.tasks, (task) => query.matches(task)));
 
 	const matched = $derived(columns.reduce((n, column) => n + column.tasks.length, 0));
 	const pool = $derived(columns.reduce((n, column) => n + column.total, 0));
 
-	// Counted over everything, the board showing everything.
+	// Tag counts cover every task because the board shows every task.
 	const tagOptions = $derived(
 		byTag(repo.tasks).map(({ tag, count }) => ({
 			name: tag,
@@ -85,8 +79,8 @@
 							{#each column.tasks as task (task.id)}
 								{@const moves = repo.changes?.moved.get(task.id)}
 								<li>
-									<!-- The card is the link, so `j`/`k` and Enter carry the board
-									     without a line of its own. -->
+									<!-- The whole card is the link and the key row, so `j`/`k` and
+									     Enter work on the board without code of its own. -->
 									<a href={taskHref(task.id)} data-key-row class:done={column.key === 'done'}>
 										<span class="prio" class:muted={column.key === 'done'}>
 											{task.priority}
@@ -127,15 +121,15 @@
 		align-items: start;
 	}
 
-	/* Three columns is the point of the view, so they stack rather than shrink
-	   past the width a title needs. */
+	/* Below 60rem the columns stack rather than shrink narrower than a title
+	   needs. */
 	@media (max-width: 60rem) {
 		.board {
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		/* Stacked, the columns are already in one scrolling page: a box inside a
-		   box is what makes a phone unusable. */
+		/* Stacked columns scroll with the page, because a scroll box inside a
+		   scrolling page is hard to use on a phone. */
 		.column {
 			max-height: none;
 		}
@@ -145,8 +139,8 @@
 		}
 	}
 
-	/* Each column is a well the cards sit in. In progress is the one with
-	   colour, being the stage a reader looks for first. */
+	/* Each column is a tinted well that holds the cards. In progress gets the
+	   accent colour because it is the stage a reader looks for first. */
 	.column {
 		min-width: 0;
 		display: flex;
@@ -154,10 +148,9 @@
 		padding: 0.875rem;
 		border-radius: var(--radius-xl);
 		background: var(--tint);
-		/* Done holds 46 cards on tsoding/tatr, so letting the page grow to fit it
-		   scrolls the other two headers off the top, and a board whose columns
-		   cannot be compared is a list. Each scrolls on its own instead, which is
-		   also what `j`/`k` expect: scrollIntoView finds the nearest scroll box. */
+		/* Each column scrolls on its own, so a long Done column does not push the
+		   other headers off the page. `j`/`k` rely on it too, since
+		   scrollIntoView scrolls the nearest scroll box. */
 		max-height: calc(100vh - 13rem);
 	}
 
@@ -183,7 +176,7 @@
 		color: var(--ink-2);
 	}
 
-	/* What the query set aside, kept quieter than what it kept. */
+	/* The column's total before filtering is quieter than the matched count. */
 	.of {
 		color: var(--muted);
 	}
@@ -223,7 +216,7 @@
 		border-color: var(--accent-line);
 	}
 
-	/* Done is context rather than subject, so its cards recede: no fill, no lift. */
+	/* Done cards have no fill and no shadow, so they recede behind open work. */
 	li a.done {
 		background: none;
 		box-shadow: none;
@@ -239,9 +232,8 @@
 		padding-top: 0.15rem;
 	}
 
-	/* A card's title wraps, and a badge sitting in that flow lands alone on a
-	   line of its own as soon as the last word fills the card. Down here it is
-	   the first thing on a line that already exists, beside the tags. */
+	/* The moved badge sits on the tags' line rather than after the title, where
+	   it would land alone on a new line whenever the title fills the card. */
 	.meta {
 		grid-column: 2;
 		display: flex;

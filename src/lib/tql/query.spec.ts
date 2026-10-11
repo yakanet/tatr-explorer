@@ -108,8 +108,7 @@ describe('a task id', () => {
 	});
 
 	it('reads the shape only, as the CLI does, so an impossible date is no error', () => {
-		// `is_valid_huid` checks digits, not dates: the CLI answers this with an
-		// empty list, and failing to parse it would be a divergence.
+		// `is_valid_huid` checks digits, not dates, so the CLI answers with an empty list.
 		expect(run('20260231-000000', short)).toBe(false);
 		expect(run('99999999-999999', short)).toBe(false);
 	});
@@ -122,7 +121,6 @@ describe('precedence', () => {
 	});
 
 	it('binds not to a primary only', () => {
-		// `not :a and :b` is `[not :a] and :b`, not `not [:a and :b]`.
 		expect(run('not :a and :b', task(['b']))).toBe(true);
 		expect(run('not :a and :b', task(['a', 'b']))).toBe(false);
 	});
@@ -176,8 +174,7 @@ describe('errors', () => {
 	};
 
 	it('rejects an empty tag', () => {
-		// Lowercase where every neighbouring message is capitalised. Reproduced
-		// as upstream writes it, like the author's typos elsewhere.
+		// Lower case, unlike its neighbours, because upstream writes it so.
 		expect(fails(':')?.message).toBe('empty tag');
 	});
 
@@ -344,8 +341,6 @@ describe('the ~ term', () => {
 	});
 
 	it('puts the caret where the closing quote belongs, not on the `~`', () => {
-		// The whole of the report: a caret under the `~` accuses the one character
-		// that is right. `[:bug` gets the same treatment from the CLI.
 		expect(formatDiagnostic('~"windows :bug', thrown('~"windows :bug'))).toBe(
 			['~"windows :bug', '              ^', 'Expected `"`.'].join('\n')
 		);
@@ -368,16 +363,15 @@ describe('the ~ term', () => {
 	});
 
 	it('leaves a quote alone where the language has no use for one', () => {
-		// Nothing in the C grammar spells a string, so this stays an unknown token
-		// rather than quietly becoming a search.
+		// The C grammar has no string, so this stays an unknown token rather than
+		// becoming a search.
 		expect(() => parse('"windows"')).toThrow('Unexpected start of a primary expression');
 	});
 });
 
 describe('two primaries with nothing between them', () => {
-	// The reference implementation answers this with the list of operators that
-	// could have filled the gap, above its usual caret. It also calls the token an
-	// infix operator, even for `not`, and the wording is ported as it stands.
+	// The CLI prints the infix operators above its caret and calls the token an
+	// infix operator, even `not`; the wording is ported as it stands.
 	it('names it the way the CLI does', () => {
 		expect(() => parse('~support not ~mac')).toThrow('Unexpected infix operator `not`');
 		expect(() => parse(':bug not :ui')).toThrow('Unexpected infix operator `not`');

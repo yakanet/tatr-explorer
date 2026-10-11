@@ -1,13 +1,7 @@
 /*
- * A panel: the one surface this site draws things on.
- *
- * Global rather than repeated per view because Svelte's scoped CSS does not
- * cross a component, and four copies had drifted into three paddings, which
- * a reader could see. What stays local is the padding itself: a status note, a
- * dashboard card and a task's article are the same surface at three densities.
- *
- * Rounded and, in the light theme, lifted by a soft shadow; in the dark theme
- * the token is `none` and the border alone sets the card apart.
+ * A panel, the one surface the site draws on. Global so that every view shares
+ * it, since scoped CSS does not cross components; each view sets its own
+ * padding. In the dark theme `--shadow-card` is `none`, leaving the border.
  */
 .panel {
 	background: var(--surface);
@@ -17,10 +11,9 @@
 }
 
 /*
- * A menu: a panel dropped under what opened it, such as the query's
- * completions or the header's branches. Global for the reason a panel is, and
- * its width is the opener's to set. Its rows are links or buttons alike, so a
- * row that leads somewhere can stay a link.
+ * A menu dropped under what opened it, such as the query's completions or the
+ * header's branches. The opener sets its width. Rows may be links or buttons,
+ * so a row that leads somewhere stays a link.
  */
 .menu {
 	position: absolute;

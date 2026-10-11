@@ -1,9 +1,8 @@
 /**
- * Parser for `TASK.md`, written from the behaviour of `src/md.c`
- * and `src/task.c` rather than from the README, which simplifies in ways that
- * matter.
+ * Parses `TASK.md` as `src/md.c` and `src/task.c` do, rather than as the README
+ * describes it, because the README simplifies in ways that matter.
  *
- * The shape is a title line, a block of `- KEY: value` properties, then free
+ * A file is a title line, a block of `- KEY: value` properties, then free
  * markdown:
  *
  *     # <title>
@@ -19,9 +18,9 @@
 export const INVALID_TITLE = '!!! INVALID: TASK TITLE MUST START WITH # !!!';
 
 /**
- * Priority when the property is absent. Deliberately huge upstream ("unset
- * priority is high so you don't forget to set it"), so an unset task sorts to
- * the top rather than disappearing into the middle.
+ * The priority when the property is absent. Upstream makes it huge on purpose
+ * ("unset priority is high so you don't forget to set it"), so an unset task
+ * sorts to the top.
  */
 export const UNSET_PRIORITY = 999999;
 
@@ -32,8 +31,8 @@ export interface ParsedTaskMd {
 	/** Everything after the property block, verbatim. */
 	description: string;
 	/**
-	 * True when the title line was missing its `#`. The reference parser then
-	 * abandons property parsing entirely, so properties will be empty.
+	 * True when the title line lacks its `#`. The reference parser then skips the
+	 * property block, so `properties` is empty.
 	 */
 	malformed: boolean;
 }
@@ -96,7 +95,7 @@ export function parseTaskMd(source: string): ParsedTaskMd {
 	return { title, properties, description: source.slice(i), malformed: false };
 }
 
-/** Splits a `TAGS` value. Commas and whitespace both separate, interchangeably. */
+/** Splits a `TAGS` value on any run of commas and whitespace. */
 export function parseTags(value: string): string[] {
 	return value.split(/[\s,]+/).filter((tag) => tag.length > 0);
 }
@@ -113,9 +112,8 @@ export function readPriority(properties: Map<string, string>): number {
 }
 
 /**
- * A task is closed only when its status is exactly `CLOSED`. Every other value
- * (including a misspelt or missing one) counts as open, deliberately, so a task
- * is never hidden by its own error.
+ * Whether the status is exactly `CLOSED`. Any other value, misspelt or missing,
+ * counts as open, so a task is never hidden by its own error.
  */
 export function isClosed(properties: Map<string, string>): boolean {
 	return properties.get('STATUS') === 'CLOSED';

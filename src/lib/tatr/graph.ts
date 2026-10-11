@@ -1,19 +1,15 @@
 /**
- * The cross-reference graph: which tasks cite which.
+ * Builds the cross-reference graph: which tasks cite which.
  *
- * Behaviour taken from `graph_run` in `src/tatr.c`, which scans every `TASK.md` for
- * anything shaped like a HUID and keeps the ones naming a folder that exists.
- * That existence check is what does the real work: a task's body also carries
- * the timestamps of its own journal entries, as `NOTE(20260829-201427)`, and
- * those name no task, so they fall away on their own. Nothing here treats an
- * unknown id as a broken link, because the format has no such notion.
+ * Ported from `graph_run` in `src/tatr.c`, which scans every `TASK.md` for
+ * anything shaped like a HUID and keeps the ids naming an existing task folder.
+ * That check also drops journal timestamps such as `NOTE(20260829-201427)`,
+ * which name no task. An unknown id is not a broken link, because the format
+ * has no such notion.
  *
- * The reference implementation stops at a Graphviz file. What it cannot do is
- * show a title: `neato` needs short labels, and the upstream task that asked
- * for this graph stalled on exactly that. Here the graph is grouped into its
- * connected components, which the page counts, and drawn as stars
- * (`starCards`), each numbered against a list of titles beside it: a title
- * then has nowhere it needs to fit.
+ * `tatr graph` writes a Graphviz file with no titles, because `neato` needs
+ * short labels. Here the graph is drawn as stars (`starCards`), each numbered
+ * against a list of titles beside it, so a title never has to fit the drawing.
  */
 import type { Task } from './task.ts';
 
@@ -24,10 +20,7 @@ import type { Task } from './task.ts';
 export interface GraphEdge {
 	from: string;
 	to: string;
-	/**
-	 * True when each task cites the other, so the connection points both ways.
-	 * Never for a self-citation, which reads both ways but is one arrow.
-	 */
+	/** True when each task cites the other. False for a self-citation, which is one arrow. */
 	mutual: boolean;
 }
 
@@ -48,17 +41,15 @@ export interface ReferenceGraph {
 	clusters: Cluster[];
 	/** Tasks citing nobody and cited by nobody. */
 	isolated: Task[];
-	/** Directed citations, which is what `tatr graph` writes into its `.dot`. */
+	/** The number of directed citations, as `tatr graph` writes them into its `.dot`. */
 	linkCount: number;
 }
 
 const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /**
- * Builds the graph of a whole repository.
- *
- * Tasks whose description was dropped by the cache keep working: the ids they
- * cite are extracted when the task is read and travel with it.
+ * Builds the graph of a whole repository. It works on tasks whose description
+ * the cache dropped, because cited ids are extracted when a task is read.
  */
 export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 	const known = new Map(tasks.map((task) => [task.id, task]));
@@ -74,8 +65,8 @@ export function buildGraph(tasks: readonly Task[]): ReferenceGraph {
 		linkCount += cited.length;
 	}
 
-	// One entry per connection rather than per direction: a pair citing each
-	// other is a single line on screen, not two arrows on top of one another.
+	// One entry per connection, not per direction, so a pair citing each other
+	// draws as one line rather than two overlapping arrows.
 	const edges = new Map<string, GraphEdge>();
 	for (const [from, cited] of out) {
 		for (const to of cited) {
@@ -145,31 +136,29 @@ export interface StarLink {
 	kind: 'in' | 'both' | 'out';
 }
 
-/** One task and the links drawn around it, each link drawn in one card only. */
+/** One task and the links drawn around it. Each link appears in one card only. */
 export interface StarCard {
 	pivot: Task;
 	/**
-	 * In reading order: what cites the pivot, then both ways, then what it
-	 * cites, oldest first within each (the order the drawing goes round in and
-	 * the list beside it is numbered in).
+	 * What cites the pivot, then both ways, then what it cites, oldest first
+	 * within each. The drawing and its numbered list follow this order.
 	 */
 	links: StarLink[];
-	/** Whether the pivot cites itself: a link of its own, with no neighbour to draw. */
+	/** Whether the pivot cites itself, a link with no neighbour to draw. */
 	self: boolean;
 }
 
 const KIND_ORDER: StarLink['kind'][] = ['in', 'both', 'out'];
 
 /**
- * The graph as stars: each card a pivot and only the links into it and out of
- * it, so no card has a line crossing another, however dense the repository.
+ * Splits the graph into star cards, each a pivot with only its own links, so no
+ * line in a card crosses another.
  *
- * A card per linked task would draw every link twice (once around each end),
- * and a pair of tasks would make two cards of one neighbour each. So pivots are
- * chosen to draw each link exactly once: the task with the most links not yet
- * drawn takes them all, and the next one takes what is left. A task can still
- * appear in several cards, as the neighbour of each pivot it is linked to.
- * Ties go to the older task, which keeps the cards the same on every visit.
+ * A card per linked task would draw every link twice, so each link is drawn
+ * once: the task with the most links not yet drawn becomes a pivot and takes
+ * them all, then the next one takes what is left. A task can still appear as a
+ * neighbour in several cards. Ties go to the older task, so the cards stay the
+ * same on every visit.
  */
 export function starCards(graph: ReferenceGraph): StarCard[] {
 	const tasks = new Map<string, Task>();

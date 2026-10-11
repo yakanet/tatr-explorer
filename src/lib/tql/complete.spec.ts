@@ -23,8 +23,8 @@ describe('tokenAt', () => {
 	});
 
 	it('spans the whole token even with the caret at its start', () => {
-		// `complete` cuts this range at the caret to know what was typed, so the
-		// end is what a completion replaces, not what the reader has written.
+		// `complete` reads what was typed up to the caret; the end is what a
+		// completion replaces.
 		expect(tokenAt('not :bug', 4)).toEqual({ start: 4, end: 8 });
 	});
 
@@ -77,9 +77,8 @@ describe('complete', () => {
 		expect(complete('~b', 2, TAGS)).toBeNull();
 	});
 
-	// Each of these ends on a prefix that DOES match a tag, which is the whole
-	// point: the earlier version of this test used `su`, matched nothing, and
-	// passed while the bug was live.
+	// Each of these ends on a prefix that matches a tag, so the test fails if
+	// completion is offered inside a phrase.
 	it.each([
 		['~"bu', 5],
 		['~"windows bu', 12],

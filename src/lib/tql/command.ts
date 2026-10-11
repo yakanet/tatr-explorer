@@ -1,23 +1,20 @@
 /**
- * The `tatr ls` command that lists what a query shows, or what in it no
- * command can say.
+ * Builds the `tatr ls` command that lists what a query shows, or names what in
+ * the query no command can express.
  *
- * The whole claim of this viewer is that a query means the same thing here as
- * in the terminal. Printing the command puts that claim where it can be
- * checked, and teaches the CLI to a reader who arrived through the web. The
- * interesting case is the one where it cannot be said: a `~` term searches
- * titles, which the CLI cannot do, and `all` lists open and closed tasks at
- * once, which no single `tatr ls` does. There the honest output is the reason,
- * naming the term, rather than a command that would not run, or would list
- * something else, once carried to a terminal.
+ * Printing the command lets a reader check that a query means the same here as
+ * in the terminal, and shows the CLI to a reader who came through the web. A
+ * `~` term (a title search) and the `all` status (open and closed at once) have
+ * no `tatr ls` equivalent, so for those the output names the term rather than
+ * a command that would fail or list something else.
  */
 import type { Node } from './query.ts';
 
 /**
  * Which tasks a query runs over. `open` is `tatr ls` and `closed` is
- * `tatr ls -c`, which lists the closed tasks *only*. `all` is this viewer's
- * own: the CLI has no single command for both, and a reader checking whether
- * something was ever filed, or following the dashboard's "in total", needs one.
+ * `tatr ls -c`, which lists closed tasks only. `all` is this viewer's addition:
+ * the CLI has no single command for both, and a reader checking whether
+ * something was ever filed, or following the dashboard's total, needs one.
  */
 export type Status = 'open' | 'closed' | 'all';
 
@@ -28,22 +25,20 @@ export type LsEcho =
 	| { kind: 'command'; text: string }
 	| {
 			kind: 'ours';
-			/** The `~` terms, as typed, which no `tatr ls` understands. */
+			/** The `~` terms, as typed, which `tatr ls` does not understand. */
 			titles: string[];
 			/** Whether the status is `all`, which no single `tatr ls` lists. */
 			both: boolean;
 	  };
 
 /**
- * The echo for a query that compiled: its source exactly as compiled, trimmed,
- * which is what the tree's spans count in, and its tree (null for an empty
- * query). Whether it compiled is the caller's to know, a query in error having
- * a diagnostic to show instead.
+ * Echoes a compiled query as a `tatr ls` command. `source` is the trimmed text
+ * that was compiled, which the tree's spans index into, and `node` its tree
+ * (null for an empty query). A query in error shows its diagnostic instead.
  *
- * `ls` hides closed tasks and `ls -c` shows only those, so the status is part
- * of the command. The CLI joins its arguments with spaces, so the query goes in
- * one quoted argument rather than word by word: brackets group in TQL and glob
- * in a shell.
+ * The status is part of the command because `ls` hides closed tasks and `ls -c`
+ * shows only those. The query goes in one quoted argument, since the CLI joins
+ * its arguments with spaces and brackets glob in a shell.
  */
 export function lsEcho(source: string, node: Node | null, status: Status): LsEcho {
 	const titles = titleTerms(node, source);
@@ -56,7 +51,7 @@ export function lsEcho(source: string, node: Node | null, status: Status): LsEch
 	return { kind: 'command', text: words.join(' ') };
 }
 
-/** Every `~` term of a query, spelled as the reader typed it. */
+/** Lists every `~` term of a query, as the reader typed it. */
 function titleTerms(node: Node | null, source: string): string[] {
 	if (!node) return [];
 	switch (node.kind) {
@@ -72,8 +67,8 @@ function titleTerms(node: Node | null, source: string): string[] {
 }
 
 /**
- * One argument for a POSIX shell: single quotes, which keep everything
- * literal, and a quote inside closed, escaped and reopened.
+ * Quotes one argument for a POSIX shell: single quotes keep everything literal,
+ * and an inner quote is closed, escaped and reopened.
  */
 function shellQuote(text: string): string {
 	return `'${text.replaceAll("'", `'\\''`)}'`;

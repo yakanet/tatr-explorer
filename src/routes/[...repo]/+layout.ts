@@ -2,8 +2,8 @@ import { error } from '@sveltejs/kit';
 import { parseRepoPath } from '#lib/sources/open.ts';
 import type { LayoutLoad } from './$types';
 
-// The repository is only known at runtime, so these routes are served by the
-// `404.html` fallback and routed on the client.
+// These routes are not prerendered because the repository is only known at
+// runtime: the `404.html` fallback serves them and the client routes them.
 export const prerender = false;
 
 export const load: LayoutLoad = ({ params }) => {

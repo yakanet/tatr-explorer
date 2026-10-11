@@ -9,12 +9,11 @@ import { isValidHuid } from './huid.ts';
 import { compareByPriority, readTask } from './task.ts';
 
 /**
- * The second differential corpus, beside tsoding/tatr: a few tasks of ours, each
- * holding an edge case that repository lacks: impossible dates, suffixes, a
- * status that is neither, a title without its `#`, a priority given twice,
- * trailing spaces, text outside ASCII, a self-citation, a folder that is not an
- * id. `scripts/fixtures.mjs` runs the real binary over them like over the first,
- * so each case is what the CLI does, not what we assumed it does.
+ * Compares the parser with the CLI over our own corpus: a few tasks holding edge
+ * cases tsoding/tatr lacks (impossible dates, suffixes, an unknown status, a
+ * title without its `#`, a priority given twice, trailing spaces, non-ASCII
+ * text, a self-citation, a folder that is not an id). `scripts/fixtures.mjs`
+ * records the real binary over them, so each case is what the CLI does.
  */
 interface CliRow {
 	id: string;
@@ -51,8 +50,8 @@ describe('conformance on our corpus of edge cases', () => {
 	});
 
 	it('orders by priority, highest first, as the CLI does', () => {
-		// `tatr ls` sorts on priority alone, with qsort, so tasks of equal priority
-		// come out in no defined order; only the sequence of priorities is the CLI's.
+		// `tatr ls` sorts on priority alone with qsort, so tasks of equal priority
+		// come out in no defined order; only the sequence of priorities is compared.
 		const priorities = (closed: boolean) => ({
 			ours: tasks
 				.filter((task) => task.closed === closed)

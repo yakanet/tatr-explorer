@@ -1,12 +1,9 @@
 /**
- * The folder the reader has open, as a source. This folder's entry, as
- * `source.ts` is in every source folder.
+ * The source of a folder the reader opened in the browser.
  *
- * A local source is a session where a forge is an address: the browser grants
- * access on a gesture and takes it back on a reload, so nothing here could be
- * restored from a URL. The gesture opens a source on the folder, which owns it
- * from then on (its files, its way back and the `blob:` URLs it hands out), and
- * the navigation that follows finds that source here.
+ * The browser grants access to a folder on a gesture and takes it back on a
+ * reload, so no URL can restore it. The gesture calls `openFolder`, and the
+ * navigation that follows finds that source through `LocalFolderSource.open`.
  */
 import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
@@ -20,40 +17,28 @@ import {
 	type WayBack
 } from './folder.ts';
 
-/** The local folder's address, and all of it. */
+/** The path of this site that is the local folder's address, `/local`. */
 export const LOCAL_PATH = 'local';
 
 /**
- * A folder on this machine, as a source, and the class the registry holds for
- * one. On its own it reads a folder handed over once, as files, by the
- * directory input, which gives no way back to it: refreshing means picking it
- * again. A folder handed over with a way back is read by its subclass,
- * {@link LiveFolderSource}.
+ * A folder on this machine, as a source. It reads a folder the directory input
+ * handed over, with no way back, so refreshing means picking it again;
+ * {@link LiveFolderSource} reads one that has a way back.
  *
- * Without a folder, it is the source every reload leaves, and the source of a
- * folder let go of when another was picked: the reference still resolves, and
- * the source says there is nothing behind it, rather than listing nothing or
- * reading the folder picked since.
- *
- * What it cannot do is as telling as what it can: it is not `Cached`, because
- * reading the folder is free and a stored copy of files someone is editing
- * would be wrong before it was written, and not `Linked`, because there is no
- * page anywhere to link a file to.
+ * Without a folder, after a reload or once another was opened, `list` throws
+ * `no-source` rather than listing nothing or reading the folder opened since.
  */
 export class LocalFolderSource implements Source {
-	// One path, and nothing else: the folder's name would read as an address,
-	// and nobody else's machine can follow it.
+	// A fixed path: the folder's name in the URL would read as an address that
+	// another machine could follow.
 	static readonly address: Address = { path: LOCAL_PATH };
 
-	/**
-	 * The source of the folder last handed over, or, with nothing handed over,
-	 * the source every reload leaves.
-	 */
+	/** The source of the folder last opened, or one with no folder. */
 	static open(): LocalFolderSource {
 		return current ?? new LocalFolderSource(null);
 	}
 
-	// A disk has no CDN to be polite to.
+	// The disk needs no throttling.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly cost = {
 		listing: 'from this machine',
@@ -61,27 +46,23 @@ export class LocalFolderSource implements Source {
 	};
 	readonly label: string;
 	protected folder: LocalFolder | null;
-	/** Why there is nothing to list, once there is not. */
+	/** The message `list` throws once there is no folder. */
 	#gone =
 		'A folder is read where it sits, so the browser only grants access while you are ' +
 		'here: a reload takes it back. Choose or drop it again to carry on.';
 
 	/**
-	 * One `blob:` per path, so a body rendered twice does not leak two.
+	 * One `blob:` URL per path, so a body rendered twice does not leak a second.
 	 *
-	 * Kept through a reread, which hands over a new `File` for every file. One
-	 * that did not change keeps its URL: the views go on showing a reading until
-	 * the next one lands, and a body that is not rendered again still links to
-	 * it, while one that is comes out as the same HTML. One that changed gets a
-	 * new URL and the old one is revoked then, having led to a snapshot the
-	 * browser refuses to read once its file changed on disk.
+	 * Kept through a reread: an unchanged file keeps its URL, so the reading
+	 * still on screen goes on linking to it. A changed file gets a new URL and
+	 * the old one is revoked, as the browser refuses to read a `File` whose file
+	 * changed on disk.
 	 */
 	#assets = new Map<string, { file: File; url: string }>();
 
 	constructor(folder: LocalFolder | null) {
 		this.folder = folder;
-		// The folder's own name, which is all the identity it has, or what it is
-		// with no folder behind it.
 		this.label = folder?.name ?? 'a folder on this machine';
 	}
 
@@ -94,7 +75,7 @@ export class LocalFolderSource implements Source {
 		};
 	}
 
-	/** One file, the way a fetch of a raw URL would read it. */
+	/** The file's text, or null when the folder does not hold it. */
 	async read(path: string): Promise<string | null> {
 		const file = this.folder?.files.get(path);
 		if (!file) {
@@ -103,13 +84,7 @@ export class LocalFolderSource implements Source {
 		return file.text();
 	}
 
-	/**
-	 * A URL for one file of the folder, which is what a forge answers with a raw
-	 * endpoint: an image in a task's body, or a file in its Files panel.
-	 *
-	 * `blob:` URLs live until revoked, so they are made once per version of a
-	 * file and dropped with the source that made them.
-	 */
+	/** A `blob:` URL for the file, reused while the file is unchanged. */
 	assetUrl(path: string): string | null {
 		const file = this.folder?.files.get(path);
 		if (!file) return null;
@@ -130,10 +105,7 @@ export class LocalFolderSource implements Source {
 	}
 }
 
-/**
- * A folder with a way back to it, the picker's handle or the entry tree of a
- * drop: read again on demand, and followed as it changes.
- */
+/** A folder with a `WayBack`, which can be read again and followed as it changes. */
 class LiveFolderSource extends LocalFolderSource implements Followable {
 	readonly #back: WayBack;
 
@@ -145,11 +117,10 @@ class LiveFolderSource extends LocalFolderSource implements Followable {
 	async reread(signal?: AbortSignal): Promise<void> {
 		if (!this.folder) return;
 		const folder = await fromWayBack(this.#back, signal);
-		// A later reading took over, and its walk may have landed already: this
-		// one, started first, holds the older tree.
+		// A later reading aborted this one, and its newer tree may already be in place.
 		signal?.throwIfAborted();
-		// The folder alone: closing it would revoke what the reading on screen
-		// links to. Unless it was let go of meanwhile, which a reread must not undo.
+		// Swapped, not closed: closing would revoke the URLs the reading on screen
+		// links to. A folder let go of meanwhile stays let go of.
 		if (this.folder) this.folder = folder;
 	}
 
@@ -158,28 +129,25 @@ class LiveFolderSource extends LocalFolderSource implements Followable {
 	}
 }
 
-/** One file read twice, which a reread hands over as two objects. */
+/** Whether two `File`s of one path, from two readings, hold the same version. */
 function unchanged(before: File, after: File): boolean {
 	return before.size === after.size && before.lastModified === after.lastModified;
 }
 
 /**
  * Calls `onChange` when the folder may have changed, and returns how to stop.
- *
- * The system says so where it can: `FileSystemObserver` reports a change under
- * a handle, on Chromium. Elsewhere, and should observing fail, the cue is the
- * page regaining focus, which is the moment the reader comes back from the
- * editor.
+ * It uses `FileSystemObserver` on a handle where the browser has it, and falls
+ * back on the page regaining focus, when the reader returns from the editor.
  */
 function followFolder(back: WayBack, onChange: () => void): () => void {
 	const Observer = globalThis.FileSystemObserver;
 	if (!('kind' in back) || !Observer) return onFocus(onChange);
 
-	// Any change at all, an editor's swap file included: reading again costs a
-	// few milliseconds, and a reading that moves nothing leaves the badges be.
+	// Every change counts, swap files included: reading again is cheap, and a
+	// reading with no difference changes nothing on screen.
 	const burst = settle(onChange);
 	const observer = new Observer(burst.trigger);
-	// Kept, so that an `observe` answering after the stop does not revive it.
+	// Checked after each await, so nothing answering after the stop follows again.
 	let stopped = false;
 	let unfocus: (() => void) | undefined;
 	tasksDirectoryOf(back)
@@ -204,9 +172,8 @@ function onFocus(onChange: () => void): () => void {
 }
 
 /**
- * The source of the folder last handed over, until another replaces it. Every
- * reading of that folder is a reading of this source, so coming back to it
- * finds the folder as it was last read, and the URLs it handed out still good.
+ * The source of the folder last opened. It outlives navigations, so coming
+ * back finds the folder as last read and its URLs still valid.
  */
 let current: LocalFolderSource | null = null;
 
@@ -222,7 +189,6 @@ export function closeFolder(): void {
 	current = null;
 }
 
-/** A source of the class the way back allows: read again and followed only by one. */
 function sourceOver(folder: LocalFolder, back: WayBack | undefined): LocalFolderSource {
 	if (back === undefined) {
 		return new LocalFolderSource(folder);

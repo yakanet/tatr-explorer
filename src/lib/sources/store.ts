@@ -1,22 +1,13 @@
 /**
  * Where a loaded repository is kept between visits.
  *
- * IndexedDB rather than localStorage, for three reasons that showed up in
- * measurement rather than in principle:
+ * IndexedDB rather than localStorage: a repository of a few thousand tasks
+ * reaches several megabytes and alone would fill localStorage's ~5 MB;
+ * localStorage is synchronous, so parsing such an entry blocks rendering; and
+ * IndexedDB stores structured clones, so `Date` and `Map` come back intact.
  *
- * - **Size.** One 64-task repository serialises to ~45 kB, so localStorage's
- *   ~5 MB would hold about a hundred of them, but a single repository with a
- *   few thousand tasks reaches several megabytes and would fill it alone.
- * - **Blocking.** localStorage is synchronous, so parsing a multi-megabyte
- *   entry stalls the main thread at exactly the moment the page is trying to
- *   render.
- * - **Types.** IndexedDB stores structured clones, so `Date` and `Map` survive
- *   a round trip. Through JSON they do not, and the loader would have to
- *   rebuild them by hand on every read.
- *
- * Storage is unavailable in several ordinary situations (private windows,
- * embedded contexts, the prerender pass, tests), so every path degrades to an
- * in-memory store rather than failing.
+ * Storage is unavailable in private windows, embedded contexts, the prerender
+ * pass and tests, so every path falls back to memory rather than failing.
  */
 
 const DB_NAME = 'tatr';
@@ -34,20 +25,14 @@ export interface RepoStore {
 	write<T>(key: string, value: T, now?: number): Promise<void>;
 	clear(key?: string): Promise<void>;
 	/**
-	 * Everything held, newest first, for the homepage's list of repositories
-	 * already read.
-	 *
-	 * It reads the values rather than only the keys, because what a card shows
-	 * (how many tasks, how many open) lives in them. That means loading the whole
-	 * cache: about 45 kB per repository, from local storage, which is nothing next
-	 * to the request a card would otherwise cost. A cache large enough for that to
-	 * matter would want a separate index of counts.
+	 * Every entry, newest first, for the homepage's list of repositories already
+	 * read. It loads the values, where a card's counts live: about 45 kB per
+	 * repository, far cheaper than the request a card would otherwise make.
 	 */
 	list<T>(): Promise<{ key: string; value: T; storedAt: number }[]>;
 	/**
-	 * Every key held, without the values: what the header's branch menu needs
-	 * to know is only which branches are cached, and reading the values to learn
-	 * it would cost as much as the whole cache weighs.
+	 * Every key, without the values: the header's branch menu only needs to know
+	 * which branches are cached.
 	 */
 	keys(): Promise<string[]>;
 }
@@ -80,10 +65,8 @@ export function memoryStore(): RepoStore {
 }
 
 /**
- * Whether a stored row is one this version can read.
- *
- * A row written before the wrapper existed carries the value alone and has no
- * timestamp, so it is skipped rather than shown as read at the epoch.
+ * Whether a stored row is a `StoredRepo`. A row stored as a bare value has no
+ * `storedAt`, so it is skipped rather than shown as read at the epoch.
  */
 function isStored<T>(value: unknown): value is StoredRepo<T> {
 	if (typeof value !== 'object' || value === null) return false;
@@ -100,16 +83,10 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
 /**
  * Every record of a store, walked with a cursor.
  *
- * A cursor hands over the key and the value of one record together, which is
- * the whole reason to prefer it to `getAllKeys()` plus `getAll()`: those return
- * two arrays a caller has to pair by index, and the pairing only holds while
- * nothing is written between the two reads. Reading them in one transaction
- * would make that true; a cursor makes it unnecessary, and a pairing that
- * cannot come apart beats one that is only argued.
- *
- * `continue()` is called from the success handler with nothing awaited in
- * between, which is what keeps the transaction alive: it commits as soon as it
- * runs out of work, and an `await` between two steps hands it that chance.
+ * A cursor gives each key with its value, where `getAllKeys()` and `getAll()`
+ * return two arrays that pair up only if nothing is written between the two
+ * reads. `continue()` is called from the success handler with nothing awaited,
+ * because the transaction commits as soon as it has no pending request.
  */
 export function collect<T>(store: IDBObjectStore): Promise<{ key: IDBValidKey; value: T }[]> {
 	return new Promise((resolve, reject) => {
@@ -136,7 +113,7 @@ function openDatabase(): Promise<IDBDatabase> {
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
-		// Firefox in private mode resolves neither; do not hang the page on it.
+		// Firefox in private mode fires neither success nor error, and the page must not hang.
 		req.onblocked = () => reject(new Error('IndexedDB blocked'));
 	});
 }
@@ -145,13 +122,11 @@ let shared: RepoStore | null = null;
 
 /**
  * The persistent store, falling back to memory wherever IndexedDB cannot be
- * used. Failures are silent by design: the cache is an optimisation, and a
- * visitor with storage disabled should still see their repository.
+ * used. Failures are silent: the cache is an optimisation, and a visitor
+ * without storage should still see their repository.
  *
- * One per page. The loader and the homepage each ask for it, and a store
- * apiece would give each its own fallback: with IndexedDB unavailable, what a
- * load wrote went into a memory nobody read again, and the homepage listed
- * nothing.
+ * One per page, so that the loader and the homepage share one memory fallback
+ * when IndexedDB is unavailable.
  */
 export function openStore(): RepoStore {
 	return (shared ??= persistentStore());
@@ -173,11 +148,9 @@ function persistentStore(): RepoStore {
 	};
 
 	/**
-	 * Runs one transaction, or gives up quietly.
-	 *
-	 * `run` returns a promise rather than a request, so one request and a cursor
-	 * walk are the same kind of thing here, the walk being the reason: it has to
-	 * stay inside a single transaction, which is a property of where it runs.
+	 * Runs one transaction, or gives up quietly. `run` returns a promise rather
+	 * than a request, so that a cursor walk, which must stay inside one
+	 * transaction, runs here like a single request.
 	 */
 	const transact = async <T>(
 		mode: IDBTransactionMode,
@@ -213,8 +186,7 @@ function persistentStore(): RepoStore {
 			const rows = await transact('readonly', (store) => collect<unknown>(store));
 			if (!rows) return [];
 
-			// One pass rather than a filter and a map: the guard is what narrows a row
-			// to the shape the mapping goes on to read.
+			// `flatMap` rather than a filter and a map, so the guard's narrowing reaches the mapping.
 			return rows
 				.flatMap(({ key, value }) =>
 					isStored<T>(value)

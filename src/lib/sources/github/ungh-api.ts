@@ -1,9 +1,8 @@
 /**
- * ungh.cc, a proxy of GitHub's API, as the lister GitHub falls back on.
- *
- * It asks GitHub with its own credentials, so it imposes no per-visitor budget,
- * sends `access-control-allow-origin: *`, and was measured to return the
- * repository in full (64 of 64 tasks) rather than a late copy.
+ * Lists a repository's files through ungh.cc, a proxy of GitHub's API, when
+ * GitHub's own does not answer. ungh calls GitHub with its own credentials, so
+ * it spends none of the reader's budget, allows any origin, and returns the
+ * full, current tree.
  */
 import type { ForgeAddress } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
@@ -16,8 +15,8 @@ interface UnghResponse {
 }
 
 /**
- * The files of a repository at `branch`, through ungh, or null when it has no
- * such repository or branch.
+ * Lists the files of `ref` at `branch`, or returns null when ungh has no such
+ * repository or branch.
  */
 export async function listViaUnghApi(
 	ref: ForgeAddress,

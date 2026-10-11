@@ -22,9 +22,9 @@ const TREE: Readonly<Record<string, string>> = {
 };
 
 /**
- * A source over `tree`: what the loader does is the question here, whichever
- * source it reads, so this is the least a source can be while cached and read
- * again on demand. It counts its listings, the one call a forge pays for.
+ * The smallest `Cached` and `Rereadable` source over `tree`, as these specs
+ * test the loader rather than a source. It counts its listings, the one call a
+ * forge pays for.
  */
 class Holding implements Source, Cached, Rereadable {
 	readonly label = 'tsoding/tatr';
@@ -226,11 +226,7 @@ describe('what the cache keeps', () => {
 const file = (priority: number, tags: string, status = 'OPEN') =>
 	`# a task\n\n- STATUS: ${status}\n- PRIORITY: ${priority}\n- TAGS: ${tags}\n`;
 
-/**
- * Which reading a new one is compared with is the caller's to say: it has that
- * reading on screen, whatever the source, and a folder has no cache to look it
- * up in. What the loader owes is keeping the comparison with the reading.
- */
+/** The caller passes the reading being replaced; the loader keeps the comparison. */
 describe('the reading a new one replaces', () => {
 	const a = '20260101-000001';
 	const b = '20260202-000002';
@@ -260,8 +256,8 @@ describe('the reading a new one replaces', () => {
 	});
 
 	it('keeps the comparison standing when it moved nothing, rather than announce nothing', async () => {
-		// A followed folder takes many such readings (the focus coming back, an
-		// editor's swap file, a save that only rewrote prose), and each would
+		// A followed folder is read again often (the focus coming back, an
+		// editor's swap file, a prose-only save), and each such reading would
 		// otherwise wipe the badges of the last real change.
 		const again = await loadRepository(new Holding({ [at(a)]: file(110, 'ui') }), {
 			store,
@@ -320,8 +316,6 @@ describe('a folder on this machine', () => {
 	});
 
 	it('is never served from the cache, nor written to it', async () => {
-		// Reading the folder is free and a stored copy of a folder someone is
-		// editing would be wrong before it was written.
 		const source = open([task('20260101-000001', 90)]);
 		const first = await loadRepository(source, { store });
 		expect(first.fromCache).toBe(false);
@@ -333,9 +327,8 @@ describe('a folder on this machine', () => {
 	});
 
 	it('loads an id that is no real date, as `tatr ls` does', async () => {
-		// The CLI checks an id's shape and never its date; the corpus spec compares
-		// such tasks with its output field by field. What is the loader's is letting
-		// the folders through.
+		// The CLI checks an id's shape, never its date. The corpus spec compares
+		// the fields; this one checks only that the loader lets the folders through.
 		const ids = ['20260101-120000', '20260231-000000', '20261399-999999', '00000000-000000'];
 		const result = await loadRepository(open(ids.map((id) => task(id, 50))), { store });
 		expect(result.skipped).toEqual([]);
@@ -361,8 +354,8 @@ describe('a folder on this machine', () => {
 	});
 
 	it('reports a folder that is not a tatr repository as one, not as none', async () => {
-		// It was opened; it simply holds no tasks, which is what the reader has to
-		// be told: the same thing a repository without the folder is told.
+		// The folder opened but holds no tasks, and the reader is told what a
+		// repository without `tasks/` is told.
 		const source = open([dropped('src/app.css', 'body{}'), dropped('README.md', '# a project\n')]);
 		await expect(loadRepository(source, { store })).rejects.toMatchObject({
 			failure: 'no-tasks-folder'

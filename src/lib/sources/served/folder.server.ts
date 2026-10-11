@@ -1,18 +1,15 @@
 /**
- * The dev server's half of the served source: a folder read from the disk and
- * answered to the page over HTTP, its task files written back, and its changes
- * pushed.
+ * The dev server's half of the served source: it reads a folder from the disk,
+ * answers the page over HTTP, writes task files back and pushes changes.
  *
- * A Vite plugin rather than SvelteKit routes. Its routes exist in the dev
- * server only (`configureServer` runs nowhere else), so the site stays a folder
- * of static files and the build never learns about a development tool. They
- * also come after Vite's own handlers, its CORS and host validation included,
- * so a foreign origin can read none of it and a rebound DNS name cannot reach
- * it. Pushes go over Vite's dev channel, which a page joins with a token a
- * foreign page cannot read.
+ * A Vite plugin rather than SvelteKit routes, so the routes exist in the dev
+ * server only and the static build never includes them. They run after Vite's
+ * own handlers, its CORS and host checks included, so a foreign origin cannot
+ * read them and a rebound DNS name cannot reach them. Pushes go over Vite's dev
+ * channel, which a page joins with a token a foreign page cannot read.
  *
- * `.server.ts`, so that SvelteKit refuses to let browser code import it: the
- * page half is `source.ts`, and the two meet only through `protocol.ts`.
+ * `.server.ts`, so SvelteKit refuses to let browser code import it: the page
+ * half is `source.ts`, and the two share only `protocol.ts`.
  */
 import { watch } from 'node:fs';
 import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
@@ -28,33 +25,30 @@ import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
 /** A folder found on the disk, and where its task folders are. */
 export interface ServedFolder {
-	/** The folder itself, resolved. */
+	/** The folder, with symbolic links resolved. */
 	root: string;
 	/** Its `tasks/`, or the folder itself when it is one; null when neither. */
 	tasks: string | null;
 }
 
 /**
- * Finds the folder and its tasks, by the rule the browser's walk follows: a
- * repository holds them in `tasks/`, and a folder of task folders is a `tasks/`
- * folder itself. A folder that is neither is served empty, and the page says it
- * holds no tasks.
+ * Finds `folder` and its tasks by the rule `tasksDirectoryOf` follows in the
+ * browser. A folder that is neither a repository nor a tasks folder is served
+ * empty.
  */
 export async function locate(folder: string): Promise<ServedFolder> {
 	const root = await realpath(path.resolve(folder));
 	const inside = path.join(root, 'tasks');
-	// Resolved once, here, so that every path it serves is compared with where
-	// the tasks really are.
+	// Resolved here, so `diskPath` compares every path with the real location.
 	if (await isDirectory(inside)) return { root, tasks: await realpath(inside) };
 	if (await holdsTaskFolders(root)) return { root, tasks: root };
 	return { root, tasks: null };
 }
 
 /**
- * What the page lists: every regular file under the tasks, as `tasks/...`, in
- * the shape any source answers, and the branch `.git/HEAD` names. Symbolic links
- * are left out, being the one way a file inside the folder could stand for one
- * outside it.
+ * Lists every regular file under the tasks as `tasks/...`, with the branch
+ * `.git/HEAD` names. Symbolic links are left out, as they could point outside
+ * the folder.
  */
 export async function listing(served: ServedFolder): Promise<Listing> {
 	const branch = (await branchOf(served)) ?? 'working tree';
@@ -70,16 +64,15 @@ export async function listing(served: ServedFolder): Promise<Listing> {
 				return { path: `tasks/${relative}`, size: (await stat(disk)).size };
 			})
 	);
-	// In path order, which the disk does not promise: the same folder lists the
-	// same way twice.
+	// `readdir` promises no order, and the same folder should list the same way twice.
 	entries.sort((a, b) => a.path.localeCompare(b.path));
 	return { entries, branch };
 }
 
 /**
- * The file on the disk a page path names, or null for one it may not read:
- * anything outside `tasks/`, and anything that resolves out of it, by `..` or
- * by a symbolic link, even to elsewhere in the same folder.
+ * The file on disk a page path names, or null for one the page may not read:
+ * anything that resolves outside `tasks/`, by `..` or by a symbolic link, even
+ * to elsewhere in the same folder.
  */
 export async function diskPath(served: ServedFolder, page: string): Promise<string | null> {
 	if (!served.tasks || !page.startsWith('tasks/')) return null;
@@ -94,11 +87,9 @@ export async function diskPath(served: ServedFolder, page: string): Promise<stri
 }
 
 /**
- * The dev server's answer to a request, or null for one that is not about the
- * folder, which goes on to Vite and SvelteKit.
- *
- * `/` redirects to the folder, so that starting the server with one opens on
- * it. The dev server is always at the root: the base path is for the build.
+ * Answers a request for the folder, or returns null to leave it to Vite and
+ * SvelteKit. `/` redirects to `/served`, so the dev server opens on the folder;
+ * the dev server is always at the root, as the base path applies to the build.
  */
 export async function answer(served: ServedFolder, request: Request): Promise<Response | null> {
 	const { pathname, origin } = new URL(request.url);
@@ -107,10 +98,9 @@ export async function answer(served: ServedFolder, request: Request): Promise<Re
 	}
 
 	if (!pathname.startsWith(PREFIX)) return null;
-	// Every page the reader has open can reach this server, and Vite's CORS lets
-	// one through from any port of this machine: only this page does more than
-	// read. A browser names the page's origin on every such request, and no page
-	// can name another's.
+	// Vite's CORS admits a page from any port of this machine, so only a request
+	// whose `Origin` is this server's may write. The browser sets `Origin` on
+	// every such request, and a page cannot forge it.
 	if (request.method !== 'GET' && request.headers.get('origin') !== origin) {
 		return new Response(null, { status: 403 });
 	}
@@ -133,7 +123,7 @@ export async function answer(served: ServedFolder, request: Request): Promise<Re
 	return new Response(null, { status: 404 });
 }
 
-/** Where the folder's routes are, under the dev server's root. */
+/** The path prefix of the folder's routes. */
 const PREFIX = `/${ROUTES}/`;
 
 function notAllowed(allow: string): Response {
@@ -141,9 +131,9 @@ function notAllowed(allow: string): Response {
 }
 
 /**
- * The plugin: `TATR_FOLDER=../my-project pnpm run dev` serves that folder and opens
- * on it. Without the variable, or in a build, it installs nothing, and the
- * constant it defines keeps the page half out of the bundle.
+ * The Vite plugin: `TATR_FOLDER=../my-project pnpm run dev` serves that folder
+ * and opens on it. Without the variable, or in a build, it installs nothing and
+ * defines `__TATR_SERVED__` as false, which drops the page half from the bundle.
  */
 export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 	return {
@@ -154,8 +144,8 @@ export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 		}),
 
 		configureServer: {
-			// Ahead of SvelteKit's, whatever the order of the plugins, so that its
-			// routes are installed before SvelteKit's catch-all.
+			// Before SvelteKit's, whatever the plugin order, so these routes come
+			// ahead of its catch-all.
 			order: 'pre',
 			async handler(server) {
 				if (!folder) return;
@@ -164,8 +154,7 @@ export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 				const stop = watchFolder(served, () => server.ws.send(CHANGED));
 				server.httpServer?.once('close', stop);
 
-				// Said where the server says where it listens, so the address to open
-				// is the one printed.
+				// Printed with Vite's URLs, so the address shown is the one it listens on.
 				const printUrls = server.printUrls;
 				server.printUrls = () => {
 					printUrls();
@@ -173,9 +162,8 @@ export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 					if (url) server.config.logger.info(`  ➜  tatr:    ${served.root} at ${url}served`);
 				};
 
-				// Returned rather than installed now, so that Vite's own handlers come
-				// first: the hundreds of module requests a page makes never reach it,
-				// and none of Vite's routes is shadowed.
+				// Returned, so Vite installs it after its own handlers: module requests
+				// never reach it, and no Vite route is shadowed.
 				return () => server.middlewares.use(serve(served));
 			}
 		}
@@ -183,8 +171,8 @@ export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 }
 
 /**
- * The routes as a middleware: Node's request in, the answer out, or on to the
- * next. Exported for its spec, which runs it on a real server.
+ * The routes as a Connect middleware, which passes on any request `answer`
+ * leaves. Exported for its spec, which runs it on a real server.
  */
 export function serve(served: ServedFolder): Connect.NextHandleFunction {
 	return (req, res, next) => {
@@ -200,10 +188,10 @@ export function serve(served: ServedFolder): Connect.NextHandleFunction {
 }
 
 /**
- * Node's request as the web's, at the address the browser asked: its host is
- * one Vite's host check let through, and the origin a write must name. Every
- * header comes along, and a body only for a write to the routes, so that a
- * request going on to another handler reaches it unread.
+ * Converts Node's request into a web `Request` at the address the browser used:
+ * its host passed Vite's host check, so it is the origin a write must name. The
+ * body is read only for a write to the routes, so a request passed on reaches
+ * the next handler unread.
  */
 async function requestOf(req: Connect.IncomingMessage): Promise<Request> {
 	const url = new URL(req.url ?? '/', `${schemeOf(req)}://${req.headers.host ?? 'localhost'}`);
@@ -233,10 +221,9 @@ function servedName(folder: string | undefined, command: 'serve' | 'build'): str
 const NO_STORE = { 'cache-control': 'no-store' };
 
 /**
- * Calls `onChange` when anything under the tasks moves, an editor's swap file
- * included: reading again costs little, and a reading that moves nothing leaves
- * the badges be. Its own watch rather than Vite's, which ignores `tasks/` on
- * purpose and would otherwise treat a save as a module change.
+ * Calls `onChange` on any change under the tasks, swap files included, as
+ * reading again is cheap. It has a watch of its own: Vite's ignores this
+ * repository's `tasks/`, and never sees a folder outside its root.
  */
 function watchFolder(served: ServedFolder, onChange: () => void): () => void {
 	if (!served.tasks) return () => {};
@@ -249,9 +236,9 @@ function watchFolder(served: ServedFolder, onChange: () => void): () => void {
 }
 
 /**
- * One file, raw. Sandboxed: an attachment opened in a tab of its own (an SVG,
- * an HTML page) would otherwise run its scripts as the dev server's own origin,
- * which is the one origin its routes trust.
+ * Serves one file raw, sandboxed: an SVG or HTML attachment opened in its own
+ * tab would otherwise run scripts as the dev server's origin, the one origin
+ * its routes let write.
  */
 async function file(disk: string): Promise<Response> {
 	return new Response(await readFile(disk), {
@@ -294,7 +281,7 @@ async function branchOf(served: ServedFolder): Promise<string | undefined> {
 	}
 }
 
-/** Strictly inside: the directory itself is not a file in it. */
+/** Whether `candidate` is strictly inside `directory`, the directory itself excluded. */
 function isInside(directory: string, candidate: string): boolean {
 	const relative = path.relative(directory, candidate);
 	return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
@@ -316,7 +303,7 @@ async function isFile(candidate: string): Promise<boolean> {
 	}
 }
 
-/** A task folder holds a `TASK.md`, so a folder of task folders is a tasks folder. */
+/** Whether `root` holds a task folder, one with a `TASK.md`. */
 async function holdsTaskFolders(root: string): Promise<boolean> {
 	for (const entry of await readdir(root, { withFileTypes: true })) {
 		if (entry.isDirectory() && (await isFile(path.join(root, entry.name, 'TASK.md')))) return true;

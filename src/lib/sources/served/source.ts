@@ -1,15 +1,12 @@
 /**
- * The folder the dev server serves, as a source. This folder's entry, as
- * `source.ts` is in every source folder.
+ * The page half of the served source, which reads the folder over the dev
+ * server's routes. The server half is `folder.server.ts`, and the two share only
+ * `protocol.ts`. `open.ts` registers it only when the dev server serves a
+ * folder, so a build carries none of it.
  *
- * The page half. The other is `folder.server.ts`, which reads the folder from
- * the disk; they meet only through `protocol.ts`. Registered only when the dev
- * server serves a folder (see `open.ts`), so a build carries none of this.
- *
- * What sets it apart from the local folder is where the folder lives: in the
- * server, not in a grant the browser takes back on a reload. So it survives
- * one, follows the folder in every browser, needs no picker, and writes a task
- * file back with no permission to ask for.
+ * Unlike the local folder, the folder lives in the server rather than in a
+ * browser grant, so it survives a reload, is followed in every browser, needs
+ * no picker, and can be written to.
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import type { Followable, Rereadable, Writable } from '../capabilities.ts';
@@ -27,31 +24,24 @@ const route = (path: string) => `/${ROUTES}/${path}`;
 /** Where the dev server answers one file of the folder. */
 const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
 
-/**
- * The folder the dev server serves, read over its routes.
- *
- * Not `Cached`: reading it is free, and a stored copy of files someone is
- * editing would be wrong before it was written.
- */
+/** The folder the dev server serves, read over its routes. */
 export class ServedSource implements Source, Rereadable, Writable {
-	// A path, as for a folder opened in the browser: no URL anyone else follows
-	// reaches it, though it survives a reload.
+	// A fixed path, as for the local folder: no other machine can follow it.
 	static readonly address: Address = { path: SERVED_PATH };
 
 	/**
-	 * Under the name the dev server gives the folder. It is registered only where
-	 * one is served; a spec, which runs with none, opens it under its path.
+	 * Opens the source under the served folder's name, or under `served` in a
+	 * spec, which runs with no folder served.
 	 */
 	static open(): ServedSource {
 		const name = SERVED || SERVED_PATH;
-		// The dev channel is there whenever the dev server is; the specs open it
-		// without one.
+		// `import.meta.hot` exists in the dev server, not in the specs.
 		const channel = import.meta.hot;
 		if (!channel) return new ServedSource(name);
 		return new FollowedServedSource(name, channel);
 	}
 
-	// The dev server is this machine.
+	// The dev server runs on this machine and needs no throttling.
 	readonly concurrency = Number.POSITIVE_INFINITY;
 	readonly cost = {
 		listing: 'from the dev server',
@@ -60,7 +50,7 @@ export class ServedSource implements Source, Rereadable, Writable {
 	readonly label: string;
 	readonly #network: typeof fetch;
 
-	/** `network` is what a spec substitutes for the dev server. */
+	/** `network` lets a spec stand in for the dev server. */
 	constructor(label: string, network: typeof fetch = fetch) {
 		this.label = label;
 		this.#network = network;
@@ -80,23 +70,23 @@ export class ServedSource implements Source, Rereadable, Writable {
 		return fileRoute(path);
 	}
 
-	/** Every listing is a fresh one, so there is nothing to make ready. */
+	/** Has nothing to prepare: every listing is read fresh. */
 	async reread(): Promise<void> {}
 
-	/** Through the dev server, which compares `expected` with the disk before it writes. */
+	/** Writes through the dev server, which compares `expected` with the disk first. */
 	async write(path: string, text: string, expected: string): Promise<'written' | 'changed'> {
 		const response = await this.#ask(fileRoute(path), {
 			method: 'PUT',
 			headers: { 'if-match': await tagOf(expected) },
 			body: text
 		});
-		// Gone since it was read is changed too: reading again finds it so.
+		// A file removed since it was read has changed too, as reading again shows.
 		if (response.status === 412 || response.status === 404) return 'changed';
 		if (!response.ok) throw refused(response);
 		return 'written';
 	}
 
-	/** The dev server's answer, whatever it is, or the failure of its silence. */
+	/** Returns the dev server's response, whatever its status, or throws if it does not answer. */
 	async #ask(url: string, init: RequestInit): Promise<Response> {
 		// Called unbound: the browser's own `fetch` refuses any `this` but the window.
 		const network = this.#network;
@@ -108,12 +98,12 @@ export class ServedSource implements Source, Rereadable, Writable {
 	}
 }
 
-/** What an answer other than the one asked for says. */
+/** The error for a status other than the one expected. */
 function refused(response: Response): SourceError {
 	return new SourceError('network', `The dev server answered ${response.status}.`);
 }
 
-/** The same folder, followed as it changes: the dev server pushes word of it. */
+/** A `ServedSource` that follows the folder through the change events the dev server pushes. */
 export class FollowedServedSource extends ServedSource implements Followable {
 	readonly #channel: ViteHotContext;
 

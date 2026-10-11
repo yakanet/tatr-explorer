@@ -1,16 +1,11 @@
 /**
- * Which of the four tints a tag is drawn on.
+ * Which of the four tints a tag is drawn on, decided by its name alone.
  *
- * Decided by the name alone, never by rank, count or the current filter: a
- * colour that followed the data would repaint a tag the moment another one was
- * added, and the reader would lose the one thing a hue is for, recognising a
- * tag at a glance from one page to the next. The same name gets the same hue in
- * every repository.
- *
- * FNV-1a over the UTF-8 bytes, because it is a few lines, has no dependency and
- * spreads short words well enough; four buckets mean collisions, which is
- * acceptable because the name is always printed: the hue helps the eye, it
- * never carries the meaning on its own.
+ * A hue that followed rank, count or the filter would repaint a tag whenever
+ * another was added, while a hue exists to recognise a tag at a glance, in
+ * every repository. FNV-1a over the UTF-8 bytes is short, needs no dependency
+ * and spreads short words well. Four buckets collide, which is acceptable
+ * because the tag's name is always printed beside its hue.
  */
 export type TagHue = 1 | 2 | 3 | 4;
 

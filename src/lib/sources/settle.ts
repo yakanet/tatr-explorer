@@ -1,7 +1,7 @@
 /**
- * Lets a burst of changes settle before acting on it: one save can be several
- * writes, a swap file and a rename. Shared by the sources that follow a folder,
- * in the browser and in the dev server alike, so that both wait the same time.
+ * How long a burst of changes must be quiet before it is acted on, as one save
+ * can be several writes, a swap file and a rename. Shared by the sources that
+ * follow a folder, so that all wait the same time.
  */
 const SETTLE_MS = 150;
 
