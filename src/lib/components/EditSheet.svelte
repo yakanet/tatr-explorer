@@ -1,14 +1,16 @@
 <script lang="ts">
-	// Edits a task's title and description, or a new task's. The page holds the
-	// draft, whose status, priority and tags the properties panel edits, and
-	// decides what Save and Cancel do.
+	// Edits a task's title and description, or a new task's, with the images
+	// pasted or dropped into it. The page holds the sheet, whose status,
+	// priority and tags the properties panel edits, and decides what Save and
+	// Cancel do.
+	import { onDestroy } from 'svelte';
 	import type { RenderOptions } from '#lib/render/markdown.ts';
-	import type { TaskFields } from '#lib/tatr/task-fields.ts';
+	import type { Sheet } from '#lib/state/sheet.svelte.ts';
 	import Journal from './Journal.svelte';
 	import MarkdownEditor from './MarkdownEditor.svelte';
 
 	interface Props {
-		fields: TaskFields;
+		sheet: Sheet;
 		/** Whether Save has something to write, and a source that writes. */
 		saveable: boolean;
 		saving: boolean;
@@ -22,7 +24,7 @@
 	}
 
 	let {
-		fields = $bindable(),
+		sheet,
 		saveable,
 		saving,
 		moved = false,
@@ -38,16 +40,19 @@
 		event.preventDefault();
 		if (saveable) onsave();
 	}
+
+	// The sheet is shown for as long as it is open, so its images go with it.
+	onDestroy(() => sheet.close());
 </script>
 
 <svelte:window onkeydown={keyed} />
 
 <article class="panel">
-	<input class="title" aria-label="Title" placeholder={untitled} bind:value={fields.title} />
+	<input class="title" aria-label="Title" placeholder={untitled} bind:value={sheet.draft.title} />
 
-	<MarkdownEditor bind:value={fields.description} label="Description">
+	<MarkdownEditor bind:value={sheet.draft.description} label="Description" onimage={sheet.attach}>
 		{#snippet preview()}
-			<Journal body={fields.description} {options} />
+			<Journal body={sheet.draft.description} options={sheet.preview(options)} />
 		{/snippet}
 	</MarkdownEditor>
 

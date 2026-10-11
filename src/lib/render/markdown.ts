@@ -41,7 +41,18 @@ function isRelative(url: string): boolean {
  * that climbs out of it.
  */
 export function resolveAttachment(options: RenderOptions, url: string): string | null {
-	const segments = `tasks/${options.taskId}/${url}`.split('/');
+	const path = attachmentPath(options.taskId, url);
+	if (path === null) return null;
+	return options.assetUrl(path);
+}
+
+/**
+ * The path from the repository root that a relative link of task `taskId`
+ * names, or null for one outside `tasks/`. An empty id, a new task's, leaves
+ * the link in `tasks/` itself.
+ */
+export function attachmentPath(taskId: string, url: string): string | null {
+	const segments = `tasks/${taskId}/${url}`.split('/');
 	const stack: string[] = [];
 
 	for (const segment of segments) {
@@ -57,7 +68,7 @@ export function resolveAttachment(options: RenderOptions, url: string): string |
 	const path = stack.join('/');
 	// Anything outside tasks/ is not an attachment of this repository's tasks.
 	if (!path.startsWith('tasks/')) return null;
-	return options.assetUrl(path);
+	return path;
 }
 
 /**

@@ -7,6 +7,7 @@ import {
 	isLinked,
 	isRereadable,
 	isWritable,
+	type Writable,
 	type WriteAnswer
 } from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
@@ -22,7 +23,7 @@ import {
 	type Snapshot
 } from '../tatr/changes.ts';
 import { formatHuid } from '../tatr/huid.ts';
-import { describedTagsFile, TAGS_FILE, type TagDescriptions } from '../tatr/tags-file.ts';
+import type { TagDescriptions } from '../tatr/tags-file.ts';
 import { EditRefused, editTaskMd, type Edit } from '../tatr/task-file.ts';
 import { newTaskMd, type TaskFields } from '../tatr/task-fields.ts';
 import { taskPath, type Task } from '../tatr/task.ts';
@@ -64,14 +65,21 @@ export interface EditNotice {
 	undoable: boolean;
 }
 
-/** What a sheet's Save writes besides the task's file. */
-export interface Extras {
-	/** Descriptions of tags that are new to the repository, which `tasks/tags` gains. */
-	tags: ReadonlyMap<string, string>;
-}
+/** A file a save writes besides the task's own, by its path from the repository root. */
+export type FileWrite =
+	/** A file created, such as an image; one there already is not replaced. */
+	| { path: string; contents: Blob }
+	/** A file rewritten from what it holds, or from null where there is none. */
+	| { path: string; rewrite: (before: string | null) => string };
+
+/**
+ * The files a save writes besides the task's own, which may lie in the task's
+ * folder and so need its id, unknown for a new task until it is created.
+ */
+export type Extras = (id: string) => FileWrite[];
 
 /** A save of the task's file alone, as a gesture on the board makes. */
-const NO_EXTRAS: Extras = { tags: new Map() };
+const NO_EXTRAS: Extras = () => [];
 
 /** The notice of an edit that was not made. */
 function failed(text: string): EditNotice {
@@ -333,7 +341,8 @@ export class RepositoryState {
 			await this.refresh();
 			return false;
 		}
-		if (after === before && extras.tags.size === 0) {
+		const files = extras(id);
+		if (after === before && files.length === 0) {
 			// The file already says so: the reading on screen is the stale part.
 			this.notice = null;
 			await this.refresh();
@@ -343,7 +352,7 @@ export class RepositoryState {
 		// asked whether this page may write before anything else is.
 		const answer = await source.write(path, after, before);
 		if (answer === 'written' && after !== before) this.#written = { id, before, after };
-		return this.#settle(answer, id, what, extras);
+		return this.#settle(answer, id, what, files);
 	}
 
 	async #create(fields: TaskFields, extras: Extras): Promise<string | null> {
@@ -356,27 +365,28 @@ export class RepositoryState {
 		if (answer === 'changed') return this.#taken(id);
 		// Undo writes a file back, and has no file to write back here.
 		this.#written = null;
-		if (!(await this.#settle(answer, id, 'created', extras))) return null;
+		if (!(await this.#settle(answer, id, 'created', extras(id)))) return null;
 		return id;
 	}
 
 	/**
-	 * Appends the descriptions of new tags to `tasks/tags`, which it creates
-	 * where the repository has none. Resolves to the sentence saying why it
-	 * could not, or to null. It follows a write of the task's file, so the
-	 * reader has allowed writing already.
+	 * Writes each of `files`, and resolves to a sentence for each that was not
+	 * written, saying why. It follows a write of the task's file, so the reader
+	 * has allowed writing already.
 	 */
-	async #describe(tags: ReadonlyMap<string, string>): Promise<string | null> {
+	async #writeAll(files: readonly FileWrite[]): Promise<string[]> {
 		const source = this.source;
-		if (tags.size === 0 || !isWritable(source)) return null;
-		try {
-			const before = await source.read(TAGS_FILE);
-			const answer = await source.write(TAGS_FILE, describedTagsFile(before, tags), before);
-			if (answer === 'written') return null;
-			return `The new tags were not described, as ${TAGS_FILE} changed on disk since it was read.`;
-		} catch (error) {
-			return `The new tags were not described: ${messageOf(error)}`;
+		if (!isWritable(source)) return [];
+		const missed: string[] = [];
+		for (const file of files) {
+			try {
+				const why = await writeFile(source, file);
+				if (why) missed.push(`${file.path} was not written, ${why}.`);
+			} catch (error) {
+				missed.push(`${file.path} was not written: ${messageOf(error)}`);
+			}
 		}
+		return missed;
 	}
 
 	/** Refuses an id that is taken, in the words of `tatr new`. */
@@ -399,13 +409,13 @@ export class RepositoryState {
 	/**
 	 * Says what a write's answer means, and reads again wherever the disk may
 	 * now differ from the screen. `what` says what a write made did. A write made
-	 * is followed by `extras`. Resolves to whether the write was made.
+	 * is followed by `files`. Resolves to whether the write was made.
 	 */
 	async #settle(
 		answer: WriteAnswer,
 		id: string,
 		what: string,
-		extras = NO_EXTRAS
+		files: readonly FileWrite[] = []
 	): Promise<boolean> {
 		if (answer === 'refused') {
 			this.#refused = true;
@@ -419,11 +429,11 @@ export class RepositoryState {
 				`${id} changed on disk since it was read, so it was left as it is and read again.`
 			);
 		} else {
-			const missed = await this.#describe(extras.tags);
+			const missed = await this.#writeAll(files);
 			// Undo is offered while the last write can still be taken back.
 			this.notice = {
-				text: [`${id}: ${what}.`, missed].filter(Boolean).join(' '),
-				failed: missed !== null,
+				text: [`${id}: ${what}.`, ...missed].join(' '),
+				failed: missed.length > 0,
 				undoable: this.#written !== null
 			};
 		}
@@ -464,6 +474,20 @@ export class RepositoryState {
 		this.#controller?.abort();
 		this.#controller = null;
 	}
+}
+
+/**
+ * Writes one file of a save, created where there is none or rewritten from
+ * what it holds, and resolves to why it was not, as a sentence's end, or null.
+ */
+async function writeFile(source: Source & Writable, file: FileWrite): Promise<string | null> {
+	if ('contents' in file) {
+		if ((await source.write(file.path, file.contents, null)) === 'written') return null;
+		return 'as a file is there already';
+	}
+	const before = await source.read(file.path);
+	if ((await source.write(file.path, file.rewrite(before), before)) === 'written') return null;
+	return 'as it changed on disk since it was read';
 }
 
 /**

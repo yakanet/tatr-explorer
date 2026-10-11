@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { collectAttachments, formatSize, type Listed } from './attachments.ts';
+import {
+	attachmentName,
+	collectAttachments,
+	formatSize,
+	type Listed,
+	wantedImageName
+} from './attachments.ts';
 
 /** The shape of tsoding/tatr's own task folders, as its listing reports them. */
 const UPSTREAM: Listed[] = [
@@ -90,5 +96,36 @@ describe('formatSize', () => {
 
 	it('says nothing about a size it was not given', () => {
 		expect(formatSize(undefined)).toBe('');
+	});
+});
+
+describe('attachmentName', () => {
+	it.each([
+		['Capture d’écran 2026.png', 'Capture-d-ecran-2026.png'],
+		['Mon schéma (v2).png', 'Mon-schema-v2.png'],
+		['.hidden.png', 'hidden.png'],
+		['--odd--.png', 'odd.png'],
+		['???', 'file']
+	])('reduces %o to %o, which a link takes as it is', (wanted, name) => {
+		expect(attachmentName(wanted, new Set())).toBe(name);
+	});
+
+	it('numbers a name the folder holds already, before its extension', () => {
+		const taken = new Set(['shot.png', 'shot-2.png', 'notes']);
+		expect(attachmentName('shot.png', taken)).toBe('shot-3.png');
+		expect(attachmentName('notes', taken)).toBe('notes-2');
+	});
+});
+
+describe('wantedImageName', () => {
+	const NOW = new Date(Date.UTC(2026, 9, 12, 8, 30, 0));
+
+	it("names a pasted screenshot, which carries the browser's generic name, after the clock", () => {
+		expect(wantedImageName('image.PNG', NOW)).toBe('pasted-20261012-083000.png');
+	});
+
+	it('keeps any other name, of a file dropped or pasted from a folder', () => {
+		expect(wantedImageName('plan.jpg', NOW)).toBe('plan.jpg');
+		expect(wantedImageName('image-2.png', NOW)).toBe('image-2.png');
 	});
 });

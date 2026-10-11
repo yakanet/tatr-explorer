@@ -9,6 +9,7 @@ import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
 import { fieldsOf, NEW_TASK, withFields } from '../tatr/task-fields.ts';
+import { describedTagsFile, TAGS_FILE } from '../tatr/tags-file.ts';
 import { loadTaskFile, withStatus, withTag } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
@@ -277,6 +278,11 @@ describe('a refresh that fails', () => {
 	});
 });
 
+/** The extras of a save that describes `tags` in `tasks/tags`, as a sheet's are. */
+const describing = (tags: ReadonlyMap<string, string>) => () => [
+	{ path: TAGS_FILE, rewrite: (before: string | null) => describedTagsFile(before, tags) }
+];
+
 describe('editing a task', () => {
 	const ID = '20260101-000001';
 	const close = withStatus('CLOSED');
@@ -411,7 +417,7 @@ describe('editing a task', () => {
 	});
 
 	describe('describing the tags new to the repository', () => {
-		const described = { tags: new Map([['fresh', 'a tag no task had']]) };
+		const described = describing(new Map([['fresh', 'a tag no task had']]));
 		const tagged = withTag('fresh');
 
 		it('creates tasks/tags with the save where the repository has none', async () => {
@@ -444,9 +450,21 @@ describe('editing a task', () => {
 
 			expect(repo.notice?.failed).toBe(true);
 			expect(repo.notice?.text).toMatch(
-				new RegExp(`^${ID}: saved\\. The new tags were not described: `)
+				new RegExp(`^${ID}: saved\\. tasks/tags was not written: `)
 			);
 		});
+	});
+
+	it('says which image was not written, rather than replace a file it did not read', async () => {
+		const repo = await editing();
+		disk[`tasks/${ID}/shot.png`] = 'there already';
+		const image = () => [{ path: `tasks/${ID}/shot.png`, contents: new Blob(['new']) }];
+		expect(await repo.edit(ID, close, 'closed', image)).toBe(true);
+
+		expect(disk[`tasks/${ID}/shot.png`]).toBe('there already');
+		expect(repo.notice?.text).toBe(
+			`${ID}: closed. tasks/${ID}/shot.png was not written, as a file is there already.`
+		);
 	});
 
 	describe('creating a task', () => {
@@ -493,9 +511,16 @@ describe('editing a task', () => {
 
 		it('describes its new tags in tasks/tags', async () => {
 			const repo = await editing();
-			const described = { tags: new Map([['fresh', 'a tag no task had']]) };
+			const described = describing(new Map([['fresh', 'a tag no task had']]));
 			await repo.create({ ...NEW_TASK, tags: ['fresh'] }, described);
 			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+		});
+
+		it('writes its images into its folder once the task file has made it', async () => {
+			const repo = await editing();
+			const image = (id: string) => [{ path: `tasks/${id}/shot.png`, contents: new Blob(['png']) }];
+			await repo.create(NEW_TASK, image);
+			expect(disk[`tasks/${CREATED}/shot.png`]).toBe('png');
 		});
 
 		it('creates nothing once the reader refuses', async () => {

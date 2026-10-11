@@ -76,7 +76,7 @@
 	/** Opens the editing sheet, or is undefined where the task cannot be edited. */
 	const onedit = $derived.by(() => {
 		if (!task || !repo.canEdit(task) || !current) return undefined;
-		return () => (sheet = new Sheet(current, repo));
+		return () => (sheet = new Sheet(current, repo, task));
 	});
 
 	async function save() {
@@ -115,7 +115,7 @@
 	{:else}
 		{#if sheet}
 			<EditSheet
-				bind:fields={sheet.draft}
+				{sheet}
 				saveable={dirty && repo.canEdit(task)}
 				{saving}
 				{moved}

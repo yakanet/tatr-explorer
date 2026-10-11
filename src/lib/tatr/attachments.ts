@@ -1,10 +1,12 @@
 /**
- * Lists the files a task folder holds besides its `TASK.md`.
+ * Lists the files a task folder holds besides its `TASK.md`, and names those a
+ * sheet adds to it.
  *
  * The tree listing already returns every path with its size, so the list costs
  * no extra request. Most attachments are also linked from the body; the list
  * shows what a task carries without reading the body.
  */
+import { formatHuid } from './huid.ts';
 
 /** One file as a listing reports it: a path from the repository root, sometimes a size. */
 export interface Listed {
@@ -53,6 +55,44 @@ export function collectAttachments(entries: readonly Listed[]): Map<string, Atta
 	}
 
 	return byTask;
+}
+
+/**
+ * A name for a file attached to a task: `wanted` reduced to letters, digits,
+ * `.`, `-` and `_`, so that a link to it needs no escaping, and numbered `-2`,
+ * `-3` before its extension while `taken` holds it. Accents go and their
+ * letters stay; a leading dot goes too, as a dotfile is not listed as an
+ * attachment.
+ */
+export function attachmentName(wanted: string, taken: ReadonlySet<string>): string {
+	const clean =
+		wanted
+			.normalize('NFD')
+			.replace(/\p{Mn}+/gu, '')
+			.replace(/[^A-Za-z0-9._-]+/g, '-')
+			.replace(/-+(?=\.)|^[-.]+|-+$/g, '') || 'file';
+	const [stem, extension] = splitExtension(clean);
+	let name = clean;
+	for (let n = 2; taken.has(name); n += 1) name = `${stem}-${n}${extension}`;
+	return name;
+}
+
+/** `name` cut before its extension, or whole with an empty extension when it has none. */
+function splitExtension(name: string): [string, string] {
+	const dot = name.lastIndexOf('.');
+	if (dot <= 0) return [name, ''];
+	return [name.slice(0, dot), name.slice(dot)];
+}
+
+/**
+ * The name an image pasted or dropped into a description asks for: its own,
+ * unless it is the generic `image.png` a browser gives a pasted screenshot,
+ * which is named after the clock instead, as `pasted-<YYYYMMDD-HHMMSS>.png`.
+ */
+export function wantedImageName(name: string, now: Date): string {
+	const generic = /^image\.([a-z]+)$/i.exec(name);
+	if (!generic) return name;
+	return `pasted-${formatHuid(now)}.${generic[1].toLowerCase()}`;
 }
 
 const UNITS = ['B', 'kB', 'MB'] as const;
