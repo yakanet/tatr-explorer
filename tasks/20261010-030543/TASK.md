@@ -1,7 +1,7 @@
 # Edit the tasks of a folder, where it can be written
 
 - STATUS: OPEN
-- PRIORITY: 35
+- PRIORITY: 60
 - TAGS: data,ui
 
 This viewer only reads. Where a source can write, the views could act on the
