@@ -1,12 +1,14 @@
 /**
- * Writes a tree of files on the disk, for the specs: nothing in the application
- * imports this file. Its own file because both halves of the served source are
- * specced over real folders, as the disk is what they are about.
+ * Writes a tree of files on the disk, and serves it as the dev server would,
+ * for the specs: nothing in the application imports this file. Its own file
+ * because the served source is specced over real folders, as the disk is what
+ * it is about, by its own specs and by the contract every source runs.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach } from 'vitest';
+import { answer, locate } from './folder.server.ts';
 
 /**
  * A fresh folder for every spec, removed after it. Returns a function, as the
@@ -30,4 +32,16 @@ export async function writeTree(root: string, tree: Record<string, string>): Pro
 		await writeFile(path.join(root, file), contents);
 	}
 	return root;
+}
+
+/**
+ * A fetch answered by the dev server's half itself, serving `folder`: no HTTP,
+ * but no mock of either side.
+ */
+export async function serving(folder: string): Promise<typeof fetch> {
+	const served = await locate(folder);
+	return (async (input: RequestInfo | URL) => {
+		const request = new Request(new URL(String(input), 'http://localhost'));
+		return (await answer(served, request)) ?? new Response('not ours', { status: 404 });
+	}) as typeof fetch;
 }

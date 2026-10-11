@@ -3,8 +3,8 @@ import { localRef, servedRef } from '../../repo/ref.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
 import { ListingError } from '../source.ts';
-import { scratchFolder, writeTree } from './disk-tree.server.ts';
-import { answer, locate } from './folder.server.ts';
+import { scratchFolder, serving, writeTree } from './disk-tree.server.ts';
+import { unreachable } from './subjects.server.ts';
 import { servedKind } from './kind.ts';
 
 /**
@@ -23,16 +23,8 @@ beforeEach(async () => {
 	});
 });
 
-/** A fetch answered by the dev server's half itself. */
-async function server(): Promise<typeof fetch> {
-	const served = await locate(scratch());
-	return (async (input: RequestInfo | URL) => {
-		const request = new Request(new URL(String(input), 'http://localhost'));
-		return (await answer(served, request)) ?? new Response('not ours', { status: 404 });
-	}) as typeof fetch;
-}
-
-const open = async () => servedKind('my-project').open(servedRef(), { fetchImpl: await server() });
+const open = async () =>
+	servedKind('my-project').open(servedRef(), { fetchImpl: await serving(scratch()) });
 
 describe('the served folder, as a source', () => {
 	it('claims the served marker and nothing else', () => {
@@ -68,9 +60,6 @@ describe('the served folder, as a source', () => {
 	});
 
 	it('says the dev server did not answer, rather than that there is nothing', async () => {
-		const unreachable = (async () => {
-			throw new TypeError('Failed to fetch');
-		}) as unknown as typeof fetch;
 		const source = servedKind('my-project').open(servedRef(), { fetchImpl: unreachable });
 		await expect(source.list()).rejects.toThrow(ListingError);
 	});
