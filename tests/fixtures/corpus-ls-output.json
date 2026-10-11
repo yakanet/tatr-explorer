@@ -1,17 +1,27 @@
 [
  {
-  "id": "20260105-110000",
-  "status": "OPEN",
-  "priority": 999999,
-  "tags": [],
-  "title": "!!! INVALID: TASK TITLE MUST START WITH # !!!"
- },
- {
   "id": "20260104-100000",
   "status": "OPEN",
   "priority": 999999,
   "tags": [],
   "title": "No properties at all"
+ },
+ {
+  "id": "20260115-210000",
+  "status": "OPEN",
+  "priority": 999999,
+  "tags": [
+   "data",
+   "ui"
+  ],
+  "title": "Tags and nothing else"
+ },
+ {
+  "id": "20260105-110000",
+  "status": "OPEN",
+  "priority": 999999,
+  "tags": [],
+  "title": "!!! INVALID: TASK TITLE MUST START WITH # !!!"
  },
  {
   "id": "20261399-999999",
@@ -68,6 +78,24 @@
   "title": "The thirty-first of February"
  },
  {
+  "id": "20260118-000000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "No newline at the end"
+ },
+ {
+  "id": "20260117-230000",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [
+   "ui"
+  ],
+  "title": "A loose layout"
+ },
+ {
   "id": "20260110-160000",
   "status": "OPEN",
   "priority": 50,
@@ -85,6 +113,17 @@
    "données"
   ],
   "title": "Écrire en français — 日本語 aussi"
+ },
+ {
+  "id": "20260114-200000",
+  "status": "OPEN",
+  "priority": 40,
+  "tags": [
+   "scope",
+   "data",
+   "ui"
+  ],
+  "title": "Keys the format does not define"
  },
  {
   "id": "20260103-090000",
@@ -148,5 +187,14 @@
    "ui"
   ],
   "title": "An impossible date with a suffix"
+ },
+ {
+  "id": "20260116-220000",
+  "status": "CLOSED",
+  "priority": 30,
+  "tags": [
+   "data"
+  ],
+  "title": "Status given twice, apart"
  }
 ]
