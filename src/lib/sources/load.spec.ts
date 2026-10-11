@@ -3,12 +3,12 @@ import rawTasks from '#tests/fixtures/tsoding-tatr-raw.json' with { type: 'json'
 import { fileList } from '#tests/support/fake-directory.ts';
 import { localRef, parseRepoPath } from '../repo/ref.ts';
 import { memoryStore } from './store.ts';
-import { NoTasksFolderError, loadRepository } from './load.ts';
+import { loadRepository } from './load.ts';
 import { GitHubRepository, type Lister, type Seams } from './github/kind.ts';
 import { fromFileList } from './local/folder.ts';
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { Snapshot } from '../tatr/changes.ts';
-import { ListingError, NoSourceError, type Listing } from './source.ts';
+import { SourceError, type Listing } from './source.ts';
 
 const sources = rawTasks as Record<string, string>;
 const ref = parseRepoPath('tsoding/tatr')!;
@@ -29,7 +29,7 @@ function fakeLister(overrides: Partial<Listing> = {}) {
 const failing =
 	(name: string, failure: 'rate-limited' | 'not-found' | 'network') =>
 	async (): Promise<Listing> => {
-		throw new ListingError(failure, name, failure);
+		throw new SourceError(failure, `${name}: ${failure}`);
 	};
 
 /** Serves task files, and the tags file, from the fixture. */
@@ -91,14 +91,30 @@ describe('lister fallback', () => {
 
 	it('does not ask the others when the repository does not exist', async () => {
 		const second = vi.fn(fakeLister());
-		await expect(list([failing('github', 'not-found'), second])).rejects.toThrow(ListingError);
+		await expect(list([failing('github', 'not-found'), second])).rejects.toMatchObject({
+			failure: 'not-found'
+		});
 		expect(second).not.toHaveBeenCalled();
 	});
 
-	it('rethrows when every lister fails', async () => {
+	it("says what is missing in the forge's words, whichever lister found it missing", async () => {
+		await expect(list([failing('ungh', 'not-found')])).rejects.toThrow(
+			'No repository tsoding/tatr on github.com, or it is private.'
+		);
+	});
+
+	it('reports a spent budget when nobody answered, rather than the last fallback', async () => {
+		// The budget is the cause, and the one thing the reader can wait out; the
+		// mirror being down as well is not news worth the panel.
 		await expect(
 			list([failing('github', 'rate-limited'), failing('ungh', 'network')])
-		).rejects.toThrow(ListingError);
+		).rejects.toMatchObject({ failure: 'rate-limited', message: 'github: rate-limited' });
+	});
+
+	it('reports the last failure when none of them was a spent budget', async () => {
+		await expect(
+			list([failing('github', 'network'), failing('ungh', 'network')])
+		).rejects.toMatchObject({ failure: 'network', message: 'ungh: network' });
 	});
 });
 
@@ -147,7 +163,9 @@ describe('loadRepository', () => {
 			entries: [{ path: 'README.md' }],
 			branch: 'HEAD'
 		});
-		await expect(loadRepository(fixture(bare), { store })).rejects.toThrow(NoTasksFolderError);
+		await expect(loadRepository(fixture(bare), { store })).rejects.toMatchObject({
+			failure: 'no-tasks-folder'
+		});
 	});
 
 	it('lists unreadable tasks instead of dropping them', async () => {
@@ -438,13 +456,15 @@ describe('a folder on this machine', () => {
 		// It was opened; it simply holds no tasks, which is what the reader has to
 		// be told: the same thing a repository without the folder is told.
 		const source = open([dropped('src/app.css', 'body{}'), dropped('README.md', '# a project\n')]);
-		await expect(loadRepository(source, { store })).rejects.toThrow(NoTasksFolderError);
+		await expect(loadRepository(source, { store })).rejects.toMatchObject({
+			failure: 'no-tasks-folder'
+		});
 	});
 
 	it('says so when there is no folder open at all, as after a reload', async () => {
 		closeFolder();
-		await expect(loadRepository(localKind.open(localRef()), { store })).rejects.toThrow(
-			NoSourceError
-		);
+		await expect(loadRepository(localKind.open(localRef()), { store })).rejects.toMatchObject({
+			failure: 'no-source'
+		});
 	});
 });

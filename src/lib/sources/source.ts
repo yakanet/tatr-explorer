@@ -26,43 +26,39 @@ export interface Listing {
 }
 
 /**
- * How a reading failed, in the vocabulary the page needs to explain it.
+ * Why a reading could not be taken, in the vocabulary the page has a heading
+ * for: a spent budget, a repository that is not there, a host nothing reads, a
+ * source with nothing behind it (a folder after a reload), a folder with no
+ * tasks in it.
  *
- * `ListingError` rather than a source error, because listing is the operation
- * that fails this way: a spent budget, a repository that is not there, a host
- * nobody serves (which opening a source also says, when no kind claims the
- * reference at all). Reading a file never throws (one unreadable task is listed as
- * skipped instead of taking the whole load down), and a source with nothing
- * behind it throws {@link NoSourceError}, which is a different sentence.
+ * Reading one file never fails this way: one unreadable task is listed as
+ * skipped instead of taking the whole load down.
  */
-export type ListingFailure =
-	'rate-limited' | 'not-found' | 'network' | 'unsupported-host' | 'malformed';
-
-export class ListingError extends Error {
-	readonly failure: ListingFailure;
-	/** Who could not answer: a lister's name, or the forge that refused. */
-	readonly source: string;
-
-	constructor(failure: ListingFailure, source: string, message: string) {
-		super(message);
-		this.name = 'ListingError';
-		this.failure = failure;
-		this.source = source;
-	}
-}
+export type SourceFailure =
+	| 'rate-limited'
+	| 'not-found'
+	| 'network'
+	| 'unsupported-host'
+	| 'malformed'
+	| 'no-source'
+	| 'no-tasks-folder';
 
 /**
- * Thrown when a source exists but has nothing to read yet.
- *
- * Which is a state a forge cannot be in and a folder is in after every reload:
- * the browser takes its grant back, so the reference still resolves to a source
- * and the source has no folder behind it. It lives here rather than with the
- * loader so a source can throw it without importing one.
+ * A reading that could not be taken: why, as a {@link SourceFailure} the page
+ * puts a heading on, and the sentence under it, which is the source's to write
+ * because only it knows its budget, its fallbacks, or that a reload took its
+ * folder back. The loader and the registry throw it too, for what holds
+ * whatever the source: a folder with no tasks in it, a host nothing reads.
+ * One class, so that a source has one thing to throw and the page one thing to
+ * catch.
  */
-export class NoSourceError extends Error {
-	constructor(message: string) {
+export class SourceError extends Error {
+	readonly failure: SourceFailure;
+
+	constructor(failure: SourceFailure, message: string) {
 		super(message);
-		this.name = 'NoSourceError';
+		this.name = 'SourceError';
+		this.failure = failure;
 	}
 }
 
@@ -92,7 +88,7 @@ export interface Source {
 	 */
 	readonly concurrency: number;
 
-	/** Every file it holds, once. Throws {@link ListingError} or {@link NoSourceError}. */
+	/** Every file it holds, once. Throws a {@link SourceError}. */
 	list(signal?: AbortSignal): Promise<Listing>;
 
 	/** One file as text, or null when it cannot be read. */

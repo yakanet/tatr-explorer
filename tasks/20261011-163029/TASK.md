@@ -64,10 +64,12 @@ GitLab path is the next forge's work, and this one only moves who parses it.
    not its listers.
 5. One error class, whose message the source writes: the failure panel keeps a
    heading per failure, and stops writing GitHub's sentences for every source.
-6. The kind owns its addresses and its way in: `ref.ts` stops knowing `local`
-   and `served`, GitHub claims `github.com` alone, and the header's Reopen and
-   the failure panel's picker come from the kind, where they are inferred
-   today from `isLocal` or from a source that cannot be read again.
+6. The kind owns its addresses, its way in and what a reading costs: `ref.ts`
+   stops knowing `local` and `served`, GitHub claims `github.com` alone, the
+   header's Reopen and the failure panel's picker come from the kind, where
+   they are inferred today from `isLocal` or from a source that cannot be read
+   again, and the loading panel stops saying "one request" and "read from a
+   CDN" of a folder on the disk.
 
 Writing (20261011-152936, 20261010-030543) comes after, as a `Writable`
 capability, and belongs to those tasks.

@@ -10,7 +10,12 @@
 	import FolderPicker from '#lib/components/FolderPicker.svelte';
 	import { formatRepoPath, isLocal, isServed } from '#lib/repo/ref.ts';
 	import { isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
-	import { RepositoryState, describeAge, REPOSITORY } from '#lib/state/repository.svelte.ts';
+	import {
+		FAILURE_HEADINGS,
+		RepositoryState,
+		describeAge,
+		REPOSITORY
+	} from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
 
 	let { data, children } = $props();
@@ -140,7 +145,9 @@
 				<!-- The reading stayed; only renewing it failed, which is worth one
 				     clause rather than a panel over tasks that are still true. -->
 				{#if repo.refreshFailure}
-					<span class="stale">· not refreshed: {repo.refreshFailure.message}</span>
+					<span class="stale" title={repo.refreshFailure.message}>
+						· not refreshed: {FAILURE_HEADINGS[repo.refreshFailure.kind]}
+					</span>
 				{/if}
 				<!-- What the reading could not use. Said here because it is a fact about
 				     the reading rather than about a view, and because a count that does

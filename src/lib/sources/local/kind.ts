@@ -12,7 +12,7 @@
 import { isLocal } from '../../repo/ref.ts';
 import type { Followable } from '../capabilities.ts';
 import { settle } from '../settle.ts';
-import { NoSourceError, type Listing, type Source, type SourceKind } from '../source.ts';
+import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import {
 	fromWayBack,
 	listFolder,
@@ -44,7 +44,9 @@ class FolderSnapshot implements Source {
 	readonly label: string;
 	protected folder: LocalFolder | null;
 	/** Why there is nothing to list, once there is not. */
-	#gone = 'No folder is open. The browser forgets one on every reload.';
+	#gone =
+		'A folder is read where it sits, so the browser only grants access while you are ' +
+		'here: a reload takes it back. Choose or drop it again to carry on.';
 
 	/**
 	 * One `blob:` per path, so a body rendered twice does not leak two.
@@ -66,7 +68,7 @@ class FolderSnapshot implements Source {
 
 	async list(): Promise<Listing> {
 		const folder = this.folder;
-		if (!folder) throw new NoSourceError(this.#gone);
+		if (!folder) throw new SourceError('no-source', this.#gone);
 		return {
 			entries: listFolder(folder),
 			branch: (await readBranch(folder)) ?? 'working tree'
@@ -103,7 +105,7 @@ class FolderSnapshot implements Source {
 		for (const { url } of this.#assets.values()) URL.revokeObjectURL(url);
 		this.#assets = new Map();
 		this.folder = null;
-		this.#gone = 'Another folder was opened since.';
+		this.#gone = 'Another folder was opened since this one was read.';
 	}
 }
 

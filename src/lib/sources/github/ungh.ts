@@ -10,10 +10,9 @@
  * depend on someone else's goodwill.
  */
 import type { RepoRef } from '../../repo/ref.ts';
-import { ListingError, type Listing } from '../source.ts';
+import { SourceError, type Listing } from '../source.ts';
 
 const API = 'https://ungh.cc';
-const NAME = 'ungh';
 
 interface UnghResponse {
 	files?: { path: string; size?: number }[];
@@ -32,18 +31,18 @@ export async function listViaUngh(
 	try {
 		response = await network(url, { signal });
 	} catch {
-		throw new ListingError('network', NAME, `Could not reach ${url}`);
+		throw new SourceError('network', `Could not reach ${url}.`);
 	}
 	if (response.status === 404) {
-		throw new ListingError('not-found', NAME, 'Repository or branch not found');
+		throw new SourceError('not-found', 'ungh has no such repository or branch.');
 	}
 	if (!response.ok) {
-		throw new ListingError('network', NAME, `ungh answered ${response.status}`);
+		throw new SourceError('network', `ungh answered ${response.status}.`);
 	}
 
 	const body = (await response.json()) as UnghResponse;
 	if (!Array.isArray(body.files)) {
-		throw new ListingError('malformed', NAME, 'No files in the response');
+		throw new SourceError('malformed', 'ungh answered with no files in its response.');
 	}
 
 	return {

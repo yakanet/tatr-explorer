@@ -15,10 +15,10 @@ import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { isServed } from '../../repo/ref.ts';
 import type { Followable, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import { ListingError, type Listing, type Source, type SourceKind } from '../source.ts';
+import { SourceError, type Listing, type Source, type SourceKind } from '../source.ts';
 import { CHANGED, ROUTES } from './protocol.ts';
 
-/** The kind's id, which its failures name too, where a forge's name its lister. */
+/** The kind's id. */
 const NAME = 'served';
 
 /** A route of the dev server, which is always at the root. */
@@ -53,10 +53,10 @@ export class ServedSource implements Source, Rereadable {
 		try {
 			response = await network(route('listing'), { signal });
 		} catch {
-			throw new ListingError('network', NAME, 'The dev server did not answer.');
+			throw new SourceError('network', 'The dev server did not answer.');
 		}
 		if (!response.ok) {
-			throw new ListingError('network', NAME, `The dev server answered ${response.status}.`);
+			throw new SourceError('network', `The dev server answered ${response.status}.`);
 		}
 		return (await response.json()) as Listing;
 	}

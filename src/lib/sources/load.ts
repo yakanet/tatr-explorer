@@ -23,7 +23,7 @@ import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
 import { isCached, isRereadable } from './capabilities.ts';
-import type { Source } from './source.ts';
+import { SourceError, type Source } from './source.ts';
 import { openStore, type RepoStore } from './store.ts';
 
 export interface LoadOptions {
@@ -69,13 +69,6 @@ export interface LoadResult {
 	 * folder that was opened, which no URL carries, so only the reading knows.
 	 */
 	label: string;
-}
-
-export class NoTasksFolderError extends Error {
-	constructor(label: string) {
-		super(`${label} has no tasks/ folder at its root`);
-		this.name = 'NoTasksFolderError';
-	}
 }
 
 /** Runs `worker` over `items` with a bounded number in flight. */
@@ -182,7 +175,10 @@ export async function loadRepository(
 	// that were being discarded.
 	const attachments = collectAttachments(listing.entries);
 	if (!listing.entries.some((entry) => entry.path.startsWith('tasks/'))) {
-		throw new NoTasksFolderError(source.label);
+		throw new SourceError(
+			'no-tasks-folder',
+			`${source.label} was read, but it has no tasks/ folder at its root.`
+		);
 	}
 
 	let done = 0;

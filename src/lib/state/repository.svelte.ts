@@ -6,14 +6,9 @@
  * split is what lets the UI explain a failure instead of just spinning.
  */
 import { isFollowable, isLinked } from '../sources/capabilities.ts';
-import { loadRepository, NoTasksFolderError } from '../sources/load.ts';
+import { loadRepository } from '../sources/load.ts';
 import { openSource } from '../sources/open.ts';
-import {
-	ListingError,
-	NoSourceError,
-	type ListingFailure,
-	type Source
-} from '../sources/source.ts';
+import { SourceError, type Source, type SourceFailure } from '../sources/source.ts';
 import { describeRef, type RepoRef } from '../repo/ref.ts';
 import {
 	compare,
@@ -32,9 +27,27 @@ export const REPOSITORY = Symbol('repository');
 export type Phase = 'idle' | 'listing' | 'reading' | 'ready' | 'failed';
 
 export interface Failure {
-	kind: ListingFailure | 'no-tasks-folder' | 'no-source' | 'unknown';
+	kind: SourceFailure | 'unknown';
+	/** The source's own sentence, under the heading the kind is given. */
 	message: string;
 }
+
+/**
+ * What the page calls each failure: the panel's heading, and the clause the
+ * header adds when only a refresh failed. The sentence beneath is the
+ * source's. Keyed by every kind of failure, so a new one does not compile
+ * without a name.
+ */
+export const FAILURE_HEADINGS = {
+	'rate-limited': 'rate limit reached',
+	'not-found': 'not found',
+	network: 'unavailable',
+	'unsupported-host': 'not supported yet',
+	malformed: 'not understood',
+	'no-source': 'nothing to read',
+	'no-tasks-folder': 'not a tatr repository',
+	unknown: 'could not be read'
+} satisfies Record<Failure['kind'], string>;
 
 export class RepositoryState {
 	phase = $state<Phase>('idle');
@@ -266,21 +279,13 @@ export class RepositoryState {
 }
 
 function describe(error: unknown): Failure {
-	if (error instanceof NoSourceError) {
-		// A source with nothing behind it yet: today only a folder can be in that
-		// state, the browser having taken its grant back on the reload.
-		return { kind: 'no-source', message: error.message };
-	}
-	if (error instanceof NoTasksFolderError) {
-		return { kind: 'no-tasks-folder', message: error.message };
-	}
-	if (error instanceof ListingError) {
-		return { kind: error.failure, message: error.message };
-	}
-	return {
-		kind: 'unknown',
-		message: error instanceof Error ? error.message : 'Something went wrong'
-	};
+	if (error instanceof SourceError) return { kind: error.failure, message: error.message };
+	return { kind: 'unknown', message: messageOf(error) };
+}
+
+function messageOf(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return 'Something went wrong.';
 }
 
 /**

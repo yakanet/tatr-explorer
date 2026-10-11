@@ -12,10 +12,9 @@
  * refreshed behind the reader's back.
  */
 import type { RepoRef } from '../../repo/ref.ts';
-import { ListingError, type Listing } from '../source.ts';
+import { SourceError, type Listing } from '../source.ts';
 
 const API = 'https://api.github.com';
-const NAME = 'github';
 
 interface TreeResponse {
 	tree?: { path: string; type: string; size?: number }[];
@@ -30,20 +29,25 @@ async function json(network: typeof fetch, url: string, signal?: AbortSignal): P
 			headers: { Accept: 'application/vnd.github+json' }
 		});
 	} catch {
-		throw new ListingError('network', NAME, `Could not reach ${url}`);
+		throw new SourceError('network', `Could not reach ${url}.`);
 	}
 
 	if (response.status === 403 || response.status === 429) {
 		const remaining = response.headers.get('x-ratelimit-remaining');
 		if (remaining === '0' || response.status === 429) {
-			throw new ListingError('rate-limited', NAME, 'GitHub API rate limit reached');
+			throw new SourceError(
+				'rate-limited',
+				'GitHub allows 60 unauthenticated requests per hour per IP address, and this ' +
+					'address has used all of them. Only listing a repository costs any, never ' +
+					'reading its tasks, and one read once stays available without spending more.'
+			);
 		}
 	}
 	if (response.status === 404) {
-		throw new ListingError('not-found', NAME, 'Repository or branch not found');
+		throw new SourceError('not-found', 'GitHub has no such repository or branch.');
 	}
 	if (!response.ok) {
-		throw new ListingError('network', NAME, `GitHub answered ${response.status}`);
+		throw new SourceError('network', `GitHub answered ${response.status}.`);
 	}
 	return response;
 }
@@ -63,13 +67,12 @@ export async function listViaApi(
 	);
 	const body = (await response.json()) as TreeResponse;
 	if (!Array.isArray(body.tree)) {
-		throw new ListingError('malformed', NAME, 'No tree in the response');
+		throw new SourceError('malformed', 'GitHub answered with no tree in its response.');
 	}
 	if (body.truncated) {
-		throw new ListingError(
+		throw new SourceError(
 			'malformed',
-			NAME,
-			'Repository tree is truncated; it is too large to list in one call'
+			'GitHub truncated the repository tree: it is too large to list in one call.'
 		);
 	}
 

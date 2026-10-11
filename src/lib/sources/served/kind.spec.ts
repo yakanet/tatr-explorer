@@ -6,7 +6,7 @@ import { localRef, servedRef } from '../../repo/ref.ts';
 import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
 import { loadRepository } from '../load.ts';
 import { memoryStore } from '../store.ts';
-import { ListingError } from '../source.ts';
+import { SourceError } from '../source.ts';
 import { FollowedServedSource, ServedSource, servedKind } from './kind.ts';
 import { CHANGED } from './protocol.ts';
 
@@ -63,7 +63,7 @@ describe('the served folder, as a source', () => {
 
 	it('says the dev server did not answer, rather than that there is nothing', async () => {
 		const source = new ServedSource('my-project', unreachable);
-		await expect(source.list()).rejects.toThrow(ListingError);
+		await expect(source.list()).rejects.toThrow(SourceError);
 	});
 
 	it('loads as a repository like any other', async () => {

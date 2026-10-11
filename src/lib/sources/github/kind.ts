@@ -19,28 +19,30 @@
 import { repoKey, type RepoRef } from '../../repo/ref.ts';
 import type { Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
-import { ListingError, type Listing, type Source, type SourceKind } from '../source.ts';
+import {
+	SourceError,
+	type Listing,
+	type Source,
+	type SourceFailure,
+	type SourceKind
+} from '../source.ts';
 import { listViaApi } from './api.ts';
 import { listViaUngh } from './ungh.ts';
 
 const RAW = 'https://raw.githubusercontent.com';
-/** The forge's own id, which its primary lister happens to answer to as well. */
+/** The forge's own id. */
 const NAME = 'github';
 
 /**
  * Refuses a reference this forge does not serve.
  *
  * Asked once, at the entrance of the fallback chain, rather than by each lister
- * in it: all three read GitHub (its API, a proxy of it, a cache of it), so the
- * host is the forge's business and asking three times said so three times.
+ * in it: both read GitHub (its API, and a proxy of it), so the host is the
+ * forge's business, and asking in each lister said so twice.
  */
 function assertHost(ref: RepoRef): void {
 	if (ref.host !== 'github.com') {
-		throw new ListingError(
-			'unsupported-host',
-			NAME,
-			`${ref.host} is not supported yet: only github.com is`
-		);
+		throw new SourceError('unsupported-host', `Only github.com is read for now, not ${ref.host}.`);
 	}
 }
 
@@ -74,9 +76,8 @@ function blobUrl(ref: RepoRef, branch: string, path: string): string {
 
 /**
  * One way of listing a repository: a function, there being nothing else to a
- * lister. The name it answers to lives in the failures it throws, which is
- * where provenance is read. It asks the network it is handed, so that a
- * repository opened over a substitute lists over it too.
+ * lister. It asks the network it is handed, so that a repository opened over
+ * a substitute lists over it too.
  */
 export type Lister = (
 	ref: RepoRef,
@@ -101,7 +102,9 @@ const LISTERS: Lister[] = [listViaApi, listViaUngh];
  *
  * Only the listing can be rate-limited, so a spent budget is answered by asking
  * someone else rather than by an error. A missing repository is missing
- * everywhere, so that one is not retried.
+ * everywhere, so that one is not retried. And when nobody answered, a spent
+ * budget is what is reported, rather than whichever fallback failed last: it
+ * is the cause, and the one thing the reader can wait out.
  */
 async function listRepository(
 	ref: RepoRef,
@@ -111,17 +114,36 @@ async function listRepository(
 ): Promise<Listing> {
 	assertHost(ref);
 	let lastError: unknown;
+	let spent: SourceError | undefined;
 
 	for (const lister of listers) {
 		try {
 			return await lister(ref, network, signal);
 		} catch (error) {
 			// A missing repository is the same everywhere; do not ask the others.
-			if (error instanceof ListingError && error.failure === 'not-found') throw error;
+			if (failedWith(error, 'not-found')) throw new SourceError('not-found', missing(ref));
+			if (failedWith(error, 'rate-limited')) spent = error;
 			lastError = error;
 		}
 	}
-	throw lastError ?? new Error('No lister could list the repository');
+	throw spent ?? lastError ?? new Error('No lister could list the repository');
+}
+
+function failedWith(error: unknown, failure: SourceFailure): error is SourceError {
+	return error instanceof SourceError && error.failure === failure;
+}
+
+/**
+ * What a missing repository says. GitHub answers 404 alike for a branch, a
+ * repository and a private one, so the three are named together rather than
+ * guessed between at the cost of another request.
+ */
+function missing(ref: RepoRef): string {
+	const repository = `${ref.owner}/${ref.name}`;
+	if (ref.branch) {
+		return `No branch ${ref.branch} in ${repository}, or no such repository, or it is private.`;
+	}
+	return `No repository ${repository} on ${ref.host}, or it is private.`;
 }
 
 /** What a spec substitutes in a repository: what it would otherwise ask of GitHub. */

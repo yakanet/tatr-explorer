@@ -36,7 +36,7 @@ import {
 import { closeFolder, localKind, openFolder } from './local/kind.ts';
 import type { KINDS } from './open.ts';
 import { FollowedServedSource, ServedSource } from './served/kind.ts';
-import { ListingError, NoSourceError, type Listing, type Source } from './source.ts';
+import { SourceError, type Listing, type Source } from './source.ts';
 import { memoryStore } from './store.ts';
 
 /** One of a kind's sources, as the contract builds it. */
@@ -87,11 +87,6 @@ function pageOf(source: Source, path: string): string | undefined {
 	return source.fileUrl(path);
 }
 
-/** A failure the page has a sentence for, rather than a bare error. */
-function isExplained(error: unknown): boolean {
-	return error instanceof ListingError || error instanceof NoSourceError;
-}
-
 function honoursTheContract(subject: Subject): void {
 	describe(`${subject.name}, as a source`, () => {
 		const holding = () => subject.holding({ ...TREE });
@@ -126,7 +121,7 @@ function honoursTheContract(subject: Subject): void {
 		});
 
 		it('fails to list in the words the page explains, never with a bare error', async () => {
-			await expect(subject.broken().list()).rejects.toSatisfy(isExplained);
+			await expect(subject.broken().list()).rejects.toBeInstanceOf(SourceError);
 		});
 
 		it('still answers a read with null when it cannot list', async () => {

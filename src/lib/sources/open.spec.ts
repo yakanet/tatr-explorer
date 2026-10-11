@@ -3,7 +3,7 @@ import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts
 import { KINDS, openSource } from './open.ts';
 import { localRef, parseRepoPath, type RepoRef } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
-import { ListingError, NoSourceError, type Source } from './source.ts';
+import { SourceError, type Source } from './source.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { closeFolder, openFolder } from './local/kind.ts';
 
@@ -65,8 +65,8 @@ describe('openSource', () => {
 
 	it('refuses a reference no kind claims, as a host it cannot serve', () => {
 		const ref: RepoRef = { host: 'intranet', owner: 'team', name: 'tasks' };
-		expect(() => openSource(ref)).toThrow(ListingError);
-		expect(() => openSource(ref)).toThrow('intranet is not served');
+		expect(() => openSource(ref)).toThrow(SourceError);
+		expect(() => openSource(ref)).toThrow('No source reads intranet.');
 	});
 
 	it('opens the folder on this machine', () => {
@@ -145,12 +145,12 @@ describe('reading through a folder', () => {
 		open([dropped('tasks/20260101-000001/TASK.md', '# after\n')]);
 
 		expect(await before.read('tasks/20260101-000001/TASK.md')).toBeNull();
-		await expect(before.list()).rejects.toThrow(NoSourceError);
+		await expect(before.list()).rejects.toMatchObject({ failure: 'no-source' });
 	});
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {
 		closeFolder();
-		await expect(openSource(localRef()).list()).rejects.toThrow(/No folder is open/);
+		await expect(openSource(localRef()).list()).rejects.toThrow(/a reload takes it back/);
 	});
 
 	it('keeps the URL of an unchanged file through a refresh, until the folder goes', async () => {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { unreachable } from '#tests/support/network.ts';
 import { GitHubRepository, githubKind } from './kind.ts';
-import { ListingError } from '../source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
 const ref = parseRepoInput('owner/repo')!;
@@ -73,7 +72,7 @@ describe('the URL of its page on the forge', () => {
 
 describe('a host this forge does not serve', () => {
 	// Asked once now, at the entrance of the fallback chain, so it is refused
-	// before any lister is tried rather than by all three in turn.
+	// before any lister is tried rather than by each in turn.
 	const elsewhere = parseRepoInput('gitlab.com/group/project')!;
 
 	it('is refused as unsupported, without asking anybody', async () => {
@@ -83,14 +82,12 @@ describe('a host this forge does not serve', () => {
 			throw new Error('should not be reached');
 		};
 
-		const failure = await new GitHubRepository(elsewhere, { listers: [counting] })
-			.list()
-			.catch((error: unknown) => error);
-
-		expect(failure).toBeInstanceOf(ListingError);
-		expect((failure as ListingError).failure).toBe('unsupported-host');
-		// The forge refusing, not whichever lister was asked last.
-		expect((failure as ListingError).source).toBe('github');
+		await expect(
+			new GitHubRepository(elsewhere, { listers: [counting] }).list()
+		).rejects.toMatchObject({
+			failure: 'unsupported-host',
+			message: 'Only github.com is read for now, not gitlab.com.'
+		});
 		expect(asked).toBe(0);
 	});
 });
