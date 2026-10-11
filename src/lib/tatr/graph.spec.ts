@@ -6,8 +6,7 @@ import { readTask, type Task } from './task.ts';
 
 /**
  * `tatr-graph-edges.json` holds the arrows the compiled `tatr graph` wrote into
- * its `graph.dot` for tsoding/tatr, sorted. To regenerate: `pnpm run fixtures`,
- * with the checkout at `../tatr` built.
+ * its `graph.dot` for tsoding/tatr, sorted. To regenerate: `pnpm run fixtures`.
  */
 const sources = rawTasks as Record<string, string>;
 const all = Object.entries(sources).map(([id, source]) => readTask(id, source)!);

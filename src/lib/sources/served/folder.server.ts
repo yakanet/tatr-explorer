@@ -117,7 +117,7 @@ export async function answer(served: ServedFolder, request: Request): Promise<Re
 }
 
 /**
- * The plugin: `TATR_FOLDER=../tatr pnpm run dev` serves that folder and opens
+ * The plugin: `TATR_FOLDER=../my-project pnpm run dev` serves that folder and opens
  * on it. Without the variable, or in a build, it installs nothing, and the
  * constant it defines keeps the page half out of the bundle.
  */

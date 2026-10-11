@@ -213,9 +213,10 @@ A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks
 a priority given twice, text outside ASCII), run through the same binary.
 
 A divergence fails the suite. When upstream moves, `pnpm run fixtures` records
-everything again from the checkout at `../tatr`, and the recordings earn it: the
-last time, they caught an arrow `tatr graph` draws from an id cited only in a
-title, which this viewer had missed.
+everything again from a built clone of tatr, in a sibling folder unless
+`TATR_CHECKOUT` names another. The recordings earn it: the last time, they
+caught an arrow `tatr graph` draws from an id cited only in a title, which this
+viewer had missed.
 
 The list puts the claim where it can be checked rather than trusted: under the
 query, **the `tatr ls` command that lists what is shown**, quoted for a shell and

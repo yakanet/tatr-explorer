@@ -29,7 +29,7 @@ function basePath(): '' | `/${string}` {
 
 export default defineConfig({
 	plugins: [
-		// `TATR_FOLDER=../tatr pnpm run dev` serves that folder and opens on it.
+		// `TATR_FOLDER=../my-project pnpm run dev` serves that folder and opens on it.
 		servedFolder(),
 		sveltekit({
 			compilerOptions: {

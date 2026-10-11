@@ -19,7 +19,7 @@ import { compile, formatDiagnostic, parseWithWarnings, TqlError } from './query.
  *
  * Two differences are deliberate and normalised away below rather than hidden.
  *
- * To regenerate: `pnpm run fixtures`, with the checkout at `../tatr` built.
+ * To regenerate: `pnpm run fixtures`.
  */
 interface ErrorCase {
 	query: string;
