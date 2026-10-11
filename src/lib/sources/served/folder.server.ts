@@ -1,6 +1,7 @@
 /**
  * The dev server's half of the served source: a folder read from the disk and
- * answered to the page over HTTP, with its changes pushed.
+ * answered to the page over HTTP, its task files written back, and its changes
+ * pushed.
  *
  * A Vite plugin rather than SvelteKit routes. Its routes exist in the dev
  * server only (`configureServer` runs nowhere else), so the site stays a folder
@@ -14,14 +15,16 @@
  * page half is `kind.ts`, and the two meet only through `protocol.ts`.
  */
 import { watch } from 'node:fs';
-import { readdir, readFile, realpath, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { arrayBuffer } from 'node:stream/consumers';
+import { TLSSocket } from 'node:tls';
 import type { Connect, Plugin } from 'vite';
 import { branchFromHead } from '../local/folder.ts';
 import { settle } from '../settle.ts';
 import type { Listing } from '../source.ts';
-import { CHANGED, ROUTES } from './protocol.ts';
+import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
 /** A folder found on the disk, and where its task folders are. */
 export interface ServedFolder {
@@ -98,22 +101,43 @@ export async function diskPath(served: ServedFolder, page: string): Promise<stri
  * it. The dev server is always at the root: the base path is for the build.
  */
 export async function answer(served: ServedFolder, request: Request): Promise<Response | null> {
-	const { pathname } = new URL(request.url);
+	const { pathname, origin } = new URL(request.url);
 	if (pathname === '/' && request.method === 'GET') {
 		return new Response(null, { status: 302, headers: { location: '/served' } });
 	}
 
-	const prefix = `/${ROUTES}/`;
-	if (!pathname.startsWith(prefix)) return null;
-	// Reading only: writing through the folder is a capability of its own.
-	if (request.method !== 'GET') {
-		return new Response(null, { status: 405, headers: { allow: 'GET' } });
+	if (!pathname.startsWith(PREFIX)) return null;
+	// Every page the reader has open can reach this server, and Vite's CORS lets
+	// one through from any port of this machine: only this page does more than
+	// read. A browser names the page's origin on every such request, and no page
+	// can name another's.
+	if (request.method !== 'GET' && request.headers.get('origin') !== origin) {
+		return new Response(null, { status: 403 });
 	}
+	const route = pathname.slice(PREFIX.length);
 
-	const route = pathname.slice(prefix.length);
-	if (route === 'listing') return Response.json(await listing(served), { headers: NO_STORE });
-	if (route.startsWith('files/')) return file(served, route.slice('files/'.length));
+	if (route === 'listing') {
+		if (request.method !== 'GET') return notAllowed('GET');
+		return Response.json(await listing(served), { headers: NO_STORE });
+	}
+	if (route.startsWith('files/')) {
+		// A task file is replaced whole; nothing is created or removed.
+		if (request.method !== 'GET' && request.method !== 'PUT') return notAllowed('GET, PUT');
+		const page = decoded(route.slice('files/'.length));
+		if (page === null) return new Response(null, { status: 400 });
+		const disk = await diskPath(served, page);
+		if (!disk) return new Response(null, { status: 404 });
+		if (request.method === 'PUT') return write(disk, request);
+		return file(disk);
+	}
 	return new Response(null, { status: 404 });
+}
+
+/** Where the folder's routes are, under the dev server's root. */
+const PREFIX = `/${ROUTES}/`;
+
+function notAllowed(allow: string): Response {
+	return new Response(null, { status: 405, headers: { allow } });
 }
 
 /**
@@ -158,13 +182,14 @@ export function tatrServedFolder(folder = process.env.TATR_FOLDER): Plugin {
 	};
 }
 
-/** The routes as a middleware: Node's request in, the answer out, or on to the next. */
-function serve(served: ServedFolder): Connect.NextHandleFunction {
+/**
+ * The routes as a middleware: Node's request in, the answer out, or on to the
+ * next. Exported for its spec, which runs it on a real server.
+ */
+export function serve(served: ServedFolder): Connect.NextHandleFunction {
 	return (req, res, next) => {
-		const request = new Request(new URL(req.url ?? '/', 'http://localhost'), {
-			method: req.method
-		});
-		answer(served, request)
+		requestOf(req)
+			.then((request) => answer(served, request))
 			.then(async (reply) => {
 				if (!reply) return next();
 				res.writeHead(reply.status, Object.fromEntries(reply.headers));
@@ -172,6 +197,31 @@ function serve(served: ServedFolder): Connect.NextHandleFunction {
 			})
 			.catch(next);
 	};
+}
+
+/**
+ * Node's request as the web's, at the address the browser asked: its host is
+ * one Vite's host check let through, and the origin a write must name. Every
+ * header comes along, and a body only for a write to the routes, so that a
+ * request going on to another handler reaches it unread.
+ */
+async function requestOf(req: Connect.IncomingMessage): Promise<Request> {
+	const url = new URL(req.url ?? '/', `${schemeOf(req)}://${req.headers.host ?? 'localhost'}`);
+	const headers = new Headers();
+	for (const [name, value] of Object.entries(req.headers)) {
+		if (typeof value === 'string') headers.set(name, value);
+	}
+	return new Request(url, { method: req.method, headers, body: await bodyOf(req, url) });
+}
+
+function schemeOf(req: Connect.IncomingMessage): string {
+	if (req.socket instanceof TLSSocket) return 'https';
+	return 'http';
+}
+
+async function bodyOf(req: Connect.IncomingMessage, url: URL): Promise<ArrayBuffer | undefined> {
+	if (req.method !== 'PUT' || !url.pathname.startsWith(PREFIX)) return undefined;
+	return arrayBuffer(req);
 }
 
 /** The name the page shows, for a dev server serving a folder; false otherwise. */
@@ -203,15 +253,7 @@ function watchFolder(served: ServedFolder, onChange: () => void): () => void {
  * an HTML page) would otherwise run its scripts as the dev server's own origin,
  * which is the one origin its routes trust.
  */
-async function file(served: ServedFolder, encoded: string): Promise<Response> {
-	let page: string;
-	try {
-		page = decodeURIComponent(encoded);
-	} catch {
-		return new Response(null, { status: 400 });
-	}
-	const disk = await diskPath(served, page);
-	if (!disk) return new Response(null, { status: 404 });
+async function file(disk: string): Promise<Response> {
 	return new Response(await readFile(disk), {
 		headers: {
 			...NO_STORE,
@@ -220,6 +262,26 @@ async function file(served: ServedFolder, encoded: string): Promise<Response> {
 			'x-content-type-options': 'nosniff'
 		}
 	});
+}
+
+/** Replaces one file whole: 412 when `If-Match` does not hold, 428 when it is missing. */
+async function write(disk: string, request: Request): Promise<Response> {
+	const expected = request.headers.get('if-match');
+	if (!expected) return new Response(null, { status: 428 });
+	if (expected !== (await tagOf(new TextDecoder().decode(await readFile(disk))))) {
+		return new Response(null, { status: 412 });
+	}
+	await writeFile(disk, await request.bytes());
+	return new Response(null, { status: 204 });
+}
+
+/** A path as the page encoded it, or null for one that does not decode. */
+function decoded(encoded: string): string | null {
+	try {
+		return decodeURIComponent(encoded);
+	} catch {
+		return null;
+	}
 }
 
 /** The branch the repository has checked out; a tasks folder served alone has none. */

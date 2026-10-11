@@ -23,7 +23,7 @@ import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
 import { wordRef, parseForgePath } from '../repo/ref.ts';
-import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
+import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
 import { GitHubRepository } from './github/kind.ts';
 import { loadRepository } from './load.ts';
 import {
@@ -168,6 +168,28 @@ function honoursTheContract(subject: Subject): void {
 		it('links a file to its page only with a URL', async () => {
 			const page = pageOf(await holding(), TASK_FILES[0]);
 			expect(page === undefined || URL.canParse(page)).toBe(true);
+		});
+
+		it('writes a file whole where it can, never over a change it did not read', async (context) => {
+			const source = await holding();
+			if (!isWritable(source)) return context.skip();
+			const [path] = TASK_FILES;
+			const written = '# Written\n\n- STATUS: CLOSED\n';
+
+			expect(await source.write(path, written, TREE[path])).toBe('written');
+			expect(await source.read(path)).toBe(written);
+
+			// Over the text first read again: the write just made is a change this
+			// one never read, and is what an editor's save would be.
+			expect(await source.write(path, '# Lost\n', TREE[path])).toBe('changed');
+			expect(await source.read(path)).toBe(written);
+		});
+
+		it('fails to write in the words the page explains, never with a bare error', async (context) => {
+			const source = subject.broken();
+			if (!isWritable(source)) return context.skip();
+			const [path] = TASK_FILES;
+			await expect(source.write(path, '# b\n', TREE[path])).rejects.toBeInstanceOf(SourceError);
 		});
 	});
 }

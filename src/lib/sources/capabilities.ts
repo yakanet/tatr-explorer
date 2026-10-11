@@ -64,6 +64,20 @@ export interface Linked {
 	fileUrl(path: string): string;
 }
 
+/**
+ * A source that can replace a file it holds, which is what editing a task is.
+ *
+ * Whole, and only over `expected`, the text read from `path` before it was
+ * changed: a file that moved on disk since is left as it is, rather than an
+ * editor's save lost, and the answer is `changed`, for the page to read again.
+ * An answer rather than a failure, as a file `read` cannot find is: a write
+ * that cannot be made at all throws a `SourceError`. A forge never writes, as
+ * that takes an account, and this site asks for none.
+ */
+export interface Writable {
+	write(path: string, text: string, expected: string): Promise<'written' | 'changed'>;
+}
+
 /*
  * The guards test what a member holds rather than that it is there, so that a
  * member declared with nothing in it (a key of null, a method left undefined)
@@ -90,4 +104,8 @@ export function isFollowable(source: Source | null): source is Source & Followab
 
 export function isLinked(source: Source | null): source is Source & Linked {
 	return typeof memberOf(source, 'fileUrl') === 'function';
+}
+
+export function isWritable(source: Source | null): source is Source & Writable {
+	return typeof memberOf(source, 'write') === 'function';
 }

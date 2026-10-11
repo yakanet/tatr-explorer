@@ -33,6 +33,22 @@ export async function writeTree(root: string, tree: Record<string, string>): Pro
 	return root;
 }
 
+/** Where the page that asks is served from, which is where the dev server is. */
+const PAGE = 'http://localhost:5173';
+
+/**
+ * A request as a page of the dev server makes it: at the server's address, and
+ * naming the page's origin on anything but a read, as the browser does whatever
+ * the page says. A spec may name another origin, to see it refused.
+ */
+export function fromPage(input: string, init: RequestInit = {}): Request {
+	const headers = new Headers(init.headers);
+	if (init.method && init.method !== 'GET' && !headers.has('origin')) {
+		headers.set('origin', PAGE);
+	}
+	return new Request(new URL(input, PAGE), { ...init, headers });
+}
+
 /**
  * A fetch answered by the dev server's half itself, serving `folder`: no HTTP,
  * but no mock of either side. Called with a `this`, it refuses, as the
@@ -40,9 +56,9 @@ export async function writeTree(root: string, tree: Record<string, string>): Pro
  */
 export async function serving(folder: string): Promise<typeof fetch> {
 	const served = await locate(folder);
-	return async function (this: unknown, input: RequestInfo | URL) {
+	return async function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
 		if (this !== undefined) throw new TypeError('Illegal invocation');
-		const request = new Request(new URL(String(input), 'http://localhost'));
+		const request = fromPage(String(input), init);
 		return (await answer(served, request)) ?? new Response('not ours', { status: 404 });
 	} as typeof fetch;
 }
