@@ -5,7 +5,7 @@
  * a repository costs exactly one request out of the 60 per hour an
  * unauthenticated IP gets.
  */
-import type { RepoRef } from '../../repo/ref.ts';
+import type { ForgeAddress } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
 import { SourceError, type TreeEntry } from '../contract.ts';
 
@@ -26,7 +26,7 @@ const STILL_FREE =
  * GitHub has no such repository or branch.
  */
 export async function listViaGitHubApi(
-	ref: RepoRef,
+	ref: ForgeAddress,
 	branch: string,
 	network: typeof fetch,
 	signal?: AbortSignal

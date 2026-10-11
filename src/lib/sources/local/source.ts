@@ -21,7 +21,7 @@ import {
 } from './folder.ts';
 
 /** The local folder's address, and all of it. */
-export const LOCAL_WORD = 'local';
+export const LOCAL_PATH = 'local';
 
 /**
  * A folder on this machine, as a source, and the class the registry holds for
@@ -41,9 +41,9 @@ export const LOCAL_WORD = 'local';
  * page anywhere to link a file to.
  */
 export class LocalFolderSource implements Source {
-	// One word, and nothing else: the folder's name would read as an address,
+	// One path, and nothing else: the folder's name would read as an address,
 	// and nobody else's machine can follow it.
-	static readonly address: Address = { word: LOCAL_WORD };
+	static readonly address: Address = { path: LOCAL_PATH };
 
 	/**
 	 * The source of the folder last handed over, or, with nothing handed over,

@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
-import { SOURCES, sourceIdOf, openSource, parseRepoPath } from './open.ts';
-import { parseForgePath, wordRef } from '../repo/ref.ts';
+import { SOURCES, openSource, parseRepoPath } from './open.ts';
+import { parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable } from './capabilities.ts';
 import { SourceError, type Source } from './contract.ts';
 import { fromDirectoryEntry, fromDirectoryHandle, fromFileList } from './local/folder.ts';
 import { GitHubRepositorySource } from './github/source.ts';
 import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
+
+/** The folder on this machine, as one of our URLs names it. */
+const LOCAL = parseRepoPath('local')!;
 
 /** `source`, which a spec has just made sure has the capability `is` tests for. */
 function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
@@ -25,11 +28,11 @@ describe('the registry', () => {
 		}).toThrow();
 	});
 
-	it('gives no word and no host to two sources', () => {
+	it('gives no path and no host to two sources', () => {
 		// The property a record depends on: with disjoint addresses there is no
 		// precedence to encode, so nothing rests on the order of the keys.
 		const addresses = Object.values(SOURCES).flatMap((sourceClass) => {
-			if ('word' in sourceClass.address) return [sourceClass.address.word];
+			if ('path' in sourceClass.address) return [sourceClass.address.path];
 			return [...sourceClass.address.hosts];
 		});
 		expect(new Set(addresses).size).toBe(addresses.length);
@@ -39,14 +42,19 @@ describe('the registry', () => {
 describe('our own addresses', () => {
 	it('read a forge address on any host, a host nothing reads included', () => {
 		// So that a link to one opens a page that says so, rather than a 404.
-		expect(parseRepoPath('owner/repo')).toEqual(parseForgePath('owner/repo'));
-		expect(parseRepoPath('gitlab.com/group/project')?.host).toBe('gitlab.com');
-		expect(sourceIdOf(parseRepoPath('gitlab.com/group/project')!)).toBeUndefined();
+		expect(parseRepoPath('owner/repo')).toEqual({
+			...parseForgePath('owner/repo'),
+			source: 'github'
+		});
+		// No source reads it, and the reference says so, rather than being none.
+		expect(parseRepoPath('gitlab.com/group/project')).toMatchObject({
+			host: 'gitlab.com',
+			source: null
+		});
 	});
 
-	it("read a source's word as its address, and nothing else as one", () => {
-		expect(parseRepoPath('local')).toEqual(wordRef('local'));
-		expect(sourceIdOf(wordRef('local'))).toBe('local');
+	it("read a source's path as its address, and nothing else as one", () => {
+		expect(LOCAL).toEqual({ source: 'local', path: 'local' });
 		expect(parseRepoPath('nothing')).toBeNull();
 	});
 
@@ -58,7 +66,7 @@ describe('our own addresses', () => {
 
 describe('openSource', () => {
 	it('opens a repository on a forge', () => {
-		const source = openSource(parseForgePath('owner/repo')!);
+		const source = openSource(parseRepoPath('owner/repo')!);
 		expect(source).toBeInstanceOf(GitHubRepositorySource);
 		expect(source.label).toBe('owner/repo');
 		expect(having(source, isCached).cacheKey).toBe('github.com/owner/repo@');
@@ -68,7 +76,7 @@ describe('openSource', () => {
 	});
 
 	it('reads a forge at the branch its reference names', () => {
-		const source = openSource(parseForgePath('owner/repo@dev')!);
+		const source = openSource(parseRepoPath('owner/repo@dev')!);
 		expect(source.assetUrl('tasks/a/shot.png')).toContain('/repo/dev/tasks/a/shot.png');
 	});
 
@@ -82,7 +90,7 @@ describe('openSource', () => {
 
 	it('opens the folder on this machine', () => {
 		closeFolder();
-		const source = openSource(wordRef('local'));
+		const source = openSource(LOCAL);
 		expect(source).toBeInstanceOf(LocalFolderSource);
 		// With no folder behind it, as after a reload, it still names the reading.
 		expect(source.label).toBe('a folder on this machine');
@@ -103,7 +111,7 @@ function dropped(path: string, text: string): File {
  * through `openSource`, the one way the application opens a source.
  */
 describe('reading through a forge', () => {
-	const ref = parseForgePath('owner/repo')!;
+	const ref = parseRepoPath('owner/repo')!;
 
 	it('can be refreshed, having only a request to spend', async () => {
 		const source = openSource(ref);
@@ -117,7 +125,7 @@ describe('reading through a forge', () => {
 describe('reading through a folder', () => {
 	const open = (files: File[]) => {
 		openFolder(fromFileList(files)!);
-		return openSource(wordRef('local'));
+		return openSource(LOCAL);
 	};
 
 	afterEach(() => closeFolder());
@@ -148,7 +156,7 @@ describe('reading through a folder', () => {
 		// Coming back to the folder finds it as it was last read, and the URLs it
 		// handed out still good.
 		open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
-		expect(openSource(wordRef('local'))).toBe(openSource(wordRef('local')));
+		expect(openSource(LOCAL)).toBe(openSource(LOCAL));
 	});
 
 	it('lets go of its folder when another is picked, rather than reading that one', async () => {
@@ -164,7 +172,7 @@ describe('reading through a folder', () => {
 
 	it('says so when there is no folder open, rather than listing nothing', async () => {
 		closeFolder();
-		await expect(openSource(wordRef('local')).list()).rejects.toThrow(/a reload takes it back/);
+		await expect(openSource(LOCAL).list()).rejects.toThrow(/a reload takes it back/);
 	});
 
 	it('keeps the URL of an unchanged file through a refresh, until the folder goes', async () => {
@@ -173,7 +181,7 @@ describe('reading through a folder', () => {
 		// one that is comes out as the same HTML.
 		const handle = directory('my-project', { 'tasks/20260101-000001/shot.png': 'png' });
 		openFolder(await fromDirectoryHandle(handle), handle);
-		const source = openSource(wordRef('local'));
+		const source = openSource(LOCAL);
 		const revoke = vi.spyOn(URL, 'revokeObjectURL');
 		const before = source.assetUrl('tasks/20260101-000001/shot.png');
 
@@ -192,7 +200,7 @@ describe('reading through a folder', () => {
 		const tree = { 'tasks/20260101-000001/TASK.md': '# before\n' };
 		const entry = entryTree('my-project', tree);
 		openFolder(await fromDirectoryEntry(entry), entry);
-		const source = openSource(wordRef('local'));
+		const source = openSource(LOCAL);
 		expect(isRereadable(source)).toBe(true);
 
 		tree['tasks/20260101-000001/TASK.md'] = '# after\n';
@@ -220,7 +228,7 @@ describe('reading through a folder', () => {
 			}
 		} as FileSystemDirectoryHandle;
 		openFolder(await fromDirectoryHandle(newer), handle);
-		const source = having(openSource(wordRef('local')), isRereadable);
+		const source = having(openSource(LOCAL), isRereadable);
 
 		const earlier = new AbortController();
 		const first = source.reread(earlier.signal);
@@ -265,7 +273,7 @@ describe('following a folder', () => {
 	const picked = async () => {
 		const handle = directory('my-project', task);
 		openFolder(await fromDirectoryHandle(handle), handle);
-		return openSource(wordRef('local'));
+		return openSource(LOCAL);
 	};
 
 	afterEach(() => {
@@ -276,7 +284,7 @@ describe('following a folder', () => {
 
 	it('is offered only with a way back to the folder, as Refresh is', async () => {
 		openFolder(fromFileList([dropped('tasks/20260101-000001/TASK.md', '# a\n')])!);
-		expect(isFollowable(openSource(wordRef('local')))).toBe(false);
+		expect(isFollowable(openSource(LOCAL))).toBe(false);
 		expect(isFollowable(await picked())).toBe(true);
 	});
 
@@ -311,7 +319,7 @@ describe('following a folder', () => {
 		const entry = entryTree('my-project', task);
 		openFolder(await fromDirectoryEntry(entry), entry);
 		const changed = vi.fn();
-		const stop = having(openSource(wordRef('local')), isFollowable).follow(changed);
+		const stop = having(openSource(LOCAL), isFollowable).follow(changed);
 
 		window.dispatchEvent(new Event('focus'));
 		expect(changed).toHaveBeenCalledTimes(1);

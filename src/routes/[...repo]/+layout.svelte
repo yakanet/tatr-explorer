@@ -8,7 +8,7 @@
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
-	import { formatRepoPath } from '#lib/repo/ref.ts';
+	import { formatRepoPath, isForgeRef, type ForgeRef } from '#lib/repo/ref.ts';
 	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {
 		FAILURE_HEADINGS,
@@ -48,11 +48,14 @@
 	});
 
 	const path = $derived(formatRepoPath(ref));
-	/** Whether the reading has branches to choose from, which its source says. */
-	const branched = $derived(isBranched(repo.source));
+	/** The reading's reference where its source has branches to choose from: a forge's. */
+	const branchRef = $derived.by((): ForgeRef | null => {
+		if (!isBranched(repo.source) || !isForgeRef(ref)) return null;
+		return ref;
+	});
 	/** What the branch shortcut does: open the menu, where there are branches. */
 	const openBranches = $derived.by(() => {
-		if (!branched) return undefined;
+		if (branchRef === null) return undefined;
 		return () => (branching = true);
 	});
 	/** The gesture that opens the source again, where asking it again is not enough. */
@@ -128,7 +131,7 @@
 {#if helping}
 	<KeyHelp
 		views={views.map((view) => view.name)}
-		branch={branched}
+		branch={branchRef !== null}
 		onclose={() => (helping = false)}
 	/>
 {/if}
@@ -138,8 +141,8 @@
 <header>
 	<div class="identity">
 		<a class="brand" href={resolve('/')}><Mark size={18} /> tatr</a>
-		{#if branched}
-			<BranchField {ref} bind:open={branching} />
+		{#if branchRef}
+			<BranchField ref={branchRef} bind:open={branching} />
 		{:else}
 			<span class="repo">{repo.name}</span>
 		{/if}

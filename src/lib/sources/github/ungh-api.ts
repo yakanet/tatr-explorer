@@ -5,7 +5,7 @@
  * sends `access-control-allow-origin: *`, and was measured to return the
  * repository in full (64 of 64 tasks) rather than a late copy.
  */
-import type { RepoRef } from '../../repo/ref.ts';
+import type { ForgeAddress } from '../../repo/ref.ts';
 import { readJson } from '../http.ts';
 import { SourceError, type TreeEntry } from '../contract.ts';
 
@@ -20,7 +20,7 @@ interface UnghResponse {
  * such repository or branch.
  */
 export async function listViaUnghApi(
-	ref: RepoRef,
+	ref: ForgeAddress,
 	branch: string,
 	network: typeof fetch,
 	signal?: AbortSignal

@@ -7,7 +7,8 @@ const ref = parseRepoInput('owner/repo')!;
 const path = 'tasks/20260304-115038/TASK.md';
 
 /** Through `open`, which is how the application reaches these. */
-const open = (repo = ref, branch?: string) => GitHubRepositorySource.open({ ...repo, branch });
+const open = (repo = ref, branch?: string) =>
+	GitHubRepositorySource.open({ ...repo, branch, source: 'github' });
 
 /** GitHub's CDN answering every read with what `answer` makes. */
 const answering = (answer: () => Response) =>

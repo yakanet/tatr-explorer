@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
-import { wordRef } from '../repo/ref.ts';
 import { parseRepoPath } from '../sources/open.ts';
 import { fromDirectoryEntry, fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
@@ -80,7 +79,7 @@ const taskAt = (priority: number, status = 'OPEN') =>
 /** Opens the folder, holding one task at that priority, as a directory input would. */
 const opened = (priority = 90) => {
 	openFolder(fromFileList(fileList('my-project', { [TASK]: taskAt(priority) }))!);
-	return wordRef('local');
+	return parseRepoPath('local')!;
 };
 
 /** The folder on the disk, which an editor rewrites between two readings. */
@@ -94,7 +93,7 @@ const picked = async (tree: Record<string, string> = { [TASK]: taskAt(90) }) => 
 	disk = tree;
 	const entry = entryTree('my-project', disk);
 	openFolder(await fromDirectoryEntry(entry), entry);
-	return wordRef('local');
+	return parseRepoPath('local')!;
 };
 
 /** Saves the task at another priority, as an editor would. */
@@ -242,7 +241,7 @@ describe('a refresh that fails', () => {
 
 	it('is fatal when there is no reading to keep', async () => {
 		const repo = new RepositoryState();
-		await repo.load(wordRef('local'));
+		await repo.load(parseRepoPath('local')!);
 		await repo.refresh();
 		expect(repo.phase).toBe('failed');
 		expect(repo.failure?.kind).toBe('no-source');

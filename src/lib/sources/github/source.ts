@@ -7,7 +7,7 @@
  * CDN with no rate limit at all (64 files in a fifth of a second, measured). So
  * the listing has a fallback, ungh, and the files need none.
  */
-import { formatRepoName, repoKey, type RepoRef } from '../../repo/ref.ts';
+import { formatRepoName, repoKey, type ForgeAddress, type ForgeRef } from '../../repo/ref.ts';
 import type { Branched, Cached, Linked, Rereadable } from '../capabilities.ts';
 import { encodePath, readText } from '../http.ts';
 import {
@@ -24,11 +24,10 @@ const HOST = 'github.com';
 const RAW = 'https://raw.githubusercontent.com';
 
 export class GitHubRepositorySource implements Source, Cached, Rereadable, Linked, Branched {
-	// A forge address on any other host parses all the same, and is refused when
-	// opened, as a host nothing reads.
 	static readonly address: Address = { hosts: [HOST] };
 
-	static open(ref: RepoRef): GitHubRepositorySource {
+	// Only a reference read as GitHub's reaches it, which is a forge's.
+	static open(ref: ForgeRef): GitHubRepositorySource {
 		return new GitHubRepositorySource(ref);
 	}
 
@@ -41,11 +40,11 @@ export class GitHubRepositorySource implements Source, Cached, Rereadable, Linke
 	readonly label: string;
 	readonly cacheKey: string;
 	readonly branch: string;
-	readonly #ref: RepoRef;
+	readonly #ref: ForgeAddress;
 	readonly #network: typeof fetch;
 
 	/** `network` is what a spec substitutes for GitHub. */
-	constructor(ref: RepoRef, network: typeof fetch = fetch) {
+	constructor(ref: ForgeAddress, network: typeof fetch = fetch) {
 		this.#ref = ref;
 		// The trees API and raw both accept `HEAD`, so the request that would
 		// resolve a default branch by name is never made.

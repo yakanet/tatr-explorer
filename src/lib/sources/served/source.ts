@@ -18,8 +18,8 @@ import { SourceError, type Address, type Listing, type Source } from '../contrac
 import { SERVED } from './enabled.ts';
 import { CHANGED, ROUTES, tagOf } from './protocol.ts';
 
-/** The word that is the served folder's address, `/served`. */
-export const SERVED_WORD = 'served';
+/** The path of this site that is the served folder's address, `/served`. */
+export const SERVED_PATH = 'served';
 
 /** A route of the dev server, which is always at the root. */
 const route = (path: string) => `/${ROUTES}/${path}`;
@@ -34,16 +34,16 @@ const fileRoute = (path: string) => route(`files/${encodePath(path)}`);
  * editing would be wrong before it was written.
  */
 export class ServedSource implements Source, Rereadable, Writable {
-	// A word, as for a folder opened in the browser: no URL anyone else follows
+	// A path, as for a folder opened in the browser: no URL anyone else follows
 	// reaches it, though it survives a reload.
-	static readonly address: Address = { word: SERVED_WORD };
+	static readonly address: Address = { path: SERVED_PATH };
 
 	/**
 	 * Under the name the dev server gives the folder. It is registered only where
-	 * one is served; a spec, which runs with none, opens it under its word.
+	 * one is served; a spec, which runs with none, opens it under its path.
 	 */
 	static open(): ServedSource {
-		const name = SERVED || SERVED_WORD;
+		const name = SERVED || SERVED_PATH;
 		// The dev channel is there whenever the dev server is; the specs open it
 		// without one.
 		const channel = import.meta.hot;

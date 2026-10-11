@@ -2,7 +2,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { onBranch } from '../repo/branch.ts';
 	import { branchesOf } from '../repo/recent.ts';
-	import { formatRepoPath, isBranchName, type RepoRef } from '../repo/ref.ts';
+	import { formatRepoPath, isBranchName, type ForgeRef } from '../repo/ref.ts';
 	import { openStore } from '../sources/store.ts';
 
 	let {
@@ -10,7 +10,7 @@
 		open = $bindable(false)
 	}: {
 		/** A repository on a forge: a folder has no branch to choose. */
-		ref: RepoRef;
+		ref: ForgeRef;
 		/** Bound, so that `b` can open the menu from the keyboard layer. */
 		open?: boolean;
 	} = $props();

@@ -10,7 +10,7 @@
  * Kept apart from the page so that turning cache rows into cards can be
  * asserted: the parsing of a key, the counting, the fallback and the order.
  */
-import { parseForgePath, repoKey, type RepoRef } from './ref.ts';
+import { parseForgePath, repoKey, type ForgeAddress } from './ref.ts';
 
 /** Whatever the cache holds that a card needs. Deliberately narrow. */
 export interface CachedShape {
@@ -18,7 +18,7 @@ export interface CachedShape {
 }
 
 export interface Suggestion {
-	ref: RepoRef;
+	ref: ForgeAddress;
 	/** Path in our own URLs, which is both the link and the label. */
 	path: string;
 	total: number;
@@ -28,7 +28,11 @@ export interface Suggestion {
 }
 
 /** This project's own repository, offered when the cache is empty. */
-export const FALLBACK: RepoRef = { host: 'github.com', owner: 'yakanet', name: 'tatr-explorer' };
+export const FALLBACK: ForgeAddress = {
+	host: 'github.com',
+	owner: 'yakanet',
+	name: 'tatr-explorer'
+};
 
 /**
  * The named branches of one repository already in the cache, for the header's
@@ -39,7 +43,7 @@ export const FALLBACK: RepoRef = { host: 'github.com', owner: 'yakanet', name: '
  * read before cost nothing to list, and are the likeliest to be wanted again.
  * The default branch is not among them, the menu offering it as `HEAD`.
  */
-export function branchesOf(ref: RepoRef, keys: readonly string[]): string[] {
+export function branchesOf(ref: ForgeAddress, keys: readonly string[]): string[] {
 	// `repoKey` ends the repository at an `@`, so the prefix cannot match a
 	// namesake whose name merely starts the same.
 	const prefix = repoKey({ ...ref, branch: undefined });
@@ -51,7 +55,7 @@ export function branchesOf(ref: RepoRef, keys: readonly string[]): string[] {
 
 export function toSuggestions(
 	rows: readonly { key: string; value: CachedShape; storedAt: number }[],
-	format: (ref: RepoRef) => string
+	format: (ref: ForgeAddress) => string
 ): Suggestion[] {
 	const found = rows.flatMap((row) => {
 		// `repoKey` writes a forge path, so that reading turns a key back into a

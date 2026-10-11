@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { wordRef } from '../../repo/ref.ts';
-import { SOURCES, sourceIdOf, openSource, parseRepoPath } from '../open.ts';
+import { SOURCES, openSource, parseRepoPath } from '../open.ts';
 import { ServedSource } from './source.ts';
 
 /**
@@ -12,17 +11,17 @@ vi.mock('./enabled.ts', () => ({ SERVED: 'my-project' }));
 
 describe('a dev server that serves a folder', () => {
 	it('makes `/served` an address', () => {
-		expect(parseRepoPath('served')).toEqual(wordRef('served'));
+		expect(parseRepoPath('served')).toEqual({ source: 'served', path: 'served' });
 	});
 
 	it('registers the source, named after the folder', () => {
 		expect(SOURCES.served).toBe(ServedSource);
-		expect(openSource(wordRef('served')).label).toBe('my-project');
+		expect(openSource(parseRepoPath('served')!).label).toBe('my-project');
 	});
 
 	it('leaves every reference to its own source', () => {
-		expect(sourceIdOf(wordRef('served'))).toBe('served');
-		expect(sourceIdOf(parseRepoPath('local')!)).toBe('local');
-		expect(sourceIdOf(parseRepoPath('owner/repo')!)).toBe('github');
+		expect(parseRepoPath('served')?.source).toBe('served');
+		expect(parseRepoPath('local')?.source).toBe('local');
+		expect(parseRepoPath('owner/repo')?.source).toBe('github');
 	});
 });

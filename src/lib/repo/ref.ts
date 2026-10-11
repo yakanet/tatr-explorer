@@ -1,33 +1,50 @@
 /**
- * A reference to a repository that holds a `tasks/` folder.
+ * A reference to what the site reads: a repository on a forge, or a source
+ * that lives at one of this site's own paths.
  *
  * References round-trip through the site's own URLs, so that every repository
- * gets a unique, shareable address. Two shapes, and this file knows no source
- * by name:
- *
- * - a forge address, `/{owner}/{name}`, optionally prefixed with a forge host
- *   and suffixed with `@{branch}`, on any host, so that one on a host nothing
- *   reads still opens a page that says so;
- * - a word, for a source no URL anyone else follows can reach (a folder on
- *   this machine is a session, not an address). The source that owns the word
- *   says so in the registry, which is where the word is recognised.
+ * gets a unique, shareable address. A reference names the source that reads
+ * it, by its key in the registry, which decides it once, as the URL is read.
  */
+import type { SourceId } from '../sources/open.ts';
 
-export type RepoRef = {
-	/** Forge host, e.g. `github.com`, or the word of a source that has one. */
+/**
+ * Where a repository is on a forge: `/{owner}/{name}`, optionally prefixed with
+ * a forge host and suffixed with `@{branch}`, on any host.
+ */
+export type ForgeAddress = {
+	/** Forge host, e.g. `github.com`. */
 	host: string;
-	/** Empty for a word, which has no owner to qualify it. */
 	owner: string;
 	name: string;
 	/** `undefined` means "whatever the forge reports as the default branch". */
 	branch?: string;
 };
 
+/** A repository on a forge, and the source that reads it: none on a host nothing reads. */
+export interface ForgeRef extends ForgeAddress {
+	readonly source: SourceId | null;
+}
+
+/**
+ * A source that lives at one of this site's own paths, `/local`, and nowhere
+ * else: no URL anyone else follows reaches it (a folder on this machine is a
+ * session, not an address).
+ */
+export interface PathRef {
+	readonly source: SourceId;
+	readonly path: string;
+	/** Never one: declared so that a reference with a branch is known to be a forge's. */
+	readonly branch?: undefined;
+}
+
+export type RepoRef = ForgeRef | PathRef;
+
 export const DEFAULT_HOST = 'github.com';
 
-/** The reference a word stands for: the word, and nothing else. */
-export function wordRef(word: string): RepoRef {
-	return { host: word, owner: '', name: '' };
+/** Whether a reference, or an address, is a forge's rather than a path of this site. */
+export function isForgeRef<T extends ForgeAddress>(ref: T | PathRef): ref is T {
+	return 'host' in ref;
 }
 
 /** GitHub allows these characters in owner and repository names. */
@@ -46,7 +63,7 @@ function cleanName(name: string): string {
 	return name.replace(/\.git$/, '');
 }
 
-function build(host: string, owner: string, name: string, branch?: string): RepoRef | null {
+function build(host: string, owner: string, name: string, branch?: string): ForgeAddress | null {
 	const cleaned = cleanName(name);
 	if (!SEGMENT.test(owner) || !SEGMENT.test(cleaned)) return null;
 	return branch ? { host, owner, name: cleaned, branch } : { host, owner, name: cleaned };
@@ -57,10 +74,10 @@ function build(host: string, owner: string, name: string, branch?: string): Repo
  *
  * Accepts `owner/name`, `host/owner/name`, and either form suffixed with
  * `@branch`. Branch names may contain slashes. One segment is never a forge
- * address, which needs an owner too: that is what leaves a word free to be a
- * source's.
+ * address, which needs an owner too: that is what leaves a path of this site
+ * free to be a source's.
  */
-export function parseForgePath(path: string): RepoRef | null {
+export function parseForgePath(path: string): ForgeAddress | null {
 	const trimmed = path.replace(/^\/+|\/+$/g, '');
 	if (!trimmed) return null;
 
@@ -81,7 +98,7 @@ export function parseForgePath(path: string): RepoRef | null {
  * A GitHub tree URL carries its branch, so `/owner/name/tree/dev/tasks` resolves
  * to branch `dev`.
  */
-export function parseRepoInput(input: string): RepoRef | null {
+export function parseRepoInput(input: string): ForgeAddress | null {
 	const trimmed = input.trim();
 	if (!trimmed) return null;
 
@@ -102,7 +119,7 @@ export function parseRepoInput(input: string): RepoRef | null {
 	return parseForgePath(trimmed);
 }
 
-function fromHostAndPath(host: string, path: string): RepoRef | null {
+function fromHostAndPath(host: string, path: string): ForgeAddress | null {
 	const segments = path
 		.replace(/^\/+|\/+$/g, '')
 		.split('/')
@@ -139,21 +156,19 @@ export function isBranchName(name: string): boolean {
 }
 
 /** `owner/name`: how a repository is named on its forge, host and branch aside. */
-export function formatRepoName(ref: RepoRef): string {
-	return `${ref.owner}/${ref.name}`;
+export function formatRepoName(address: ForgeAddress): string {
+	return `${address.owner}/${address.name}`;
 }
 
-/** Renders a reference back into the path form used by our own URLs. */
-export function formatRepoPath(ref: RepoRef): string {
-	// A word is the whole address: a folder's name, say, would read as one, and
-	// nobody else's machine can follow it.
-	if (!ref.owner) return ref.host;
+/** Renders a reference, or a forge address, back into the path of our own URLs. */
+export function formatRepoPath(ref: ForgeAddress | PathRef): string {
+	if (!isForgeRef(ref)) return ref.path;
 	const prefix = ref.host === DEFAULT_HOST ? '' : `${ref.host}/`;
 	const suffix = ref.branch ? `@${ref.branch}` : '';
 	return `${prefix}${formatRepoName(ref)}${suffix}`;
 }
 
 /** Stable identity for caching, independent of the default-branch lookup. */
-export function repoKey(ref: RepoRef): string {
-	return `${ref.host}/${ref.owner}/${ref.name}@${ref.branch ?? ''}`;
+export function repoKey(address: ForgeAddress): string {
+	return `${address.host}/${address.owner}/${address.name}@${address.branch ?? ''}`;
 }

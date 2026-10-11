@@ -5,8 +5,7 @@ import {
 	isBranchName,
 	parseForgePath,
 	parseRepoInput,
-	repoKey,
-	wordRef
+	repoKey
 } from './ref.ts';
 
 describe('parseForgePath', () => {
@@ -180,7 +179,7 @@ describe('repoKey', () => {
 	});
 });
 
-describe('a word for an address', () => {
+describe('a path of this site', () => {
 	it('is never a forge address, which needs an owner too', () => {
 		expect(parseForgePath('local')).toBeNull();
 		expect(parseForgePath('local/repo')).toEqual({
@@ -190,7 +189,7 @@ describe('a word for an address', () => {
 		});
 	});
 
-	it('is the whole of the URL, a name in it reading as an address nobody can follow', () => {
-		expect(formatRepoPath({ ...wordRef('local'), name: 'my-project' })).toBe('local');
+	it('is written back as the whole of the URL', () => {
+		expect(formatRepoPath({ source: 'local', path: 'local' })).toBe('local');
 	});
 });

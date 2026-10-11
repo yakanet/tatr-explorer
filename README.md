@@ -287,8 +287,8 @@ entry. A fourth is one more folder, written in this order:
    replaced. Leave one out and the page offers nothing in its place, which is
    the point.
 3. **Two static members** on the class, which make it a `SourceClass`: its
-   `address` (the hosts a forge reads, or one word such as `/local`), and
-   `open`, which builds a source for a reference.
+   `address` (the hosts a forge reads, or a path of this site such as
+   `/local`), and `open`, which builds a source for a reference.
 4. **One line in `SOURCES`** (`open.ts`). The compiler then asks for the two
    others: its control in `REOPENERS` (`src/lib/components/reopeners.ts`),
    null unless a gesture is the only way back to it, and how to build it in

@@ -236,7 +236,9 @@
 				<section class="panel">
 					<h2>Source</h2>
 					<p class="file">
-						<a href={fileUrl} target="_blank" rel="noopener noreferrer">TASK.md on {ref.host}</a>
+						<a href={fileUrl} target="_blank" rel="noopener noreferrer"
+							>TASK.md on {new URL(fileUrl).host}</a
+						>
 					</p>
 					<p class="note">Its history and its blame are there, not here.</p>
 				</section>

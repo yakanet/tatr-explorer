@@ -8,7 +8,7 @@
  * permanent exception, which is what it was, as a branch in the loader.
  *
  * Contract only: no implementation is imported here, so a source may name this
- * type without anything importing it back.
+ * type without anything importing it back at runtime.
  */
 import type { RepoRef } from '../repo/ref.ts';
 
@@ -104,14 +104,14 @@ export interface Source {
 }
 
 /**
- * Which references a source reads: on the forge hosts it reads, at
- * `[host/]owner/name`, or under one word of its own, for sources no URL anyone
- * else follows can reach (a folder on this machine).
+ * Where a source's references are found: on the forge hosts it reads, at
+ * `[host/]owner/name`, or at one path of this site of its own, `/local`, for a
+ * source no URL anyone else follows can reach (a folder on this machine).
  *
  * A list rather than a pattern, as a self-hosted forge is on whatever domain
  * its owner chose and is named, not guessed.
  */
-export type Address = { readonly hosts: readonly string[] } | { readonly word: string };
+export type Address = { readonly hosts: readonly string[] } | { readonly path: string };
 
 /** What a reading costs, said while it is taken: the listing, then the files. */
 export interface Cost {
@@ -127,7 +127,7 @@ export interface Cost {
  * reference being nothing an instance can do: it decides which one to build.
  */
 export interface SourceClass {
-	/** Which references it reads; the registry finds a reference's source by it. */
+	/** Which references it reads: the registry names it in those it reads from a URL. */
 	readonly address: Address;
 	/**
 	 * The source for `ref`, from the reference alone. What a spec substitutes

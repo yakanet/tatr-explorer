@@ -7,7 +7,7 @@
 import { resolve } from '$app/paths';
 import { page } from '$app/state';
 import type { RouteId } from '$app/types';
-import { formatRepoPath, type RepoRef } from './ref.ts';
+import { formatRepoPath, type ForgeRef } from './ref.ts';
 
 /**
  * Every route under a repository takes `repo`, and the task page the `id`
@@ -25,7 +25,7 @@ const again = resolve as (route: RouteId, params: Record<string, string | undefi
  * board rewrite their address as the reader types, through a shallow `goto`,
  * and `page.url` stays the address the page was reached by.
  */
-export function onBranch(ref: RepoRef, branch: string | undefined): string {
+export function onBranch(ref: ForgeRef, branch: string | undefined): string {
 	const repo = formatRepoPath({ ...ref, branch });
 	const { search } = page.shallow?.url ?? page.url;
 	return again(page.route.id ?? '/[...repo]', { ...page.params, repo }) + search;

@@ -9,7 +9,7 @@
  */
 import type { Component } from 'svelte';
 import type { RepoRef } from '../repo/ref.ts';
-import { sourceIdOf, type SourceId } from '../sources/open.ts';
+import type { SourceId } from '../sources/open.ts';
 import FolderPicker from './FolderPicker.svelte';
 
 /**
@@ -32,7 +32,6 @@ const REOPENERS = {
  * source again is enough (a forge, the served folder) or nothing reads `ref`.
  */
 export function reopenerOf(ref: RepoRef): Reopener | null {
-	const id = sourceIdOf(ref);
-	if (!id) return null;
-	return REOPENERS[id];
+	if (!ref.source) return null;
+	return REOPENERS[ref.source];
 }

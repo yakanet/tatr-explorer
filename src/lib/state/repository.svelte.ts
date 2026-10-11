@@ -9,7 +9,7 @@ import { isFollowable, isLinked } from '../sources/capabilities.ts';
 import { loadRepository } from '../sources/load.ts';
 import { openSource } from '../sources/open.ts';
 import { SourceError, type Source, type SourceFailure } from '../sources/contract.ts';
-import { formatRepoName, type RepoRef } from '../repo/ref.ts';
+import { formatRepoName, isForgeRef, type RepoRef } from '../repo/ref.ts';
 import {
 	compare,
 	snapshot,
@@ -307,8 +307,9 @@ export function describeAge(storedAt: number, now = Date.now()): string {
 	return RELATIVE.format(-Math.round(hours / 24), 'day');
 }
 
-/** A reference by its name on its forge, or nothing before there is one. */
+/** A reference by its name on its forge, or by its path, or nothing before there is one. */
 function nameOf(ref: RepoRef | null): string {
 	if (!ref) return '';
+	if (!isForgeRef(ref)) return ref.path;
 	return formatRepoName(ref);
 }
