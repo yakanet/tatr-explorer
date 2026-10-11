@@ -4,6 +4,7 @@
 	import { renderInline, type RenderOptions } from '#lib/render/markdown.ts';
 	import type { Task } from '#lib/tatr/task.ts';
 	import Journal from '#lib/components/Journal.svelte';
+	import pencil from 'virtual:icons/lucide:pencil.svg';
 
 	interface Props {
 		task: Task;
@@ -35,7 +36,12 @@
 			</span>
 		{/if}
 		{#if onedit}
-			<button type="button" class="action edit" onclick={onedit}>Edit</button>
+			<button type="button" class="action edit" onclick={onedit}>
+				<svg viewBox={pencil.viewBox} width="1em" height="1em" aria-hidden="true"
+					>{@html pencil.body}</svg
+				>
+				Edit
+			</button>
 		{/if}
 	</div>
 
@@ -85,6 +91,9 @@
 
 	/* Edit sits at the end of the line, away from what describes the task. */
 	.edit {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		margin-left: auto;
 	}
 
