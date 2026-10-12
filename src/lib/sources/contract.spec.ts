@@ -3,9 +3,9 @@
  * tree. `contract.ts` declares what a source has; this spec fails when a new
  * source does the wrong thing with it.
  *
- * `SUBJECTS` is keyed like `SOURCES`, so a source added to the registry and not
- * here does not compile. It lives here rather than in `tests/support`, because
- * nothing else builds these subjects.
+ * `SUBJECTS` is keyed like `SOURCES`, with at least one subject per key, so a
+ * source added to the registry and not here does not compile. It lives here
+ * rather than in `tests/support`, because nothing else builds these subjects.
  *
  * Each source's own spec checks what `assetUrl` answers for a missing file,
  * which a forge cannot know without a listing, and the branch a listing names,
@@ -30,10 +30,20 @@ import { FollowedServedSource, ServedSource } from './served/source.ts';
 import { SourceError, type Listing, type Source } from './contract.ts';
 import { memoryStore } from './store.ts';
 
+/**
+ * The capabilities whose tests run only on a source that has them, besides
+ * writing, which `failingToWrite` declares.
+ */
+const GUARDS = { cached: isCached, rereadable: isRereadable, linked: isLinked };
+
+type Capability = keyof typeof GUARDS;
+
 /** One way to build a source for the contract. */
 interface Subject {
 	/** How the source was built, which names its tests. */
 	name: string;
+	/** The capabilities its source has, among `GUARDS`. */
+	has: Capability[];
 	/**
 	 * A source holding `tree`, a map from paths to contents. A later change to
 	 * `tree` is there for the source to find when it reads again.
@@ -41,7 +51,10 @@ interface Subject {
 	holding(tree: Record<string, string>): Promise<Source>;
 	/** A source whose listing fails, the way this one fails in practice. */
 	broken(): Source;
-	/** A source whose writes fail, the way this one's fail in practice. Given only for a source that writes. */
+	/**
+	 * A source whose writes fail, the way this one's fail in practice. Given
+	 * only for a source that writes.
+	 */
 	failingToWrite?(): Promise<Source>;
 	/** Copies a change to `tree` to where the source reads, when that is not `tree` itself. */
 	sync?(tree: Record<string, string>): Promise<unknown>;
@@ -49,11 +62,10 @@ interface Subject {
 
 /** A repository every source can hold: two tasks, an attachment and a tags file. */
 const TREE: Readonly<Record<string, string>> = {
-	'tasks/20260101-000001/TASK.md':
-		'# Open\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: ui\n\nA body.\n',
-	'tasks/20260101-000002/TASK.md': '# Closed\n\n- STATUS: CLOSED\n- PRIORITY: 50\n',
+	'tasks/20260101-000001/TASK.md' : '# Open\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: ui\n\nA body.\n',
+	'tasks/20260101-000002/TASK.md' : '# Closed\n\n- STATUS: CLOSED\n- PRIORITY: 50\n',
 	'tasks/20260101-000002/shot.png': 'not much of a picture',
-	'tasks/tags': 'ui , screens\n'
+	'tasks/tags'                    : 'ui , screens\n'
 };
 
 /** The paths under `tasks/`, sorted: a folder keeps nothing else, so nothing else is compared. */
@@ -67,18 +79,6 @@ function listedUnderTasks(listing: Listing): string[] {
 
 const TASK_FILES = underTasks(Object.keys(TREE));
 
-/** The key a source is cached under, or null for one that is not `Cached`. */
-function cacheKeyOf(source: Source): string | null {
-	if (!isCached(source)) return null;
-	return source.cacheKey;
-}
-
-/** The page a source links a file to, or undefined for one that is not `Linked`. */
-function pageOf(source: Source, path: string): string | undefined {
-	if (!isLinked(source)) return undefined;
-	return source.fileUrl(path);
-}
-
 function honoursTheContract(subject: Subject): void {
 	describe(`${subject.name}, as a source`, () => {
 		const holding = () => subject.holding({ ...TREE });
@@ -88,8 +88,6 @@ function honoursTheContract(subject: Subject): void {
 			expect(source.label).not.toBe('');
 			expect(source.cost.listing).not.toBe('');
 			expect(source.concurrency).toBeGreaterThanOrEqual(1);
-			// An empty key would make every such source share one cache entry.
-			expect(cacheKeyOf(source)).not.toBe('');
 		});
 
 		it('lists every file under tasks/, by its path from the root', async () => {
@@ -133,18 +131,6 @@ function honoursTheContract(subject: Subject): void {
 			expect(result.skipped).toEqual([]);
 		});
 
-		it('finds what changed since, once read again, where it says it can be', async () => {
-			const tree = { ...TREE };
-			const source = await subject.holding(tree);
-			const added = 'tasks/20260101-000003/TASK.md';
-			tree[added] = '# Added since\n\n- STATUS: OPEN\n';
-			await subject.sync?.(tree);
-
-			if (isRereadable(source)) await source.reread();
-			const listed = listedUnderTasks(await source.list());
-			expect(!isRereadable(source) || listed.includes(added)).toBe(true);
-		});
-
 		it('follows its changes only where it can be read again', async () => {
 			// A `follow` without a `reread` is no capability (see `Followable`).
 			// What following does is left to each source's spec.
@@ -152,15 +138,42 @@ function honoursTheContract(subject: Subject): void {
 			expect(isFollowable(source)).toBe('follow' in source);
 		});
 
-		it('links a file to its page only with a URL', async () => {
-			const page = pageOf(await holding(), TASK_FILES[0]);
-			expect(page === undefined || URL.canParse(page)).toBe(true);
+		// A capability its subject leaves out would skip that capability's tests unseen.
+		it('has exactly the capabilities its subject declares', async () => {
+			const source = await holding();
+			const found = Object.entries(GUARDS)
+				.filter(([, is]) => is(source))
+				.map(([name]) => name);
+			expect(found.toSorted()).toEqual(subject.has.toSorted());
+			expect(isWritable(source)).toBe(subject.failingToWrite !== undefined);
 		});
 
-		// A source that writes and is not declared so would skip the writing tests unseen.
-		it('writes exactly when its subject says it does', async () => {
-			expect(isWritable(await holding())).toBe(subject.failingToWrite !== undefined);
-		});
+		if (subject.has.includes('cached')) {
+			it('is cached under a key of its own', async () => {
+				// An empty key would make every such source share one cache entry.
+				expect(having(await holding(), isCached).cacheKey).not.toBe('');
+			});
+		}
+
+		if (subject.has.includes('rereadable')) {
+			it('finds what changed since, once read again', async () => {
+				const tree = { ...TREE };
+				const source = having(await subject.holding(tree), isRereadable);
+				const added = 'tasks/20260101-000003/TASK.md';
+				tree[added] = '# Added since\n\n- STATUS: OPEN\n';
+				await subject.sync?.(tree);
+
+				await source.reread();
+				expect(listedUnderTasks(await source.list())).toContain(added);
+			});
+		}
+
+		if (subject.has.includes('linked')) {
+			it('links a file to its page with a URL', async () => {
+				const page = having(await holding(), isLinked).fileUrl(TASK_FILES[0]);
+				expect(URL.canParse(page)).toBe(true);
+			});
+		}
 
 		if (subject.failingToWrite) writesAsTheContractSays(holding, subject.failingToWrite);
 	});
@@ -264,8 +277,8 @@ async function openedThrough(door: Door, tree: Record<string, string>): Promise<
 }
 
 /** A subject for a folder handed over through `door`. */
-function through(name: string, door: Door): Subject {
-	return { name, holding: (tree) => openedThrough(door, tree), broken: forgotten };
+function through(name: string, has: Capability[], door: Door): Subject {
+	return { name, has, holding: (tree) => openedThrough(door, tree), broken: forgotten };
 }
 
 /**
@@ -297,6 +310,7 @@ const SUBJECTS = {
 	github: () => [
 		{
 			name: 'a repository on GitHub',
+			has: ['cached', 'rereadable', 'linked'],
 			holding: async (tree) => openGitHubOver(forge(tree)),
 			broken: () => openGitHubOver(unreachable)
 		}
@@ -306,13 +320,14 @@ const SUBJECTS = {
 	local: () => {
 		afterEach(() => closeFolder());
 		return [
-			through('a folder handed over by a directory input', async (tree) => [
+			through('a folder handed over by a directory input', [], async (tree) => [
 				fromFileList(fileList('my-project', tree))!
 			]),
-			through('a folder picked, with a handle to it', picked()),
+			through('a folder picked, with a handle to it', ['rereadable'], picked()),
 			{
 				...through(
 					'a folder picked on Chromium, whose reader allows writing',
+					['rereadable'],
 					picked(async () => 'granted')
 				),
 				// The browser refuses to ask long after the last click, the usual failure.
@@ -322,7 +337,7 @@ const SUBJECTS = {
 						{ ...TREE }
 					)
 			},
-			through('a folder dropped, with its entry tree', async (tree) => {
+			through('a folder dropped, with its entry tree', ['rereadable'], async (tree) => {
 				const entry = entryTree('my-project', tree);
 				return [await fromDirectoryEntry(entry), entry];
 			})
@@ -334,6 +349,7 @@ const SUBJECTS = {
 		const scratch = scratchFolder();
 		const served = (name: string, open: (network: typeof fetch) => Source): Subject => ({
 			name,
+			has: ['rereadable'],
 			async holding(tree) {
 				await writeTree(scratch(), tree);
 				return open(await serving(scratch()));
@@ -354,7 +370,7 @@ const SUBJECTS = {
 			)
 		];
 	}
-} satisfies Record<SourceId, () => Subject[]>;
+} satisfies Record<SourceId, () => [Subject, ...Subject[]]>;
 
 for (const [id, subjectsOf] of Object.entries(SUBJECTS)) {
 	describe(id, () => {
