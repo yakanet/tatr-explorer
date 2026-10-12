@@ -80,7 +80,7 @@ pnpm run fixtures   # runs the real tatr, built in ../tatr, and records what it 
 pnpm test           # replays every recording against this viewer: a divergence fails
 ```
 
-![The filtered list](docs/list.jpg)
+![The list, filtered by a composite query](docs/list.jpg)
 
 ## Edit, where the folder can be written
 
@@ -97,7 +97,7 @@ Save writes only what you changed, and never over a change it did not read. A
 file is rewritten as `tatr untag` rewrites one, so a file the CLI wrote comes
 back byte for byte. Undo puts the task's file back.
 
-![One task, rendered](docs/task.jpg)
+![One task, being edited](docs/task.jpg)
 
 ## Private by construction
 
