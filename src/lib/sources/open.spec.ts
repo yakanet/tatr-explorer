@@ -87,8 +87,6 @@ describe('openSource', () => {
 		expect(source).toBeInstanceOf(LocalFolderSource);
 		// No folder is open, as after a reload, and the reading still has a name.
 		expect(source.label).toBe('a folder on this machine');
-		expect(isCached(source)).toBe(false);
-		expect(isLinked(source)).toBe(false);
 	});
 });
 
@@ -97,17 +95,7 @@ function dropped(path: string, text: string): File {
 	return fileList('my-project', { [path]: text })[0];
 }
 
-/** What each source does, opened through `openSource` as the application opens it. */
-describe('reading through a forge', () => {
-	const ref = parseRepoPath('owner/repo')!;
-
-	it('can be refreshed, having only a request to spend', async () => {
-		const source = openSource(ref);
-		expect(isRereadable(source)).toBe(true);
-		await expect(having(source, isRereadable).reread()).resolves.toBeUndefined();
-	});
-});
-
+/** What a folder does, opened through `openSource` as the application opens it. */
 describe('reading through a folder', () => {
 	const open = (files: File[]) => {
 		openFolder(fromFileList(files)!);
@@ -129,12 +117,6 @@ describe('reading through a folder', () => {
 
 	it('names itself after the folder, which no URL carries', () => {
 		expect(open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]).label).toBe('my-project');
-	});
-
-	it('cannot be refreshed when the folder came from a directory input', () => {
-		// A directory input gives no handle, so there is no way back to the folder.
-		const source = open([dropped('tasks/20260101-000001/TASK.md', '# a\n')]);
-		expect(isRereadable(source)).toBe(false);
 	});
 
 	it('is one source for every reading of the folder, until another is picked', async () => {
@@ -174,20 +156,6 @@ describe('reading through a folder', () => {
 		closeFolder();
 		expect(revoke).toHaveBeenCalledWith(before);
 		revoke.mockRestore();
-	});
-
-	it('can be refreshed when it was dropped on Firefox, reading what changed on disk', async () => {
-		// A drop's entry tree walks again without a dialog (checked on Firefox),
-		// so a dropped folder offers Refresh rather than "Reopen…".
-		const tree = { 'tasks/20260101-000001/TASK.md': '# before\n' };
-		const entry = entryTree('my-project', tree);
-		openFolder(await fromDirectoryEntry(entry), entry);
-		const source = openSource(LOCAL);
-		expect(isRereadable(source)).toBe(true);
-
-		tree['tasks/20260101-000001/TASK.md'] = '# after\n';
-		await having(source, isRereadable).reread();
-		expect(await source.read('tasks/20260101-000001/TASK.md')).toBe('# after\n');
 	});
 
 	it('keeps the later of two overlapping refreshes, whichever finishes last', async () => {
@@ -264,12 +232,6 @@ describe('following a folder', () => {
 		vi.useRealTimers();
 	});
 
-	it('is offered only with a way back to the folder, as Refresh is', async () => {
-		openFolder(fromFileList([dropped('tasks/20260101-000001/TASK.md', '# a\n')])!);
-		expect(isFollowable(openSource(LOCAL))).toBe(false);
-		expect(isFollowable(await picked())).toBe(true);
-	});
-
 	it('watches `tasks/` alone, where FileSystemObserver exists', async () => {
 		// The rest of a checkout, `.git` and `node_modules`, moves far more often.
 		const { seen } = observer();
@@ -328,11 +290,8 @@ describe('writing to a folder', () => {
 	const before = '# a\n\n- STATUS: OPEN\n';
 	const after = '# a\n\n- STATUS: CLOSED\n';
 
-	/**
-	 * A folder picked on Chromium, whose reader answers `ask`, and the tree it
-	 * writes to. Without `ask`, the handle is one that cannot ask.
-	 */
-	const picked = async (ask?: () => Promise<PermissionState>) => {
+	/** A folder picked on Chromium, whose reader answers `ask`, and the tree it writes to. */
+	const picked = async (ask: () => Promise<PermissionState>) => {
 		const tree: Record<string, string> = { [path]: before };
 		const handle = directory('my-project', tree, ask);
 		openFolder(await fromDirectoryHandle(handle), handle);
@@ -340,18 +299,6 @@ describe('writing to a folder', () => {
 	};
 
 	afterEach(() => closeFolder());
-
-	it('is offered only where the browser hands over a handle that can ask to write', async () => {
-		expect(isWritable((await picked(async () => 'granted')).source)).toBe(true);
-		expect(isWritable((await picked()).source)).toBe(false);
-
-		const entry = entryTree('my-project', { [path]: before });
-		openFolder(await fromDirectoryEntry(entry), entry);
-		expect(isWritable(openSource(LOCAL))).toBe(false);
-
-		openFolder(fromFileList([dropped(path, before)])!);
-		expect(isWritable(openSource(LOCAL))).toBe(false);
-	});
 
 	it('asks the reader on the first write only, and writes once allowed', async () => {
 		const ask = vi.fn(async (): Promise<PermissionState> => 'granted');

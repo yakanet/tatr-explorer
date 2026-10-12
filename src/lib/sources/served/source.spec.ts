@@ -1,11 +1,7 @@
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
-import { unreachable } from '#tests/support/network.ts';
-import { isCached, isFollowable, isRereadable } from '../capabilities.ts';
-import { loadRepository } from '../load.ts';
-import { memoryStore } from '../store.ts';
-import { SourceError } from '../contract.ts';
+import { isFollowable } from '../capabilities.ts';
 import { FollowedServedSource, ServedSource } from './source.ts';
 import { CHANGED } from './protocol.ts';
 
@@ -25,11 +21,8 @@ beforeEach(async () => {
 const open = async () => new ServedSource('my-project', await serving(scratch()));
 
 describe('the served folder, as a source', () => {
-	it('names itself after the folder, and keeps no cache of it', async () => {
-		const source = await open();
-		expect(source.label).toBe('my-project');
-		expect(isCached(source)).toBe(false);
-		expect(isRereadable(source)).toBe(true);
+	it('names itself after the folder', async () => {
+		expect((await open()).label).toBe('my-project');
 	});
 
 	it('lists the folder, with its branch', async () => {
@@ -49,17 +42,6 @@ describe('the served folder, as a source', () => {
 		expect((await open()).assetUrl('tasks/20260101-000001/a b.png')).toBe(
 			'/__tatr/served/files/tasks/20260101-000001/a%20b.png'
 		);
-	});
-
-	it('says the dev server did not answer, rather than that there is nothing', async () => {
-		const source = new ServedSource('my-project', unreachable);
-		await expect(source.list()).rejects.toThrow(SourceError);
-	});
-
-	it('loads as a repository like any other', async () => {
-		const result = await loadRepository(await open(), { store: memoryStore() });
-		expect(result.tasks.map((task) => task.id)).toEqual(['20260101-000001', '20260101-000002']);
-		expect(result.tags.descriptions.get('ui')).toBe('screens');
 	});
 
 	it('follows the folder over the dev channel, until told to stop', () => {

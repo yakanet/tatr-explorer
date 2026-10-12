@@ -31,10 +31,16 @@ import { SourceError, type Listing, type Source } from './contract.ts';
 import { memoryStore } from './store.ts';
 
 /**
- * The capabilities whose tests run only on a source that has them, besides
- * writing, which `failingToWrite` declares.
+ * The capabilities a subject declares, each checked against its source. Writing
+ * is declared by `failingToWrite` instead, which its tests need anyway.
  */
-const GUARDS = { cached: isCached, rereadable: isRereadable, linked: isLinked };
+const GUARDS = {
+	cached: isCached,
+	rereadable: isRereadable,
+	linked: isLinked,
+	// No test of its own: what following does is left to each source's spec.
+	followable: isFollowable
+};
 
 type Capability = keyof typeof GUARDS;
 
@@ -62,10 +68,11 @@ interface Subject {
 
 /** A repository every source can hold: two tasks, an attachment and a tags file. */
 const TREE: Readonly<Record<string, string>> = {
-	'tasks/20260101-000001/TASK.md' : '# Open\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: ui\n\nA body.\n',
-	'tasks/20260101-000002/TASK.md' : '# Closed\n\n- STATUS: CLOSED\n- PRIORITY: 50\n',
+	'tasks/20260101-000001/TASK.md':
+		'# Open\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: ui\n\nA body.\n',
+	'tasks/20260101-000002/TASK.md': '# Closed\n\n- STATUS: CLOSED\n- PRIORITY: 50\n',
 	'tasks/20260101-000002/shot.png': 'not much of a picture',
-	'tasks/tags'                    : 'ui , screens\n'
+	'tasks/tags': 'ui , screens\n'
 };
 
 /** The paths under `tasks/`, sorted: a folder keeps nothing else, so nothing else is compared. */
@@ -131,14 +138,7 @@ function honoursTheContract(subject: Subject): void {
 			expect(result.skipped).toEqual([]);
 		});
 
-		it('follows its changes only where it can be read again', async () => {
-			// A `follow` without a `reread` is no capability (see `Followable`).
-			// What following does is left to each source's spec.
-			const source = await holding();
-			expect(isFollowable(source)).toBe('follow' in source);
-		});
-
-		// A capability its subject leaves out would skip that capability's tests unseen.
+		// A capability its subject leaves out would go unchecked, its tests skipped unseen.
 		it('has exactly the capabilities its subject declares', async () => {
 			const source = await holding();
 			const found = Object.entries(GUARDS)
@@ -160,11 +160,14 @@ function honoursTheContract(subject: Subject): void {
 				const tree = { ...TREE };
 				const source = having(await subject.holding(tree), isRereadable);
 				const added = 'tasks/20260101-000003/TASK.md';
+				const [edited] = TASK_FILES;
 				tree[added] = '# Added since\n\n- STATUS: OPEN\n';
+				tree[edited] = '# Edited since\n';
 				await subject.sync?.(tree);
 
 				await source.reread();
 				expect(listedUnderTasks(await source.list())).toContain(added);
+				expect(await source.read(edited)).toBe('# Edited since\n');
 			});
 		}
 
@@ -323,11 +326,11 @@ const SUBJECTS = {
 			through('a folder handed over by a directory input', [], async (tree) => [
 				fromFileList(fileList('my-project', tree))!
 			]),
-			through('a folder picked, with a handle to it', ['rereadable'], picked()),
+			through('a folder picked, with a handle to it', ['rereadable', 'followable'], picked()),
 			{
 				...through(
 					'a folder picked on Chromium, whose reader allows writing',
-					['rereadable'],
+					['rereadable', 'followable'],
 					picked(async () => 'granted')
 				),
 				// The browser refuses to ask long after the last click, the usual failure.
@@ -337,19 +340,29 @@ const SUBJECTS = {
 						{ ...TREE }
 					)
 			},
-			through('a folder dropped, with its entry tree', ['rereadable'], async (tree) => {
-				const entry = entryTree('my-project', tree);
-				return [await fromDirectoryEntry(entry), entry];
-			})
+			// A drop's entry tree walks again without a dialog (checked on Firefox),
+			// so a dropped folder offers Refresh rather than "Reopen…".
+			through(
+				'a folder dropped, with its entry tree',
+				['rereadable', 'followable'],
+				async (tree) => {
+					const entry = entryTree('my-project', tree);
+					return [await fromDirectoryEntry(entry), entry];
+				}
+			)
 		];
 	},
 
 	// With the dev channel, as the application opens it, and without, as a spec can.
 	served: () => {
 		const scratch = scratchFolder();
-		const served = (name: string, open: (network: typeof fetch) => Source): Subject => ({
+		const served = (
+			name: string,
+			has: Capability[],
+			open: (network: typeof fetch) => Source
+		): Subject => ({
 			name,
-			has: ['rereadable'],
+			has,
 			async holding(tree) {
 				await writeTree(scratch(), tree);
 				return open(await serving(scratch()));
@@ -362,10 +375,12 @@ const SUBJECTS = {
 		return [
 			served(
 				'a folder the dev server serves',
+				['rereadable'],
 				(network) => new ServedSource('my-project', network)
 			),
 			served(
 				'a folder the dev server serves, followed over its channel',
+				['rereadable', 'followable'],
 				(network) => new FollowedServedSource('my-project', SILENT, network)
 			)
 		];
