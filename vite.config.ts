@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { iconify } from './src/lib/icons.server.ts';
-import { tatrServedFolder } from './src/lib/sources/served/folder.server.ts';
+import { iconify } from '#lib/icons.server.ts';
+import { tatrServedFolder } from '#lib/sources/served/folder.server.ts';
 
 /**
  * The base path the site is served under, from `BASE_PATH`, which the deploy
@@ -33,7 +33,10 @@ export default defineConfig({
 		tatrServedFolder(),
 		iconify(),
 		sveltekit({
-			compilerOptions: { runes },
+			compilerOptions: {
+				runes,
+				modernAst: true
+			},
 			// GitHub Pages serves `404.html` for any path without a file, which lets
 			// client-side routing handle every path.
 			adapter: adapter({ fallback: '404.html' }),
@@ -50,6 +53,10 @@ export default defineConfig({
 	},
 	test: {
 		expect: { requireAssertions: true },
+		coverage: {
+			include: ['src/**/*.ts'],
+			exclude: ['src/**/*.spec.ts', 'src/**/*.d.ts']
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',
