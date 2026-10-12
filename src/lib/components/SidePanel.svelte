@@ -34,4 +34,9 @@
 		color: var(--muted);
 		line-height: 1.5;
 	}
+
+	/* A file name or a command stays on one line, as it is typed. */
+	.note :global(code) {
+		white-space: nowrap;
+	}
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BINDINGS, NOTHING_PENDING, press, type Pending } from './keys.ts';
+import { behindPanel, BINDINGS, NOTHING_PENDING, press, type Pending } from './keys.ts';
 
 /** Feeds a run of keys, threading the pending sequence the way the listener does. */
 function type(...keys: string[]) {
@@ -56,6 +56,7 @@ describe('press', () => {
 		expect(press('/').action).toEqual({ kind: 'search' });
 		expect(press('?').action).toEqual({ kind: 'help' });
 		expect(press('b').action).toEqual({ kind: 'branch' });
+		expect(press('n').action).toEqual({ kind: 'new' });
 		expect(press('Escape').action).toEqual({ kind: 'dismiss' });
 		expect(press('G').action).toEqual({ kind: 'last' });
 		expect(press('Home').action).toEqual({ kind: 'first' });
@@ -69,6 +70,22 @@ describe('press', () => {
 
 	it('tells j from J, so a shifted key is never a move', () => {
 		expect(press('J').action).toBeNull();
+	});
+});
+
+describe('behind a modal panel', () => {
+	const effectOf = (key: string) => behindPanel(press(key).action!);
+
+	it('holds back a key that moves the focus, which would leave the panel', () => {
+		for (const key of ['j', 'k', 'G', '/']) expect(effectOf(key)).toBe('held');
+	});
+
+	it('closes the panel for a key that opens something else, so the help can be used', () => {
+		for (const key of ['n', 'b', '1']) expect(effectOf(key)).toBe('closes');
+	});
+
+	it('lets the panel itself answer `?` and Escape', () => {
+		for (const key of ['?', 'Escape']) expect(effectOf(key)).toBe('acts');
 	});
 });
 

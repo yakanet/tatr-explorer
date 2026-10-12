@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { NOTHING_PENDING, press, type Pending } from '#lib/keys.ts';
+	import { behindPanel, NOTHING_PENDING, press, type Action, type Pending } from '#lib/keys.ts';
 
 	interface Props {
 		/**
@@ -9,18 +9,20 @@
 		onview?: (index: number) => void;
 		/** `b`: absent where there is no branch to choose, as for a folder or on the homepage. */
 		onbranch?: () => void;
+		/** `n`: absent where no task can be created, as on a forge or on the homepage. */
+		onnew?: () => void;
 		onhelp: () => void;
 		/** Escape, which the layout uses to close whatever it has open. */
 		ondismiss: () => void;
 		/**
-		 * True while something modal is open. Navigation then does nothing,
-		 * because moving the focus would take it out of a dialog that claims
-		 * `aria-modal`. This is simpler than trapping the focus.
+		 * True while something modal is open; `behindPanel` says what each key
+		 * does then. Holding back the keys that move the focus is simpler than
+		 * trapping it.
 		 */
 		modal?: boolean;
 	}
 
-	let { onview, onbranch, onhelp, ondismiss, modal = false }: Props = $props();
+	let { onview, onbranch, onnew, onhelp, ondismiss, modal = false }: Props = $props();
 
 	let pending = $state<Pending>(NOTHING_PENDING);
 
@@ -109,6 +111,14 @@
 		return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 	}
 
+	/** Whether this page does something with `action`, which the help then lists. */
+	function offered(action: Action): boolean {
+		if (action.kind === 'view') return onview !== undefined;
+		if (action.kind === 'branch') return onbranch !== undefined;
+		if (action.kind === 'new') return onnew !== undefined;
+		return true;
+	}
+
 	function onkeydown(event: KeyboardEvent) {
 		// A modified key belongs to the browser or the operating system.
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -128,8 +138,11 @@
 		if (!pressed.action) return;
 
 		const action = pressed.action;
-		// Behind a modal panel, only `?` and Escape still act.
-		if (modal && action.kind !== 'help' && action.kind !== 'dismiss') return;
+		if (modal) {
+			const effect = behindPanel(action);
+			if (effect === 'held' || !offered(action)) return;
+			if (effect === 'closes') ondismiss();
+		}
 		if (action.kind === 'search') {
 			const box = document.querySelector<HTMLElement>('[data-key-search]');
 			if (!box) return;
@@ -163,6 +176,9 @@
 				break;
 			case 'branch':
 				onbranch?.();
+				break;
+			case 'new':
+				onnew?.();
 				break;
 		}
 	}

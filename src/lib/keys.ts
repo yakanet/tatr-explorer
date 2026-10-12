@@ -3,8 +3,8 @@
  * means can be tested without a DOM.
  *
  * The bindings come from tools a reader already knows: `j`/`k` and `g g` from
- * vi, `/` and `?` from less, `1`-`9` from tabbed apps, `b` for branch. Arrows do what
- * their vi twin does.
+ * vi, `/` and `?` from less, `1`-`9` from tabbed apps, `b` for branch, `n` for
+ * new. Arrows do what their vi twin does.
  */
 
 export type Action =
@@ -22,7 +22,9 @@ export type Action =
 	/** Switch view by position in the nav, counted from zero. */
 	| { kind: 'view'; index: number }
 	/** Open the header's field for reading another branch. */
-	| { kind: 'branch' };
+	| { kind: 'branch' }
+	/** Open the sheet of a new task. */
+	| { kind: 'new' };
 
 /** The sequence typed so far: a single slot, since `g g` is the only sequence. */
 export interface Pending {
@@ -47,6 +49,7 @@ const SIMPLE: Record<string, Action> = {
 	'/': { kind: 'search' },
 	'?': { kind: 'help' },
 	b: { kind: 'branch' },
+	n: { kind: 'new' },
 	Escape: { kind: 'dismiss' }
 };
 
@@ -72,6 +75,36 @@ export function press(key: string, pending: Pending = NOTHING_PENDING): Pressed 
 	return { action: null, pending: NOTHING_PENDING };
 }
 
+/**
+ * The actions that open something else, a view, a branch or a new task, which
+ * only some pages offer.
+ */
+export type Opener = Extract<Action['kind'], 'view' | 'branch' | 'new'>;
+
+/**
+ * What an action does while the key help is open. One that moves the focus is
+ * held back, as the focus would leave a dialog that claims `aria-modal`. An
+ * {@link Opener} closes the help first, so that a key read there works from it.
+ * Every kind is listed, so a new one does not compile without its answer.
+ */
+export function behindPanel(action: Action): 'held' | 'closes' | 'acts' {
+	switch (action.kind) {
+		case 'help':
+		case 'dismiss':
+			return 'acts';
+		case 'view':
+		case 'branch':
+		case 'new':
+			return 'closes';
+		case 'next':
+		case 'previous':
+		case 'first':
+		case 'last':
+		case 'search':
+			return 'held';
+	}
+}
+
 interface Binding {
 	keys: string;
 	does: string;
@@ -79,7 +112,7 @@ interface Binding {
 	 * The action this binding needs, which only some pages offer. The help panel
 	 * hides the binding elsewhere rather than list a key that does nothing there.
 	 */
-	needs?: Extract<Action['kind'], 'view' | 'branch'>;
+	needs?: Opener;
 }
 
 /** Every binding, for the help panel, in reading order rather than the order of `SIMPLE`. */
@@ -92,6 +125,7 @@ export const BINDINGS: readonly Binding[] = [
 	{ keys: '/', does: 'search' },
 	{ keys: '1 … 9', does: 'switch view', needs: 'view' },
 	{ keys: 'b', does: 'read another branch', needs: 'branch' },
+	{ keys: 'n', does: 'create a task', needs: 'new' },
 	{ keys: '?', does: 'this list' },
 	{ keys: 'Esc', does: 'close, or leave the box' }
 ];

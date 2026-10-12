@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { editTaskMd, EditRefused, loadTaskFile } from './task-file.ts';
-import { fieldsOf, withFields, type TaskFields } from './task-fields.ts';
+import { fieldsOf, NEW_TASK, newTaskMd, withFields, type TaskFields } from './task-fields.ts';
 
 const FILE = '# A task\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: data,ui\n\nA body.\n\nMore.\n';
 
@@ -88,5 +88,27 @@ describe('saving the fields changed on a sheet', () => {
 		// The properties are rendered with line feeds, as `render_task_md` writes them.
 		expect(written).toContain('# Renamed\r\n');
 		expect(written.endsWith('- TAGS: data,ui\n\r\nOne.\r\nTwo.\r\n')).toBe(true);
+	});
+});
+
+describe('the file of a new task', () => {
+	// What `tatr new` writes for a title, a priority and tags is pinned against
+	// the binary in `task-file.conformance.spec.ts`.
+	it('puts a description in place of `No description.`, ended by a line feed', () => {
+		const text = newTaskMd({ ...NEW_TASK, title: 'T', description: 'Why.\n\n- not a property' });
+		expect(text).toBe(
+			'# T\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nWhy.\n\n- not a property\n'
+		);
+	});
+
+	it('reads back as the fields it was written from', () => {
+		const typed = {
+			title: 'T',
+			status: 'CLOSED',
+			priority: -3,
+			tags: ['a', 'b'],
+			description: 'D\n'
+		};
+		expect(fields(newTaskMd(typed))).toEqual(typed);
 	});
 });

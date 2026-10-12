@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
@@ -8,8 +8,9 @@ import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
 import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
 import { closeFolder, openFolder } from '../sources/local/source.ts';
-import { fieldsOf, withFields } from '../tatr/task-fields.ts';
-import { loadTaskFile, withStatus } from '../tatr/task-file.ts';
+import { fieldsOf, NEW_TASK, withFields } from '../tatr/task-fields.ts';
+import { describedTagsFile, TAGS_FILE } from '../tatr/tags-file.ts';
+import { loadTaskFile, withStatus, withTag } from '../tatr/task-file.ts';
 import type { Task } from '../tatr/task.ts';
 
 const NOW = 1_000_000_000;
@@ -277,6 +278,11 @@ describe('a refresh that fails', () => {
 	});
 });
 
+/** The extras of a save that describes `tags` in `tasks/tags`, as a sheet's are. */
+const describing = (tags: ReadonlyMap<string, string>) => () => [
+	{ path: TAGS_FILE, rewrite: (before: string | null) => describedTagsFile(before, tags) }
+];
+
 describe('editing a task', () => {
 	const ID = '20260101-000001';
 	const close = withStatus('CLOSED');
@@ -408,5 +414,167 @@ describe('editing a task', () => {
 		expect(disk[TASK]).toBe(taskAt(110));
 		expect(repo.notice?.failed).toBe(true);
 		expect(repo.tasks[0].priority).toBe(110);
+	});
+
+	describe('describing the tags new to the repository', () => {
+		const described = describing(new Map([['fresh', 'a tag no task had']]));
+		const tagged = withTag('fresh');
+
+		it('creates tasks/tags with the save where the repository has none', async () => {
+			const repo = await editing();
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+			expect(repo.tags.descriptions.get('fresh')).toBe('a tag no task had');
+			expect(repo.notice).toEqual({ text: `${ID}: saved.`, failed: false, undoable: true });
+		});
+
+		it('appends to the tasks/tags there, every line of it kept', async () => {
+			const repo = await editing();
+			disk['tasks/tags'] = 'ui , screens';
+			await repo.edit(ID, tagged, 'saved', described);
+			expect(disk['tasks/tags']).toBe('ui , screens\nfresh , a tag no task had\n');
+		});
+
+		it('describes them even when the task file already says so', async () => {
+			const repo = await editing();
+			disk[TASK] = `${taskAt(90)}- TAGS: fresh\n`;
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(true);
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+		});
+
+		it('says the save was made but not the description, when tasks/tags cannot be written', async () => {
+			const repo = await editing();
+			disk['tasks/tags/oops'] = 'a folder where the file belongs';
+			// Not done, so that the sheet stays open to try again.
+			expect(await repo.edit(ID, tagged, 'saved', described)).toBe(false);
+
+			expect(repo.notice?.failed).toBe(true);
+			expect(repo.notice?.text).toMatch(
+				new RegExp(`^${ID}: saved\\. tasks/tags was not written: `)
+			);
+		});
+	});
+
+	it('says which file was not written, rather than replace one it did not read', async () => {
+		const repo = await editing();
+		disk[`tasks/${ID}/shot.png`] = 'there already';
+		const onwritten = vi.fn();
+		const files = () => [
+			{ path: `tasks/${ID}/shot.png`, contents: new Blob(['new']) },
+			{ path: `tasks/${ID}/other.png`, contents: new Blob(['other']), onwritten }
+		];
+		expect(await repo.edit(ID, close, 'closed', files)).toBe(false);
+
+		expect(disk[`tasks/${ID}/shot.png`]).toBe('there already');
+		expect(disk[`tasks/${ID}/other.png`]).toBe('other');
+		expect(onwritten).toHaveBeenCalledTimes(1);
+		expect(repo.notice?.text).toBe(
+			`${ID}: closed. tasks/${ID}/shot.png was not written, as a file is there already.`
+		);
+	});
+
+	it('offers no Undo for a write that left the task file as it was', async () => {
+		const repo = await editing();
+		await repo.edit(ID, close, 'closed');
+		const closed = disk[TASK];
+		const file = () => [{ path: `tasks/${ID}/new.png`, contents: new Blob(['png']) }];
+		await repo.edit(ID, close, 'closed', file);
+
+		expect(repo.notice?.undoable).toBe(false);
+		expect(await repo.undo()).toBe(false);
+		expect(disk[TASK]).toBe(closed);
+	});
+
+	it('asks again after a question dismissed, and stays editable', async () => {
+		const ask = vi
+			.fn<() => Promise<PermissionState>>()
+			.mockResolvedValueOnce('prompt')
+			.mockResolvedValue('granted');
+		const repo = await editing(ask);
+		expect(await repo.edit(ID, close, 'closed')).toBe(false);
+		expect(repo.notice?.text).toMatch(/dismissed/);
+		expect(repo.editable).toBe(true);
+
+		expect(await repo.edit(ID, close, 'closed')).toBe(true);
+		expect(ask).toHaveBeenCalledTimes(2);
+	});
+
+	it('leaves alone a repository opened while an edit waited for its answer', async () => {
+		let answer: (state: PermissionState) => void = () => {};
+		const repo = await editing(() => new Promise((resolve) => (answer = resolve)));
+		const first = disk;
+		const waiting = repo.edit(ID, close, 'closed');
+		await repo.load(await picked({ [TASK]: taskAt(40) }));
+		answer('granted');
+
+		expect(await waiting).toBe(false);
+		expect(first[TASK]).toBe(taskAt(90));
+		expect(disk[TASK]).toBe(taskAt(40));
+		expect(repo.notice).toBeNull();
+	});
+
+	describe('creating a task', () => {
+		/** The id the clock gives while these run. */
+		const CREATED = '20261012-083000';
+		const createdPath = `tasks/${CREATED}/TASK.md`;
+
+		beforeEach(() => {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			vi.setSystemTime(Date.UTC(2026, 9, 12, 8, 30, 0));
+		});
+		afterEach(() => vi.useRealTimers());
+
+		it('writes the file `tatr new` writes, under the id of the clock, and reads it', async () => {
+			const repo = await editing();
+			expect(await repo.create({ ...NEW_TASK, title: 'Created', tags: ['ui'] })).toBe(CREATED);
+
+			expect(disk[createdPath]).toBe(
+				'# Created\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: ui\n\nNo description.\n'
+			);
+			expect(repo.tasks.map((task) => task.id)).toContain(CREATED);
+			expect(repo.notice).toEqual({ text: `${CREATED}: created.`, failed: false, undoable: false });
+		});
+
+		it('refuses an id whose folder exists, whatever it holds, as `tatr new` does', async () => {
+			const repo = await editing();
+			disk[`tasks/${CREATED}/shot.png`] = 'not much of a picture';
+
+			expect(await repo.create(NEW_TASK)).toBeNull();
+			expect(repo.notice?.text).toBe(
+				`${CREATED} already exists. You are probably creating tasks too fast, or your time is broken.`
+			);
+			expect(disk[createdPath]).toBeUndefined();
+		});
+
+		it('leaves nothing for Undo, which would have no file to write back', async () => {
+			const repo = await editing();
+			await repo.edit(ID, close, 'closed');
+			await repo.create(NEW_TASK);
+
+			expect(await repo.undo()).toBe(false);
+			expect(disk[TASK]).toBe(rewritten(90, 'CLOSED'));
+		});
+
+		it('describes its new tags in tasks/tags', async () => {
+			const repo = await editing();
+			const described = describing(new Map([['fresh', 'a tag no task had']]));
+			await repo.create({ ...NEW_TASK, tags: ['fresh'] }, described);
+			expect(disk['tasks/tags']).toBe('fresh , a tag no task had\n');
+		});
+
+		it('writes its images into its folder once the task file has made it', async () => {
+			const repo = await editing();
+			const image = (id: string) => [{ path: `tasks/${id}/shot.png`, contents: new Blob(['png']) }];
+			await repo.create(NEW_TASK, image);
+			expect(disk[`tasks/${CREATED}/shot.png`]).toBe('png');
+		});
+
+		it('creates nothing once the reader refuses', async () => {
+			const repo = await editing(async () => 'denied');
+			expect(await repo.create(NEW_TASK)).toBeNull();
+			expect(repo.editable).toBe(false);
+			expect(disk[createdPath]).toBeUndefined();
+		});
 	});
 });

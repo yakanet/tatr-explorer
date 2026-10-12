@@ -10,6 +10,7 @@
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
 	import { counted } from '#lib/plural.ts';
+	import { newTaskHref } from '#lib/repo/hrefs.ts';
 	import { formatRepoPath, isForgeRef, type ForgeRef } from '#lib/repo/ref.ts';
 	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
 	import {
@@ -59,6 +60,11 @@
 	const openBranches = $derived.by(() => {
 		if (branchRef === null) return undefined;
 		return () => (branching = true);
+	});
+	/** Opens a new task's sheet from the shortcut, or is undefined where none can be created. */
+	const openNew = $derived.by(() => {
+		if (!repo.editable) return undefined;
+		return () => goto(newTaskHref(ref));
 	});
 	/** The control that opens the source again, or null when reading it again is enough. */
 	const reopener = $derived(reopenerOf(ref));
@@ -125,6 +131,7 @@
 <Shortcuts
 	onview={switchTo}
 	onbranch={openBranches}
+	onnew={openNew}
 	onhelp={() => (helping = !helping)}
 	ondismiss={dismiss}
 	modal={helping}
@@ -134,6 +141,7 @@
 	<KeyHelp
 		views={views.map((view) => view.name)}
 		branch={branchRef !== null}
+		create={repo.editable}
 		onclose={() => (helping = false)}
 	/>
 {/if}
@@ -184,6 +192,9 @@
 					)}
 				{/if}
 			</span>
+			{#if repo.editable}
+				<a class="action" href={newTaskHref(ref)}>New task</a>
+			{/if}
 			{#if rereadable}
 				<!-- The previous reading stays on screen during a refresh, so the
 				     button is the only sign that one is under way. -->

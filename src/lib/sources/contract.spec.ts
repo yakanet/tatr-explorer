@@ -168,11 +168,45 @@ function honoursTheContract(subject: Subject): void {
 			expect(await source.read(path)).toBe(written);
 		});
 
+		it('creates a file where there was none, never over one it did not read', async (context) => {
+			const source = await holding();
+			if (!isWritable(source)) return context.skip();
+			const path = 'tasks/20260101-000003/TASK.md';
+			const created = '# Created\n\n- STATUS: OPEN\n';
+
+			expect(await source.write(path, created, null)).toBe('written');
+			expect(await source.read(path)).toBe(created);
+			expect(listedUnderTasks(await source.list())).toContain(path);
+
+			expect(await source.write(path, '# Lost\n', null)).toBe('changed');
+			expect(await source.read(path)).toBe(created);
+		});
+
+		it('creates a file from bytes, as an image is', async (context) => {
+			const source = await holding();
+			if (!isWritable(source)) return context.skip();
+			const path = 'tasks/20260101-000001/pasted.png';
+			expect(await source.write(path, new Blob(['a picture']), null)).toBe('written');
+			expect(await source.read(path)).toBe('a picture');
+		});
+
+		it('creates nothing outside tasks/, in the words the page explains', async (context) => {
+			const source = await holding();
+			if (!isWritable(source)) return context.skip();
+			for (const path of ['README.md', 'tasks/../README.md', 'tasks/20260101-000001/../../x']) {
+				await expect(source.write(path, 'x', null)).rejects.toBeInstanceOf(SourceError);
+			}
+			expect(listedUnderTasks(await source.list())).toEqual(TASK_FILES);
+		});
+
 		it('fails to write in the words the page explains, never with a bare error', async (context) => {
 			const source = subject.broken();
 			if (!isWritable(source)) return context.skip();
 			const [path] = TASK_FILES;
 			await expect(source.write(path, '# b\n', TREE[path])).rejects.toBeInstanceOf(SourceError);
+			await expect(source.write('tasks/x/TASK.md', '# x\n', null)).rejects.toBeInstanceOf(
+				SourceError
+			);
 		});
 	});
 }

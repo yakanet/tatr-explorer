@@ -6,15 +6,17 @@
 		views: string[];
 		/** Whether `b` has a branch to choose here, which a folder has not. */
 		branch?: boolean;
+		/** Whether `n` can create a task here, which only a source that writes allows. */
+		create?: boolean;
 		onclose: () => void;
 	}
 
-	let { views, branch = false, onclose }: Props = $props();
+	let { views, branch = false, create = false, onclose }: Props = $props();
 
 	let panel = $state<HTMLElement | null>(null);
 
 	/** Which optional bindings do something on this page. */
-	const offered = $derived({ view: views.length > 0, branch });
+	const offered = $derived({ view: views.length > 0, branch, new: create });
 	const shown = $derived(BINDINGS.filter(({ needs }) => !needs || offered[needs]));
 
 	// Opened from the keyboard, so it takes the focus to be closed from it.

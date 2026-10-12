@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTagsFile } from './tags-file.ts';
+import { describedTagsFile, parseTagsFile } from './tags-file.ts';
 
 describe('parseTagsFile', () => {
 	it('reads the upstream file, oddities included', () => {
@@ -34,5 +34,42 @@ describe('parseTagsFile', () => {
 		const { descriptions, redefined } = parseTagsFile('a , first\na , second\n');
 		expect(descriptions.get('a')).toBe('second');
 		expect(redefined).toEqual(['a']);
+	});
+});
+
+describe('describedTagsFile', () => {
+	const described = new Map([
+		['scope', 'currently working on'],
+		['data', 'fetching, then caching']
+	]);
+
+	it('appends one line per tag, leaving the lines there as they were', () => {
+		expect(describedTagsFile('tql,, Tatr Query Language\n', described)).toBe(
+			'tql,, Tatr Query Language\nscope , currently working on\ndata , fetching, then caching\n'
+		);
+	});
+
+	it('ends the last line first when it lacks its line feed', () => {
+		expect(describedTagsFile('ui , screens', new Map([['data', 'd']]))).toBe(
+			'ui , screens\ndata , d\n'
+		);
+	});
+
+	it('leaves a tag defined since as it is, rather than define it twice', () => {
+		expect(describedTagsFile('data , already\n', new Map([['data', 'again']]))).toBe(
+			'data , already\n'
+		);
+	});
+
+	it('writes the whole file for a repository that has none', () => {
+		expect(describedTagsFile(null, new Map([['ui', 'screens']]))).toBe('ui , screens\n');
+	});
+
+	it('reads back as the descriptions it was given', () => {
+		const { descriptions } = parseTagsFile(describedTagsFile('ui , screens\n', described));
+		expect(Object.fromEntries(descriptions)).toEqual({
+			ui: 'screens',
+			...Object.fromEntries(described)
+		});
 	});
 });

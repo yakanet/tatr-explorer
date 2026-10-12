@@ -1,23 +1,37 @@
 <script lang="ts">
 	// Lists every property of a task, each key beside its value. While the task
-	// is edited, the status, the priority and the tags are fields of the draft.
+	// is edited or created, the status, the priority and the tags are fields of
+	// the draft.
 	import { tagHue } from '#lib/render/tag-hue.ts';
 	import type { TaskFields } from '#lib/tatr/task-fields.ts';
 	import { tagged, untagged, withDefaults } from '#lib/tatr/task-file.ts';
-	import { parseTags } from '#lib/tatr/task-md.ts';
-	import type { Task } from '#lib/tatr/task.ts';
+	import { parseTags, readStatus } from '#lib/tatr/task-md.ts';
 	import type { TagOption } from '#lib/tql/complete.ts';
 	import SidePanel from './SidePanel.svelte';
 
 	interface Props {
-		task: Task;
+		/** The task's properties as read, in their order; none for a new task. */
+		properties?: ReadonlyMap<string, string>;
 		/** The draft of the editing sheet, or absent while the task is read. */
 		fields?: TaskFields;
 		/** The repository's tags, which the tags field offers as it is typed. */
 		known?: TagOption[];
+		/** The draft's tags new to the repository, each of which gets a description field. */
+		fresh?: readonly string[];
+		/** What was typed in those fields, by tag. */
+		described?: Record<string, string>;
+		/** Whether Save creates the file, for a new task, rather than rewriting it. */
+		creating?: boolean;
 	}
 
-	let { task, fields = $bindable(), known = [] }: Props = $props();
+	let {
+		properties = new Map(),
+		fields = $bindable(),
+		known = [],
+		fresh = [],
+		described = $bindable({}),
+		creating = false
+	}: Props = $props();
 
 	const id = $props.id();
 
@@ -26,12 +40,12 @@
 	 * the defaults the CLI assumes included, so that every field has its row.
 	 */
 	const rows = $derived.by(() => {
-		if (fields) return withDefaults(task.properties);
-		return task.properties;
+		if (fields) return withDefaults(properties);
+		return properties;
 	});
 
 	/** The statuses offered: open, closed, and the task's own when it is neither. */
-	const statuses = $derived([...new Set(['OPEN', 'CLOSED', task.status])]);
+	const statuses = $derived([...new Set(['OPEN', 'CLOSED', readStatus(properties)])]);
 
 	function priorityChosen(event: Event & { currentTarget: HTMLInputElement }) {
 		if (!fields) return;
@@ -41,11 +55,15 @@
 		else input.value = String(fields.priority);
 	}
 
-	function tagTyped(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
-		if (!fields || event.key !== 'Enter') return;
-		const input = event.currentTarget;
+	/** Adds the tags typed in `input` to the draft, and empties it. */
+	function addTags(input: HTMLInputElement) {
+		if (!fields) return;
 		fields.tags = parseTags(input.value).reduce(tagged, fields.tags);
 		input.value = '';
+	}
+
+	function tagTyped(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (event.key === 'Enter') addTags(event.currentTarget);
 	}
 
 	function untag(tag: string) {
@@ -87,6 +105,7 @@
 							placeholder="add a tag"
 							list="{id}-tags"
 							onkeydown={tagTyped}
+							onchange={(event) => addTags(event.currentTarget)}
 						/>
 						<datalist id="{id}-tags">
 							{#each known.filter((one) => !fields.tags.includes(one.name)) as tag (tag.name)}
@@ -94,6 +113,16 @@
 							{/each}
 						</datalist>
 					</span>
+					{#each fresh as tag (tag)}
+						<label class="describe">
+							<span>{tag}</span>
+							<input
+								aria-label="What {tag} means"
+								placeholder="what it means"
+								bind:value={described[tag]}
+							/>
+						</label>
+					{/each}
 				{:else if value}
 					{value}
 				{:else}
@@ -103,10 +132,15 @@
 		{/each}
 	</dl>
 	{#snippet note()}
-		{#if fields}
+		{#if creating}
+			Saving creates <code>TASK.md</code> as <code>tatr new</code> would.
+		{:else if fields}
 			Saving rewrites <code>TASK.md</code> as the CLI would, every property in its place.
 		{:else}
 			Any property key is shown, not just these.
+		{/if}
+		{#if fresh.length > 0}
+			A new tag described gets its line in <code>tasks/tags</code>.
 		{/if}
 	{/snippet}
 </SidePanel>
@@ -156,6 +190,23 @@
 
 	.tags input {
 		width: 8rem;
+	}
+
+	/* A new tag's description field sits under the tags, as wide as they are. */
+	.describe {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin-top: 0.4rem;
+	}
+
+	.describe span {
+		color: var(--muted);
+	}
+
+	.describe input {
+		flex: 1;
+		min-width: 0;
 	}
 
 	/* The remove button sits inside the pill, as small as its text. */

@@ -152,14 +152,18 @@ class LiveFolderSource extends LocalFolderSource implements Followable {
 class WritableFolderSource extends LiveFolderSource implements Writable {
 	declare protected readonly back: FileSystemDirectoryHandle;
 	/** The reader's answer, kept once given so that a refusal is not asked again. */
-	#allowed: Promise<boolean> | null = null;
+	#allowed: Promise<PermissionState> | null = null;
 
-	async write(path: string, text: string, expected: string): Promise<WriteAnswer> {
+	async write(
+		path: string,
+		contents: string | Blob,
+		expected: string | null
+	): Promise<WriteAnswer> {
 		const folder = this.held();
-		if (!(await this.#allow())) return 'refused';
+		if (!(await this.allow())) return 'refused';
 		let written: File | null;
 		try {
-			written = await writeThrough(this.back, path, text, expected);
+			written = await writeThrough(this.back, path, contents, expected);
 		} catch (error) {
 			throw new SourceError(
 				'not-written',
@@ -175,12 +179,14 @@ class WritableFolderSource extends LiveFolderSource implements Writable {
 
 	/**
 	 * Asks the reader once whether this page may write. A browser that refuses to
-	 * ask, as it does long after the last click, leaves the question open.
+	 * ask, as it does long after the last click, leaves the question open, and
+	 * so does a reader who dismisses it without answering.
 	 */
-	async #allow(): Promise<boolean> {
+	async allow(): Promise<boolean> {
 		this.#allowed ??= askToWrite(this.back);
+		let answer: PermissionState;
 		try {
-			return await this.#allowed;
+			answer = await this.#allowed;
 		} catch {
 			this.#allowed = null;
 			throw new SourceError(
@@ -188,6 +194,14 @@ class WritableFolderSource extends LiveFolderSource implements Writable {
 				'The browser asks whether this page may edit the folder only right after a click: try again.'
 			);
 		}
+		if (answer === 'prompt') {
+			this.#allowed = null;
+			throw new SourceError(
+				'not-written',
+				'The question whether this page may edit the folder was dismissed: try again to answer it.'
+			);
+		}
+		return answer === 'granted';
 	}
 }
 

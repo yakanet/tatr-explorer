@@ -14,7 +14,8 @@
  * for a backlog.
  *
  * Both are rewritten by `tatr untag` too, which pins the file this viewer writes
- * when it edits a task.
+ * when it edits a task. And `tatr new` runs in an empty repository, which pins
+ * the file it writes when it creates one.
  *
  * Every recording keeps its own questions: the queries are read back from the
  * file before it is written again. To add a case, add an entry with an empty
@@ -114,6 +115,32 @@ function untagged(cwd, rows) {
 	return cases;
 }
 
+/**
+ * What `tatr new` writes for each case, its id aside, as the clock names it.
+ * Each folder created is removed once read, so that the next run, within the
+ * same second, is not refused.
+ */
+function created(cases) {
+	const folder = mkdtempSync(join(tmpdir(), 'tatr-new-'));
+	try {
+		mkdirSync(join(folder, 'tasks'));
+		return cases.map(({ title, priority, tags }) => {
+			const args = ['new'];
+			if (priority !== undefined) args.push('-p', String(priority));
+			for (const tag of tags) args.push('-t', tag);
+			if (title !== '') args.push(title);
+			const result = run(folder, args);
+			if (result.status !== 0) throw new Error(`tatr ${args.join(' ')}: ${result.stderr}`);
+			const [id] = readdirSync(join(folder, 'tasks'));
+			const text = readFileSync(join(folder, 'tasks', id, 'TASK.md'), 'utf8');
+			rmSync(join(folder, 'tasks', id), { recursive: true });
+			return { title, priority, tags, text };
+		});
+	} finally {
+		rmSync(folder, { recursive: true, force: true });
+	}
+}
+
 const read = (name) => JSON.parse(readFileSync(join(fixtures, name), 'utf8'));
 
 function write(name, text) {
@@ -199,3 +226,6 @@ function cliCases(cwd, cases, encode) {
 		rmSync(folder, { recursive: true, force: true });
 	}
 }
+
+// `tatr new`, whose cases keep their arguments: an absent priority is the CLI's default.
+write('tatr-new.json', JSON.stringify(created(read('tatr-new.json')), null, 1) + '\n');

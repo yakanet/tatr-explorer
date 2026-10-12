@@ -1,4 +1,4 @@
-import { readFile, symlink } from 'node:fs/promises';
+import { readFile, stat, symlink } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
@@ -10,6 +10,7 @@ import {
 	diskPath,
 	listing,
 	locate,
+	newDiskPath,
 	serve,
 	tatrServedFolder,
 	type ServedFolder
@@ -165,20 +166,21 @@ describe('what the dev server answers', () => {
 	});
 });
 
-describe('writing a task file', () => {
-	/** A write to `file`, from this dev server's page unless `headers` names another origin. */
-	const put = (file: string, body: string, headers: Record<string, string>) =>
-		fromPage(`/__tatr/served/files/${file}`, { method: 'PUT', body, headers });
+/** A `PUT` of `file`, from this dev server's page unless `headers` names another origin. */
+const put = (file: string, body: string, headers: Record<string, string>) =>
+	fromPage(`/__tatr/served/files/${file}`, { method: 'PUT', body, headers });
 
-	/** The repository served, and a reader of its task file on disk. */
-	const opened = async () => {
-		const root = await repository();
-		return {
-			served: await locate(root),
-			onDisk: () => readFile(path.join(root, TASK), 'utf8')
-		};
+/** The repository served, its root, and a reader of its task file on disk. */
+const opened = async () => {
+	const root = await repository();
+	return {
+		root,
+		served: await locate(root),
+		onDisk: () => readFile(path.join(root, TASK), 'utf8')
 	};
+};
 
+describe('writing a task file', () => {
 	it('replaces a task file whole, over the version it was read as', async () => {
 		const { served, onDisk } = await opened();
 		const reply = await answer(served, put(TASK, '# b\n', { 'if-match': await tagOf('# a\n') }));
@@ -209,12 +211,55 @@ describe('writing a task file', () => {
 		expect(await onDisk()).toBe('# a\n');
 	});
 
-	it('creates no file: only one already there is replaced', async () => {
+	it('creates no file without being asked to: only one already there is replaced', async () => {
 		// The paths a write may reach are those a read may, pinned above.
 		const { served } = await opened();
 		const file = 'tasks/20260101-000002/TASK.md';
 		const reply = await answer(served, put(file, '# b\n', { 'if-match': await tagOf('# a\n') }));
 		expect(reply?.status).toBe(404);
+	});
+});
+
+describe('creating a file', () => {
+	/** A creation of `file`, which is a `PUT` sent with `If-None-Match: *`. */
+	const create = (file: string, body: string, headers: Record<string, string> = {}) =>
+		put(file, body, { 'if-none-match': '*', ...headers });
+
+	it('creates a file and the folders missing on the way', async () => {
+		const { root, served } = await opened();
+		const file = 'tasks/20260101-000002/TASK.md';
+		expect((await answer(served, create(file, '# b\n')))?.status).toBe(201);
+		expect(await readFile(path.join(root, file), 'utf8')).toBe('# b\n');
+	});
+
+	it('refuses to create over a file that is there, rather than replace it unread', async () => {
+		const { served, onDisk } = await opened();
+		expect((await answer(served, create(TASK, '# b\n')))?.status).toBe(412);
+		expect(await onDisk()).toBe('# a\n');
+	});
+
+	it.each(['README.md', 'tasks/../README.md', 'tasks/../../outside', 'tasks', 'tasks/'])(
+		'creates nothing at %o, which is outside the tasks',
+		async (page) => {
+			expect(await newDiskPath(await locate(await repository()), page)).toBeNull();
+		}
+	);
+
+	it('creates nothing through a symbolic link, even to a folder of the same tasks', async () => {
+		const root = await repository();
+		await symlink(path.join(root, 'tasks/20260101-000001'), path.join(root, 'tasks/link'));
+		const served = await locate(root);
+		expect(await newDiskPath(served, 'tasks/link/TASK.md')).toBeNull();
+		expect((await answer(served, create('tasks/link/new.md', 'x')))?.status).toBe(403);
+		await expect(stat(path.join(root, 'tasks/20260101-000001/new.md'))).rejects.toThrow();
+	});
+
+	it("refuses another page's creation", async () => {
+		const { root, served } = await opened();
+		const file = 'tasks/20260101-000002/TASK.md';
+		const reply = await answer(served, create(file, '# b\n', { origin: 'http://localhost:3000' }));
+		expect(reply?.status).toBe(403);
+		await expect(stat(path.join(root, file))).rejects.toThrow();
 	});
 });
 

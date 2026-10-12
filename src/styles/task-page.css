@@ -1,0 +1,23 @@
+/*
+ * A task's page, read or being created: its article beside an 18rem sidebar,
+ * which goes under it below 50rem rather than squeezing it. A `.wide` child,
+ * such as a status or a not-found panel, belongs to neither and spans both.
+ * Here because a task must look the same before its Save and after.
+ */
+.task-page {
+	--column: 70rem;
+	display: grid;
+	grid-template-columns: 1fr 18rem;
+	gap: var(--card-gap);
+	align-items: start;
+}
+
+.task-page > .wide {
+	grid-column: 1 / -1;
+}
+
+@media (max-width: 50rem) {
+	.task-page {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

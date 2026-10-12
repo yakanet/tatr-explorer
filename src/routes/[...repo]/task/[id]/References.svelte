@@ -6,7 +6,7 @@
 	import { renderInline, type RenderOptions } from '#lib/render/markdown.ts';
 	import { buildGraph, referencesOf, type StarLink } from '#lib/tatr/graph.ts';
 	import type { Task } from '#lib/tatr/task.ts';
-	import SidePanel from './SidePanel.svelte';
+	import SidePanel from '#lib/components/SidePanel.svelte';
 
 	interface Props {
 		task: Task;

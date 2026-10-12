@@ -41,7 +41,18 @@ function isRelative(url: string): boolean {
  * that climbs out of it.
  */
 export function resolveAttachment(options: RenderOptions, url: string): string | null {
-	const segments = `tasks/${options.taskId}/${url}`.split('/');
+	const path = attachmentPath(options.taskId, url);
+	if (path === null) return null;
+	return options.assetUrl(path);
+}
+
+/**
+ * The path from the repository root that a relative link of task `taskId`
+ * names, or null for one outside `tasks/`. An empty id, a new task's, leaves
+ * the link in `tasks/` itself.
+ */
+export function attachmentPath(taskId: string, url: string): string | null {
+	const segments = `tasks/${taskId}/${url}`.split('/');
 	const stack: string[] = [];
 
 	for (const segment of segments) {
@@ -57,7 +68,7 @@ export function resolveAttachment(options: RenderOptions, url: string): string |
 	const path = stack.join('/');
 	// Anything outside tasks/ is not an attachment of this repository's tasks.
 	if (!path.startsWith('tasks/')) return null;
-	return options.assetUrl(path);
+	return path;
 }
 
 /**
@@ -202,6 +213,20 @@ function createRenderer(options: RenderOptions): InstanceType<typeof MarkdownIt>
 	if (options.taskUrl) linkTaskIds(md, options.taskUrl);
 
 	return md;
+}
+
+/**
+ * The paths from the repository root that the relative links and images of
+ * `source` name, as the renderer resolves them for task `taskId`.
+ */
+export function linkedPaths(source: string, taskId: string): Set<string> {
+	const paths = new Set<string>();
+	const assetUrl = (path: string) => {
+		paths.add(path);
+		return null;
+	};
+	renderMarkdown(source, { taskId, assetUrl });
+	return paths;
 }
 
 /** Renders markdown to HTML, with attachment links resolved. */

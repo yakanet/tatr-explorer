@@ -17,6 +17,16 @@
 	cursor: pointer;
 }
 
+/* A link that leads to a sheet looks like the buttons beside it. */
+a.action {
+	display: inline-flex;
+	align-items: center;
+}
+
+a.action:hover {
+	color: var(--fg);
+}
+
 .action:hover:not(:disabled) {
 	background: var(--tint);
 }

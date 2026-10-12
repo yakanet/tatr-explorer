@@ -58,17 +58,25 @@ export interface Linked {
 }
 
 /**
- * A source that can replace a file it holds, which is how a task is edited.
+ * A source that can write files, which is how a task is edited or added.
  *
- * `write` replaces `path` only while it still holds `expected`, the text read
- * before the edit. Otherwise it answers `changed` and leaves the file alone, so
- * an editor's save is never lost. It answers `refused` when the reader did not
- * allow writing, which is not asked again. A write that cannot be made at all
- * throws a `SourceError`. A forge never writes, as that takes an account and
- * this site asks for none.
+ * `write` writes `path` only while it holds `expected`, what was read before:
+ * the file's text, or null for no file, which it then creates with the folders
+ * missing on the way. Otherwise it answers `changed` and leaves the path alone,
+ * so an editor's save is never lost and no file is replaced unread. It answers
+ * `refused` when the reader did not allow writing, which is not asked again. A
+ * write that cannot be made at all throws a `SourceError`. A forge never
+ * writes, as that takes an account and this site asks for none.
  */
 export interface Writable {
-	write(path: string, text: string, expected: string): Promise<WriteAnswer>;
+	/** `contents` is text, or a `Blob` for an image. */
+	write(path: string, contents: string | Blob, expected: string | null): Promise<WriteAnswer>;
+	/**
+	 * Resolves to whether the reader allows writing, asking where the source
+	 * must. A write asks too; this lets a save ask before the reading that
+	 * precedes its write, as a browser asks only right after a click.
+	 */
+	allow(): Promise<boolean>;
 }
 
 export type WriteAnswer = 'written' | 'changed' | 'refused';

@@ -74,16 +74,25 @@ export class ServedSource implements Source, Rereadable, Writable {
 	async reread(): Promise<void> {}
 
 	/** Writes through the dev server, which compares `expected` with the disk first. */
-	async write(path: string, text: string, expected: string): Promise<'written' | 'changed'> {
+	async write(
+		path: string,
+		contents: string | Blob,
+		expected: string | null
+	): Promise<'written' | 'changed'> {
 		const response = await this.#ask(fileRoute(path), {
 			method: 'PUT',
-			headers: { 'if-match': await tagOf(expected) },
-			body: text
+			headers: await preconditionOf(expected),
+			body: contents
 		});
 		// A file removed since it was read has changed too, as reading again shows.
 		if (response.status === 412 || response.status === 404) return 'changed';
 		if (!response.ok) throw refused(response);
 		return 'written';
+	}
+
+	/** Needs no answer: the dev server's routes write for its own page only. */
+	async allow(): Promise<boolean> {
+		return true;
 	}
 
 	/** Returns the dev server's response, whatever its status, or throws if it does not answer. */
@@ -96,6 +105,16 @@ export class ServedSource implements Source, Rereadable, Writable {
 			throw new SourceError('network', 'The dev server did not answer.');
 		}
 	}
+}
+
+/**
+ * The header that has the dev server compare the disk with `expected`: the
+ * version tag of its text, or `If-None-Match: *`, HTTP's "only if there is
+ * none", for no file.
+ */
+async function preconditionOf(expected: string | null): Promise<Record<string, string>> {
+	if (expected === null) return { 'if-none-match': '*' };
+	return { 'if-match': await tagOf(expected) };
 }
 
 /** The error for a status other than the one expected. */

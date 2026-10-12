@@ -2,7 +2,8 @@
 	// Edits Markdown with its syntax highlighted and a toolbar, and shows it
 	// rendered on Preview. The editor loads the first time this appears, so a
 	// reader who never edits never downloads it; should it fail to load, a plain
-	// textarea stands in, so the text can still be edited.
+	// textarea stands in, so the text can still be edited. A file pasted or
+	// dropped is handed to `onfile`, and its link goes in at the cursor.
 	import { onMount, type Snippet } from 'svelte';
 	import type { Button } from './markdown-editor.ts';
 
@@ -12,9 +13,14 @@
 		label: string;
 		/** What Preview shows: the text rendered as the page will. */
 		preview: Snippet;
+		/**
+		 * Keeps a file pasted or dropped, and returns its link; absent where files
+		 * cannot be added.
+		 */
+		onfile?: (file: File) => string;
 	}
 
-	let { value = $bindable(), label, preview }: Props = $props();
+	let { value = $bindable(), label, preview, onfile }: Props = $props();
 
 	const id = $props.id();
 	let container = $state<HTMLElement>();
@@ -22,6 +28,47 @@
 	let buttons = $state.raw<Button[]>([]);
 	let failed = $state(false);
 	let previewing = $state(false);
+	/** True while files are dragged over the field, which then says it takes them. */
+	let dropping = $state(false);
+
+	/** Links the files pasted or dropped on the field; pasted text is the browser's to handle. */
+	function received(event: Event & { currentTarget: HTMLElement }, files: FileList | undefined) {
+		dropping = false;
+		const field = event.currentTarget.querySelector('textarea');
+		if (!onfile || !files?.length || !field) return;
+		event.preventDefault();
+		field.focus();
+		const links = [...files].map((file) => onfile(file)).join('\n');
+		// The command keeps the editor's undo history, as the toolbar's insertions do.
+		document.execCommand('insertText', false, onOwnLines(field, links));
+	}
+
+	/** `links` with the line feeds that keep them off the text around the selection. */
+	function onOwnLines(field: HTMLTextAreaElement, links: string): string {
+		const before = field.value.slice(0, field.selectionStart);
+		const after = field.value.slice(field.selectionEnd);
+		return (
+			lineFeedUnless(!before || before.endsWith('\n')) +
+			links +
+			lineFeedUnless(!after || after.startsWith('\n'))
+		);
+	}
+
+	function lineFeedUnless(atLineEdge: boolean): string {
+		if (atLineEdge) return '';
+		return '\n';
+	}
+
+	/** Clears the outline once the drag leaves the field, not when it moves onto a child of it. */
+	function left(event: DragEvent & { currentTarget: HTMLElement }) {
+		if (!event.currentTarget.contains(event.relatedTarget as Node | null)) dropping = false;
+	}
+
+	/** Lets files be dropped on the field, which the browser would otherwise open. */
+	function dragged(event: DragEvent) {
+		dropping = Boolean(onfile && event.dataTransfer?.types.includes('Files'));
+		if (dropping) event.preventDefault();
+	}
 
 	onMount(() => {
 		let remove: (() => void) | undefined;
@@ -68,12 +115,23 @@
 		{/if}
 	</div>
 
-	{#if failed}
-		<textarea class="fallback" aria-label={label} hidden={previewing} bind:value></textarea>
-	{:else}
-		<!-- Hidden rather than unmounted on Preview, so the editor keeps its undo history. -->
-		<div class="editor" hidden={previewing} bind:this={container}></div>
-	{/if}
+	<!-- Hidden rather than unmounted on Preview, so the editor keeps its undo history. -->
+	<div
+		class="field"
+		class:dropping
+		role="group"
+		hidden={previewing}
+		onpaste={(event) => received(event, event.clipboardData?.files)}
+		ondrop={(event) => received(event, event.dataTransfer?.files)}
+		ondragover={dragged}
+		ondragleave={left}
+	>
+		{#if failed}
+			<textarea class="fallback" aria-label={label} bind:value></textarea>
+		{:else}
+			<div class="editor" bind:this={container}></div>
+		{/if}
+	</div>
 	{#if previewing}
 		<div class="preview">{@render preview()}</div>
 	{/if}
@@ -122,6 +180,12 @@
 	.toolbar > :global(*:hover) {
 		color: var(--fg);
 		background: var(--surface);
+	}
+
+	/* A file dragged over the field is outlined in the accent, as it will be taken. */
+	.field.dropping {
+		outline: 2px dashed var(--accent);
+		outline-offset: -4px;
 	}
 
 	.editor,

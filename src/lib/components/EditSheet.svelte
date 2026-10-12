@@ -1,29 +1,33 @@
 <script lang="ts">
-	// Edits a task's title and description. The page holds the draft, whose
-	// status, priority and tags the properties panel edits, and decides what
-	// Save and Cancel do.
+	// Edits a task's title and description, or a new task's, with the files
+	// pasted or dropped into it. The page holds the sheet, whose status,
+	// priority and tags the properties panel edits, and decides what Save and
+	// Cancel do.
 	import type { RenderOptions } from '#lib/render/markdown.ts';
-	import type { TaskFields } from '#lib/tatr/task-fields.ts';
+	import type { Sheet } from '#lib/state/sheet.svelte.ts';
 	import Journal from './Journal.svelte';
 	import MarkdownEditor from './MarkdownEditor.svelte';
 
 	interface Props {
-		fields: TaskFields;
+		sheet: Sheet;
 		/** Whether Save has something to write, and a source that writes. */
 		saveable: boolean;
 		saving: boolean;
 		/** Whether the task changed on disk since the sheet was opened. */
-		moved: boolean;
+		moved?: boolean;
+		/** The title Save writes when the field is left empty, shown in it. */
+		untitled?: string;
 		options: RenderOptions;
 		onsave: () => void;
 		oncancel: () => void;
 	}
 
 	let {
-		fields = $bindable(),
+		sheet,
 		saveable,
 		saving,
-		moved,
+		moved = false,
+		untitled,
 		options,
 		onsave,
 		oncancel
@@ -33,6 +37,9 @@
 	function keyed(event: KeyboardEvent) {
 		if (event.key !== 's' || !(event.metaKey || event.ctrlKey)) return;
 		event.preventDefault();
+		// Blurs the focused field, as a click on Save would, so that a priority or
+		// a tag being typed reaches the draft.
+		if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
 		if (saveable) onsave();
 	}
 </script>
@@ -40,11 +47,11 @@
 <svelte:window onkeydown={keyed} />
 
 <article class="panel">
-	<input class="title" aria-label="Title" bind:value={fields.title} />
+	<input class="title" aria-label="Title" placeholder={untitled} bind:value={sheet.draft.title} />
 
-	<MarkdownEditor bind:value={fields.description} label="Description">
+	<MarkdownEditor bind:value={sheet.draft.description} label="Description" onfile={sheet.attach}>
 		{#snippet preview()}
-			<Journal body={fields.description} {options} />
+			<Journal body={sheet.draft.description} options={sheet.preview(options)} />
 		{/snippet}
 	</MarkdownEditor>
 

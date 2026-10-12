@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { beforeNavigate } from '$app/navigation';
+	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import EditSheet from '#lib/components/EditSheet.svelte';
+	import Properties from '#lib/components/Properties.svelte';
 	import RepoStatus from '#lib/components/RepoStatus.svelte';
 	import Article from './Article.svelte';
 	import Attachments from './Attachments.svelte';
-	import EditSheet from './EditSheet.svelte';
 	import ForgeLink from './ForgeLink.svelte';
-	import Properties from './Properties.svelte';
 	import References from './References.svelte';
-	import { listHref, taskHref } from '#lib/repo/hrefs.ts';
+	import { listHref, taskLinks } from '#lib/repo/hrefs.ts';
 	import { loadTaskDescription } from '#lib/sources/load.ts';
 	import { REPOSITORY, type RepositoryState } from '#lib/state/repository.svelte.ts';
-	import { differing, fieldsOf, withFields, type TaskFields } from '#lib/tatr/task-fields.ts';
-	import { tagOptions } from '#lib/tatr/stats.ts';
+	import { Sheet } from '#lib/state/sheet.svelte.ts';
+	import { askBeforeLeaving } from '#lib/state/unsaved.ts';
+	import { differing, fieldsOf, withFields } from '#lib/tatr/task-fields.ts';
 	import { taskPath } from '#lib/tatr/task.ts';
 
 	let { data } = $props();
@@ -52,23 +53,14 @@
 		};
 	});
 
-	/**
-	 * The link for a task id found in the text. Only ids of other tasks in this
-	 * repository become links: an unknown id would lead to `No such task`, and
-	 * this task's own id to this page. The References panel uses the same list,
-	 * so the body links what it lists.
-	 */
-	function taskUrl(other: string) {
-		if (other !== id && repo.tasks.some((candidate) => candidate.id === other)) {
-			return taskHref(ref, other);
-		}
-		return null;
-	}
+	const renderOptions = $derived({
+		assetUrl: repo.assetUrl,
+		taskId: id,
+		taskUrl: taskLinks(ref, repo.tasks, id)
+	});
 
-	const renderOptions = $derived({ assetUrl: repo.assetUrl, taskId: id, taskUrl });
-
-	/** The editing sheet: the fields it was opened on, and the draft. Null while the task is read. */
-	let sheet = $state<{ opened: TaskFields; draft: TaskFields } | null>(null);
+	/** The editing sheet, or null while the task is read. */
+	let sheet = $state.raw<Sheet | null>(null);
 	let saving = $state(false);
 
 	/** The fields of the reading on screen, which a sheet opens on. */
@@ -76,7 +68,7 @@
 		if (!task || body === null) return null;
 		return fieldsOf({ title: task.title, properties: task.properties, body });
 	});
-	const dirty = $derived(sheet !== null && differing(sheet.opened, sheet.draft).length > 0);
+	const dirty = $derived(sheet !== null && sheet.dirty);
 	const moved = $derived(
 		sheet !== null && current !== null && differing(sheet.opened, current).length > 0
 	);
@@ -84,32 +76,29 @@
 	/** Opens the editing sheet, or is undefined where the task cannot be edited. */
 	const onedit = $derived.by(() => {
 		if (!task || !repo.canEdit(task) || !current) return undefined;
-		return () => (sheet = { opened: current, draft: { ...current } });
-	});
-
-	/** The repository's tags, which the tags field offers; only a sheet needs them. */
-	const known = $derived.by(() => {
-		if (!sheet) return [];
-		return tagOptions(repo.tasks, repo.tags.descriptions);
+		return () => (sheet = new Sheet(current, repo, task));
 	});
 
 	async function save() {
 		if (!sheet || saving) return;
 		saving = true;
 		// The draft as it stands now: what is typed during the save is not written.
-		const { opened, draft } = $state.snapshot(sheet);
-		const saved = await repo.edit(id, withFields(opened, draft), 'saved');
+		const draft = $state.snapshot(sheet.draft);
+		const edit = withFields(sheet.opened, draft);
+		const saved = await repo.edit(id, edit, 'saved', sheet.extras());
 		saving = false;
 		if (saved) sheet = null;
 	}
 
-	beforeNavigate(({ cancel, type }) => {
-		if (dirty) {
-			// Leaving the site, the browser asks by itself once the navigation is cancelled.
-			if (type === 'leave') return cancel();
-			if (!confirm('Leave this task without saving your changes?')) return cancel();
-		}
-		// The page stays mounted from one task to the next, and so would the sheet.
+	// A sheet let go of, closed or replaced, gives back the URLs of its files.
+	$effect(() => {
+		const open = sheet;
+		return () => open?.close();
+	});
+
+	askBeforeLeaving(() => dirty, 'Leave this task without saving your changes?');
+	// The page stays mounted from one task to the next, and so would the sheet.
+	onNavigate(() => {
 		sheet = null;
 	});
 </script>
@@ -118,13 +107,13 @@
 	<title>{task?.title ?? id} · {repo.name}</title>
 </svelte:head>
 
-<main>
+<main class="task-page">
 	{#if repo.phase !== 'ready'}
 		<!-- RepoStatus shows the progress or the failure, as on every other view, so
 		     a local folder lost on reload is offered again rather than waited for. -->
 		<div class="wide"><RepoStatus {repo} {ref} /></div>
 	{:else if !task}
-		<section class="panel">
+		<section class="panel wide">
 			<h2>No such task</h2>
 			<p>This repository has no task <code>{id}</code>.</p>
 			<p><a href={listHref(ref)}>Back to the list</a></p>
@@ -132,7 +121,7 @@
 	{:else}
 		{#if sheet}
 			<EditSheet
-				bind:fields={sheet.draft}
+				{sheet}
 				saveable={dirty && repo.canEdit(task)}
 				{saving}
 				{moved}
@@ -146,9 +135,15 @@
 
 		<aside>
 			{#if sheet}
-				<Properties {task} {known} bind:fields={sheet.draft} />
+				<Properties
+					properties={task.properties}
+					known={sheet.known}
+					fresh={sheet.fresh}
+					bind:fields={sheet.draft}
+					bind:described={sheet.described}
+				/>
 			{:else}
-				<Properties {task} />
+				<Properties properties={task.properties} />
 			{/if}
 			<References {task} tasks={repo.tasks} {ref} options={renderOptions} />
 			<Attachments attachments={task.attachments ?? []} options={renderOptions} />
@@ -159,30 +154,6 @@
 </main>
 
 <style>
-	main {
-		--column: 70rem;
-		display: grid;
-		grid-template-columns: 1fr 18rem;
-		gap: var(--card-gap);
-		align-items: start;
-	}
-
-	/* The status and not-found panels span both columns because they belong to
-	   neither the article nor the sidebar. `.wide` wraps RepoStatus, whose
-	   markup this page cannot style. */
-	.wide,
-	main > section {
-		grid-column: 1 / -1;
-	}
-
-	/* Below 50rem the sidebar goes under the article rather than squeezing it
-	   or pushing the page sideways. */
-	@media (max-width: 50rem) {
-		main {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
-
 	.panel {
 		padding: 1.5rem 1.75rem;
 	}
