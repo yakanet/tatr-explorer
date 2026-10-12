@@ -246,6 +246,22 @@ comes back byte for byte, and one written by hand comes back as the CLI would
 write it, a missing `PRIORITY` written down as `999999`. **Undo** puts back the
 text that was there, exactly.
 
+## Which source does what
+
+In short, for each way in:
+
+|                         | GitHub          | Local folder                                                              | Dev server, `/served` |
+| ----------------------- | --------------- | ------------------------------------------------------------------------- | --------------------- |
+| Reads tasks             | ✓               | ✓                                                                         | ✓                     |
+| Edits tasks             | ✗               | Chromium: ✓<br>Firefox, Safari: ✗                                         | ✓                     |
+| Follows your changes    | manual refresh  | Chromium: ✓<br>Firefox, Safari: ✓ if the folder was dragged onto the page | ✓                     |
+| Branches to choose from | ✓               | ✗                                                                         | ✗                     |
+| Costs                   | GitHub requests | nothing                                                                   | nothing               |
+
+> [!WARNING]
+> A local folder has to be opened again after each reload: the browser takes
+> its access back.
+
 ## Identical to the CLI, and that claim is tested
 
 The format parser, the query language and the reference graph are ported from
