@@ -18,7 +18,14 @@ import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
 import { parseForgePath } from '../repo/ref.ts';
-import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
+import {
+	isBranched,
+	isCached,
+	isFollowable,
+	isLinked,
+	isRereadable,
+	isWritable
+} from './capabilities.ts';
 import { GitHubRepositorySource } from './github/source.ts';
 import { loadRepository } from './load.ts';
 import { fromDirectoryEntry } from './local/directory-entry.ts';
@@ -38,8 +45,8 @@ const GUARDS = {
 	cached: isCached,
 	rereadable: isRereadable,
 	linked: isLinked,
-	// No test of its own: what following does is left to each source's spec.
-	followable: isFollowable
+	followable: isFollowable,
+	branched: isBranched
 };
 
 type Capability = keyof typeof GUARDS;
@@ -313,7 +320,7 @@ const SUBJECTS = {
 	github: () => [
 		{
 			name: 'a repository on GitHub',
-			has: ['cached', 'rereadable', 'linked'],
+			has: ['cached', 'rereadable', 'linked', 'branched'],
 			holding: async (tree) => openGitHubOver(forge(tree)),
 			broken: () => openGitHubOver(unreachable)
 		}
