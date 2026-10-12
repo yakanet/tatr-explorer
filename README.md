@@ -31,224 +31,16 @@ pnpm run dev                              # then open a repository, or a folder
 TATR_FOLDER=../my-project pnpm run dev    # or serve a project's tasks
 ```
 
-The second form lets [the dev server serve a folder](#or-let-the-dev-server-serve-it-optional),
-which any browser can then [edit](#and-edit-it-where-it-can-be-written).
-[Run it](#run-it) has the checks and the build.
+The second form serves that folder at `/served`, which any browser can
+[edit](#edit-where-the-folder-can-be-written). [Develop](#develop) has the
+checks and the build.
 
-## Your tasks already live in git. Now you can see them.
+## What it does
 
-[tatr](https://github.com/tsoding/tatr) keeps every task as a folder
-(`tasks/20260315-160715/TASK.md`) holding a few `- KEY: value` lines and
-free-form Markdown. It is a genuinely good idea: no database, no lock file,
-tasks move with the branch, and a change to one shows up in a diff.
-
-It stops being enough the moment somebody asks _what is actually left?_
-
-Paste a repository name. That is the entire setup.
-
-## Every view is a link
-
-The repository _is_ the route, so anything you are looking at can be sent to
-someone else and land them exactly there.
-
-| URL                                           | Shows                                              |
-| --------------------------------------------- | -------------------------------------------------- |
-| `/yakanet/tatr-explorer`                      | the overview of `github.com/yakanet/tatr-explorer` |
-| `/yakanet/tatr-explorer@main`                 | the same repository, pinned to a branch by name    |
-| `/yakanet/tatr-explorer/list?q=:ui`           | the task list, filtered                            |
-| `/yakanet/tatr-explorer/task/20260906-211234` | one task, rendered                                 |
-| `/yakanet/tatr-explorer/board`                | backlog, in progress, done                         |
-| `/yakanet/tatr-explorer/graph`                | which tasks cite which, a card per pivot task      |
-
-Nothing to sign in to, nothing to configure, no repository to register first.
-
-The address in the header leads to the other branches: `HEAD`, the ones already
-read, or any name typed in, and the view and its query come along. Only branches
-read before are listed, since asking GitHub for the list would spend a request
-before you had chosen anything.
-
-Inside a task, the ids it cites are links too, in its title as in its body:
-the ones this repository has, which the References panel lists; an id belonging
-to somebody else's tracker stays text.
-
-It answers the keyboard throughout: `j`/`k` walk whatever the view is showing
-(rows, bars, the titles on the graph's cards), `g g` and `G` reach the ends, `/`
-puts the caret in the query, `1`-`4` switch view, `b` opens the branches, and
-`?` lists the rest.
-
-## The query language you already know
-
-The search box speaks TQL, the grammar `tatr ls` accepts. Copy a query out of
-your shell history, paste it in, get the same answer.
-
-| Query                              | Matches                                   |
-| ---------------------------------- | ----------------------------------------- |
-| `:ui`                              | tasks tagged `ui`                         |
-| `not :scope`                       | everything nobody is working on right now |
-| `priority ge 90`                   | what deserves attention                   |
-| `[:ui or :tql] and priority ge 90` | brackets group, so no shell quoting       |
-| `tagged`                           | tasks carrying at least one tag           |
-| `20260828-211200`                  | the one task with that id                 |
-| `~"query language"`                | titles holding every one of those words   |
-| `any`                              | everything                                |
-
-Comparisons are spelled as words (`lt le gt ge eq ne`) and square brackets
-replace parentheses: that is how a query survives a shell without quoting. The
-parser is typed: `and`/`or`/`not` take booleans, comparisons take integers, and
-a mistake is pointed at _the offending token_ instead of being silently coerced.
-Tag names and keywords complete as you type, with what each tag means alongside
-it: the repository's own vocabulary, which nothing else on screen lists.
-
-**One addition to the language: `~` searches titles**, and the CLI has
-no notion of it. The divergence is deliberate and it runs one way only: every
-query `tatr ls` accepts behaves identically here, but a query written with `~`
-will not run there. A reader in a browser has no `grep` sitting beside the tool, and the
-alternative was a second search box next to the language, which read as two
-unrelated ways to say one thing. `~` rather than a bare quoted string because
-the match is loose (every word, in any order, case ignored) and quotes promise
-a phrase everywhere else; with `~` carrying that meaning, quotes are left
-grouping words that contain spaces and nothing more.
-
-**And one beside it: `all`**, a status rather than a query. `open` is `tatr ls` and `closed` is
-`tatr ls -c`, which lists the closed tasks _only_; the CLI has no single
-command for both. The dashboard needs one: its "in total" and "untagged" count
-every task, and each opens the list on the very tasks it counted. Like `~`, it
-runs one way: the other two behave exactly as the flags do.
-
-![The filtered list](docs/list.jpg)
-
-## Nothing to sign up for. Nothing to hand over.
-
-There is no account, no cookie, no analytics, no telemetry: there is no
-_server_. The site is a folder of static files, and everything it knows about a
-repository it learned in your browser, seconds ago.
-
-- **No sign-in, no token, no permissions to grant.** It reads public
-  repositories the way anyone with a browser can.
-- **What you read stays yours.** The repositories you open, the queries you
-  type, the tasks you follow: none of it is sent anywhere, because there is
-  nowhere to send it.
-- **The cache is yours too.** Task metadata is kept in your own browser's
-  IndexedDB and re-read only when _you_ press Refresh, never on a timer behind
-  your back. Clear your site data and it is gone, completely.
-- **Only metadata is kept.** Descriptions are more than half the bytes and cost
-  nothing to fetch again, so they are never written down at all.
-
-And it is careful with the one budget it does spend on your behalf. GitHub
-allows an unauthenticated browser 60 requests an hour, shared with everyone
-behind the same IP address, so:
-
-- **One request lists a whole repository.** `git/trees/HEAD?recursive=1` returns
-  the entire tree in a single call, and asking for `HEAD` skips the extra
-  round-trip that would resolve the default branch by name, including on
-  repositories that still call it `master`.
-- **Contents come from a CDN.** `raw.githubusercontent.com` does not count
-  against the API quota at all.
-- **A spent budget gets one more chance.** The page asks `ungh.cc`, which
-  proxies the same API with its own credentials, before giving up. One mirror,
-  not a chain of them: it is the only request this site makes to anyone but
-  GitHub, it carries nothing but the repository name, and it happens only once
-  the budget is gone.
-- **A refresh that fails costs you nothing.** The reading you were looking at
-  stays on screen and the header says it was not renewed, rather than trading a
-  true copy for an error page.
-
-Beyond those, the site asks nobody for anything: even its typeface is served
-from the same folder as the page.
-
-## Or a folder on your own machine
-
-The one repository a public URL cannot reach is the one you are working in.
-**Open a folder** instead, and the browser reads it where it sits: private,
-unpushed, offline, whatever is checked out right now, including the task you
-have not committed yet.
-
-Nothing is uploaded, and nothing could be: the page has no server to upload to.
-Your browser grants access to that one folder, for as long as the tab is open,
-and takes it back when you reload, so a local folder is a session rather than
-an address, and `/local` is a word rather than a link anyone else could
-follow. The branch comes from `.git/HEAD`, which is a file like any other; the
-`tasks/` folder is all that is read.
-
-**Or drag the folder onto the page**, which is the widest door of the three: the
-API behind a drop exists in every browser, and what it hands over can be walked
-again, as a handle on Chromium and as an entry tree on Firefox (Safari has the
-same API, untested).
-
-Because that is what separates the three ways in. A folder that can be walked
-again is **followed**: save a task in your editor and the board beside it shows
-it, with what your last change moved. On Chromium the browser reports
-the change itself (`FileSystemObserver`, Chrome and Edge 133 and later);
-elsewhere the folder is read again when the page gets the focus back, which is
-the moment you return from the editor. **Refresh** does the same on demand. It
-costs nothing, which is why a folder is followed where a repository on a forge
-never is: there, every reading spends your budget. The directory input hands
-over one snapshot, and refreshing means picking again, which the button says
-instead of pretending.
-
-Two of the three ask your permission, and they ask differently, so the page
-says which one is coming before you click. The picker asks for access to that
-one folder. The directory input asks by the _file count_, because it cannot know
-that this page will not upload what it is given: a whole checkout produces
-_"import 7,775 files?"_, most of which is `node_modules`, and all but the
-`tasks/` folder is discarded on arrival. Picking `tasks/` directly is accepted
-for exactly that reason, and costs only the branch name, which lives in
-`.git/HEAD` one level up. A drop asks nothing, the drop being the gesture
-itself.
-
-Whichever door it came through, a folder with no tasks in it is told so rather
-than trawled: the reader picked a folder, and the page can see in one look
-whether it holds task folders.
-
-### Or let the dev server serve it (optional)
-
-If you run this repository yourself, there is a shorter way: name the folder
-when you start the dev server.
-
-```shell
-TATR_FOLDER=../my-project pnpm run dev
-```
-
-The page opens on `/served`, read from the disk by the dev server: no picker,
-in any browser, still there after a reload, and following the folder as you
-edit it. The home page lists it too, first. It exists in the dev server only.
-Without the variable nothing changes, and the built site contains none of it.
-
-## And edit it, where it can be written
-
-A folder on your own machine can be more than read. Where the page can write to
-it, the board and a task's page act on the backlog: drag a card to **Done** and
-its file says `STATUS: CLOSED`; to **In progress** and it gains the `scope` tag;
-back to **Backlog** and it loses it.
-
-A task's page reads the same everywhere, and **Edit** turns it into a sheet:
-the title, the description in a Markdown editor with its syntax highlighted, a
-small toolbar and a Preview that shows it as the page will, and the status, the
-priority and the tags as fields. **Save** writes only the fields you changed,
-so a priority `tatr` changed meanwhile is kept, and refuses a field changed on
-both sides rather than pick one. Leaving with changes unsaved asks first. The
-editor (9 kB) loads only when a sheet opens.
-
-Two sources can write: the folder the dev server serves, in any browser, and a
-folder picked or dropped on Chromium. That one asks whether the page may edit
-it on the first change you make, never before, so reading never asks; say no
-and the folder stays read-only until you open it again. Firefox and Safari hand
-over no folder that can be written, and a repository on a forge is never
-written, as that would take an account. Where nothing can be written there is
-nothing to edit: no field, and no card that drags, rather than one that lands
-nowhere.
-
-A change applies to the file as it is on disk at that moment, not to what the
-page showed, and is written only if nothing was saved over it meanwhile;
-otherwise the file is left alone and the folder read again. The file is
-rewritten whole, the way `tatr untag` rewrites one, so a file the CLI wrote
-comes back byte for byte, and one written by hand comes back as the CLI would
-write it, a missing `PRIORITY` written down as `999999`. **Undo** puts back the
-text that was there, exactly.
-
-## Which source does what
-
-In short, for each way in:
+[tatr](https://github.com/tsoding/tatr) keeps each task as a folder of Markdown
+(`tasks/20260315-160715/TASK.md`), versioned with the code. tatr explorer shows
+that folder as an overview, a list, a board and a graph of the tasks that cite
+each other: paste a repository name, or open a folder on your machine.
 
 |                         | GitHub          | Local folder                                                              | Dev server, `/served` |
 | ----------------------- | --------------- | ------------------------------------------------------------------------- | --------------------- |
@@ -262,130 +54,86 @@ In short, for each way in:
 > A local folder has to be opened again after each reload: the browser takes
 > its access back.
 
-## Identical to the CLI, and that claim is tested
+## A companion to the CLI
 
-The format parser, the query language and the reference graph are ported from
-the C source, not from the README, which simplifies. All three are covered by
-**differential tests that replay the real `tatr` binary's output**:
+Browse your tasks with TQL, the query syntax `tatr ls` accepts: a query from
+your shell history gives the same answer here.
 
-- **79 rows** of `tatr ls` over the 79 tasks of `tsoding/tatr`, compared field
-  by field;
-- **50 query invocations**, each compared against the exact set of tasks the CLI
-  printed;
-- **15 invalid queries**, each compared against everything the CLI printed:
-  the help, the caret and the message;
-- **36 arrows** of `tatr graph`, compared one by one;
-- **58 files** rewritten by `tatr untag`, one tag of one task at a time,
-  compared byte for byte with what this site writes for the same edit.
+| Query                              | Matches                             |
+| ---------------------------------- | ----------------------------------- |
+| `:ui`                              | tasks tagged `ui`                   |
+| `not :scope`                       | everything nobody is working on     |
+| `[:ui or :tql] and priority ge 90` | brackets group, so no shell quoting |
+| `~"query language"`                | titles holding all those words      |
 
-A second, smaller corpus of our own holds the edge cases `tsoding/tatr` lacks
-(impossible dates, suffixes, a status that is neither, a title without its `#`,
-a priority given twice, text outside ASCII, keys the format does not define, a
-file with no newline at its end), run through the same binary.
+> [!NOTE]
+> `~` is this viewer's own addition: `tatr ls` cannot search titles, so a query
+> that uses it will not run in the CLI. Every other query behaves the same in
+> both.
 
-A divergence fails the suite. When upstream moves, `pnpm run fixtures` records
-everything again from a built clone of tatr, in a sibling folder unless
-`TATR_CHECKOUT` names another. The recordings earn it: the last time, they
-caught an arrow `tatr graph` draws from an id cited only in a title, which this
-viewer had missed.
+Queries, the file format, the reference graph and every file this site writes
+are tested against the real `tatr`, over the 79 tasks of `tsoding/tatr` and a
+corpus of edge cases:
 
-The list puts the claim where it can be checked rather than trusted: under the
-query, **the `tatr ls` command that lists what is shown**, quoted for a shell and
-ready to copy. Where no command can (a `~` term, the `all` status), the line
-names the part that is this viewer's own instead of printing a command that
-would fail, or list something else, in a terminal.
+```shell
+pnpm run fixtures   # runs the real tatr, built in ../tatr, and records what it prints and writes
+pnpm test           # replays every recording against this viewer: a divergence fails
+```
 
-The same discipline governs what reaches the screen: repository content is shown
-**verbatim**, typos and straight quotes included, because polishing it would
-show a screen the product cannot produce.
+![The filtered list](docs/list.jpg)
 
-The recordings of `tsoding/tatr` carry upstream's own task text, which makes them
-the one thing in this repository that is not MIT (see [`NOTICE`](NOTICE)). No code from tatr is
-copied here; the viewer is an independent implementation of the same format.
+## Edit, where the folder can be written
+
+- **The board**: drag a card to Done, In progress or Backlog, and its file says
+  so.
+- **Edit** a task: its title, its description in a Markdown editor with a
+  preview, its status, priority and tags.
+- **New task**, or `n`: the file `tatr new` writes, byte for byte.
+- **A new tag** gets a description field, appended to `tasks/tags`.
+- **Paste or drop** an image or any file into the description: it lands in the
+  task's folder.
+
+Save writes only what you changed, and never over a change it did not read. A
+file is rewritten as `tatr untag` rewrites one, so a file the CLI wrote comes
+back byte for byte. Undo puts the task's file back.
 
 ![One task, rendered](docs/task.jpg)
 
-## Built with
+## Private by construction
 
-|                 |                                                      |
-| --------------- | ---------------------------------------------------- |
-| Framework       | SvelteKit 3, Svelte 5 runes                          |
-| Build           | Vite 8, `adapter-static`, prerendered to plain files |
-| Markdown        | markdown-it                                          |
-| Tests           | Vitest                                               |
-| Package manager | pnpm, pinned                                         |
+No account, no cookie, no analytics: there is no server, and what you read stays
+in your browser.
 
-## Run it
+- **Only task metadata is cached**, in your browser's IndexedDB, and read again
+  only when you press Refresh.
+- **GitHub's budget is spared**: one request lists a whole repository, contents
+  come from its CDN, which does not count, and `ungh.cc` is asked only once the
+  budget is spent.
 
-[Try it](#try-it) starts it. Then:
+## Develop
 
 ```shell
 pnpm run check                            # svelte-check, kept at zero errors
-pnpm test                                 # the full suite
-BASE_PATH=/tatr-explorer pnpm run build   # what CI builds
+pnpm test                                 # the specs, beside the code as *.spec.ts
+BASE_PATH=/tatr-explorer pnpm run build   # what CI builds; a push to main deploys it
 ```
 
-Specs sit beside the code they test, as `*.spec.ts` under `src/`, the only
-place the suite looks. What several of them share lives in `tests/`: data
-recorded from the CLI in `tests/fixtures/`, fakes and helpers in
-`tests/support/`, imported as `#tests/…`, an alias declared beside `#lib` in
-`package.json`. Test code lives in one or the other, never elsewhere.
+Built with SvelteKit 3, Svelte 5 runes, Vite 8, markdown-it and Vitest. What the
+specs share lives in `tests/`: recordings in `tests/fixtures/`, fakes in
+`tests/support/`.
 
-Deploying is a push to `main`: the workflow type-checks, runs the tests, builds
-with the repository name as `BASE_PATH` and publishes to GitHub Pages.
-Client-side routing at any path depth works because the build emits a `404.html`
-fallback.
-
-### Adding a source
-
-GitHub, a local folder and the folder the dev server serves are three sources,
-each in its own folder under `src/lib/sources/`, whose `source.ts` is its
-entry. A fourth is one more folder, written in this order:
-
-1. **A class implementing `Source`** (`contract.ts`): what the page calls it,
-   what reading it costs, how many files to read at once, a listing, a read,
-   and a URL per file. A listing that fails throws a `SourceError`, whose
-   sentence the page shows as it is; a file that cannot be read answers null,
-   so one bad task is skipped rather than the whole repository failing.
-2. **The capabilities it really has**, from `capabilities.ts`, each one an
-   interface the page asks about before offering anything: `Cached` keeps the
-   reading between visits, `Rereadable` offers Refresh, `Followable` refreshes
-   on its own when the source changes, `Branched` offers its other branches,
-   `Linked` links a file to its page, and `Writable` lets a task file be
-   replaced. Leave one out and the page offers nothing in its place, which is
-   the point.
-3. **Two static members** on the class, which make it a `SourceClass`: its
-   `address` (the hosts a forge reads, or a path of this site such as
-   `/local`), and `open`, which builds a source for a reference.
-4. **One line in `SOURCES`** (`open.ts`). The compiler then asks for the two
-   others: its control in `REOPENERS` (`src/lib/components/reopeners.ts`),
-   null unless a gesture is the only way back to it, and how to build it in
-   `contract.spec.ts`, which runs every source through the same tests.
-
-## It tracks itself
-
-This repository keeps its own work in its own `tasks/` folder, in the tatr
-format, which is why every example above is a live URL. Open
-[`/yakanet/tatr-explorer`](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer)
-and you are reading the backlog of the thing you are reading it with. Its tags
-are documented in `tasks/tags`, exactly as tatr expects:
-
-```
-scope , currently working on
-format , parsing the tatr file format itself
-data , fetching and caching repository contents
-tql , the query language
-ui , screens, interaction and styling
-infra , build, deploy and tooling
-```
-
-What comes next is not listed here, where it would go stale. It is
-[whatever is open](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer/list),
-highest priority first.
+**Adding a source** takes a class implementing `Source`
+(`src/lib/sources/contract.ts`), the capabilities it really has
+(`capabilities.ts`: `Cached`, `Rereadable`, `Followable`, `Branched`, `Linked`,
+`Writable`), and one line in `SOURCES` (`open.ts`). The compiler asks for the
+rest, and `contract.spec.ts` runs it through the tests every source passes.
 
 ## Credits
 
-The format, the CLI and the query language are [tsoding's](https://github.com/tsoding/tatr).
-This is a reader for them, nothing more.
+This repository tracks its own work with tatr:
+[here is its backlog](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer/list).
 
-MIT licensed: see [LICENSE](LICENSE).
+The format, the CLI and the query language are
+[tsoding's](https://github.com/tsoding/tatr). MIT licensed: see
+[LICENSE](LICENSE), except the recordings of `tsoding/tatr`, which carry
+upstream's task text (see [`NOTICE`](NOTICE)).
