@@ -13,6 +13,7 @@
  */
 import type { ViteHotContext } from 'vite/types/hot.d.ts';
 import { afterEach, describe, expect, it } from 'vitest';
+import { having } from '#tests/support/capabilities.ts';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { scratchFolder, serving, writeTree } from '#tests/support/disk-tree.ts';
 import { unreachable } from '#tests/support/network.ts';
@@ -40,6 +41,8 @@ interface Subject {
 	holding(tree: Record<string, string>): Promise<Source>;
 	/** A source whose listing fails, the way this one fails in practice. */
 	broken(): Source;
+	/** A source whose writes fail, the way this one's fail in practice. Given only for a source that writes. */
+	failingToWrite?(): Promise<Source>;
 	/** Copies a change to `tree` to where the source reads, when that is not `tree` itself. */
 	sync?(tree: Record<string, string>): Promise<unknown>;
 }
@@ -154,60 +157,68 @@ function honoursTheContract(subject: Subject): void {
 			expect(page === undefined || URL.canParse(page)).toBe(true);
 		});
 
-		it('writes a file whole where it can, never over a change it did not read', async (context) => {
-			const source = await holding();
-			if (!isWritable(source)) return context.skip();
-			const [path] = TASK_FILES;
-			const written = '# Written\n\n- STATUS: CLOSED\n';
-
-			expect(await source.write(path, written, TREE[path])).toBe('written');
-			expect(await source.read(path)).toBe(written);
-
-			// The write just made stands for an editor's save, which `expected` predates.
-			expect(await source.write(path, '# Lost\n', TREE[path])).toBe('changed');
-			expect(await source.read(path)).toBe(written);
+		// A source that writes and is not declared so would skip the writing tests unseen.
+		it('writes exactly when its subject says it does', async () => {
+			expect(isWritable(await holding())).toBe(subject.failingToWrite !== undefined);
 		});
 
-		it('creates a file where there was none, never over one it did not read', async (context) => {
-			const source = await holding();
-			if (!isWritable(source)) return context.skip();
-			const path = 'tasks/20260101-000003/TASK.md';
-			const created = '# Created\n\n- STATUS: OPEN\n';
+		if (subject.failingToWrite) writesAsTheContractSays(holding, subject.failingToWrite);
+	});
+}
 
-			expect(await source.write(path, created, null)).toBe('written');
-			expect(await source.read(path)).toBe(created);
-			expect(listedUnderTasks(await source.list())).toContain(path);
+/** The writing tests, for a source whose subject says it writes. */
+function writesAsTheContractSays(
+	holding: () => Promise<Source>,
+	failingToWrite: () => Promise<Source>
+): void {
+	it('writes a file whole, never over a change it did not read', async () => {
+		const source = having(await holding(), isWritable);
+		const [path] = TASK_FILES;
+		const written = '# Written\n\n- STATUS: CLOSED\n';
 
-			expect(await source.write(path, '# Lost\n', null)).toBe('changed');
-			expect(await source.read(path)).toBe(created);
-		});
+		expect(await source.write(path, written, TREE[path])).toBe('written');
+		expect(await source.read(path)).toBe(written);
 
-		it('creates a file from bytes, as an image is', async (context) => {
-			const source = await holding();
-			if (!isWritable(source)) return context.skip();
-			const path = 'tasks/20260101-000001/pasted.png';
-			expect(await source.write(path, new Blob(['a picture']), null)).toBe('written');
-			expect(await source.read(path)).toBe('a picture');
-		});
+		// The write just made stands for an editor's save, which `expected` predates.
+		expect(await source.write(path, '# Lost\n', TREE[path])).toBe('changed');
+		expect(await source.read(path)).toBe(written);
+	});
 
-		it('creates nothing outside tasks/, in the words the page explains', async (context) => {
-			const source = await holding();
-			if (!isWritable(source)) return context.skip();
-			for (const path of ['README.md', 'tasks/../README.md', 'tasks/20260101-000001/../../x']) {
-				await expect(source.write(path, 'x', null)).rejects.toBeInstanceOf(SourceError);
-			}
-			expect(listedUnderTasks(await source.list())).toEqual(TASK_FILES);
-		});
+	it('creates a file where there was none, never over one it did not read', async () => {
+		const source = having(await holding(), isWritable);
+		const path = 'tasks/20260101-000003/TASK.md';
+		const created = '# Created\n\n- STATUS: OPEN\n';
 
-		it('fails to write in the words the page explains, never with a bare error', async (context) => {
-			const source = subject.broken();
-			if (!isWritable(source)) return context.skip();
-			const [path] = TASK_FILES;
-			await expect(source.write(path, '# b\n', TREE[path])).rejects.toBeInstanceOf(SourceError);
-			await expect(source.write('tasks/x/TASK.md', '# x\n', null)).rejects.toBeInstanceOf(
-				SourceError
-			);
-		});
+		expect(await source.write(path, created, null)).toBe('written');
+		expect(await source.read(path)).toBe(created);
+		expect(listedUnderTasks(await source.list())).toContain(path);
+
+		expect(await source.write(path, '# Lost\n', null)).toBe('changed');
+		expect(await source.read(path)).toBe(created);
+	});
+
+	it('creates a file from bytes, as an image is', async () => {
+		const source = having(await holding(), isWritable);
+		const path = 'tasks/20260101-000001/pasted.png';
+		expect(await source.write(path, new Blob(['a picture']), null)).toBe('written');
+		expect(await source.read(path)).toBe('a picture');
+	});
+
+	it('creates nothing outside tasks/, in the words the page explains', async () => {
+		const source = having(await holding(), isWritable);
+		for (const path of ['README.md', 'tasks/../README.md', 'tasks/20260101-000001/../../x']) {
+			await expect(source.write(path, 'x', null)).rejects.toBeInstanceOf(SourceError);
+		}
+		expect(listedUnderTasks(await source.list())).toEqual(TASK_FILES);
+	});
+
+	it('fails to write in the words the page explains, never with a bare error', async () => {
+		const source = having(await failingToWrite(), isWritable);
+		const [path] = TASK_FILES;
+		await expect(source.write(path, '# b\n', TREE[path])).rejects.toBeInstanceOf(SourceError);
+		await expect(source.write('tasks/x/TASK.md', '# x\n', null)).rejects.toBeInstanceOf(
+			SourceError
+		);
 	});
 }
 
@@ -246,15 +257,25 @@ function openGitHubOver(network: typeof fetch): Source {
  */
 type Door = (tree: Record<string, string>) => Promise<[LocalFolder, WayBack?]>;
 
+/** The source of a folder handed over through `door`, holding `tree`. */
+async function openedThrough(door: Door, tree: Record<string, string>): Promise<Source> {
+	openFolder(...(await door(tree)));
+	return LocalFolderSource.open();
+}
+
 /** A subject for a folder handed over through `door`. */
 function through(name: string, door: Door): Subject {
-	return {
-		name,
-		async holding(tree) {
-			openFolder(...(await door(tree)));
-			return LocalFolderSource.open();
-		},
-		broken: forgotten
+	return { name, holding: (tree) => openedThrough(door, tree), broken: forgotten };
+}
+
+/**
+ * A door picking a folder with a handle to it. Given `ask`, it is Chromium's,
+ * whose reader answers `ask` when the page asks to write.
+ */
+function picked(ask?: () => Promise<PermissionState>): Door {
+	return async (tree) => {
+		const handle = directory('my-project', tree, ask);
+		return [await fromDirectoryHandle(handle), handle];
 	};
 }
 
@@ -288,14 +309,19 @@ const SUBJECTS = {
 			through('a folder handed over by a directory input', async (tree) => [
 				fromFileList(fileList('my-project', tree))!
 			]),
-			through('a folder picked, with a handle to it', async (tree) => {
-				const handle = directory('my-project', tree);
-				return [await fromDirectoryHandle(handle), handle];
-			}),
-			through('a folder picked on Chromium, whose reader allows writing', async (tree) => {
-				const handle = directory('my-project', tree, async () => 'granted');
-				return [await fromDirectoryHandle(handle), handle];
-			}),
+			through('a folder picked, with a handle to it', picked()),
+			{
+				...through(
+					'a folder picked on Chromium, whose reader allows writing',
+					picked(async () => 'granted')
+				),
+				// The browser refuses to ask long after the last click, the usual failure.
+				failingToWrite: () =>
+					openedThrough(
+						picked(() => Promise.reject(new DOMException('no click', 'SecurityError'))),
+						{ ...TREE }
+					)
+			},
 			through('a folder dropped, with its entry tree', async (tree) => {
 				const entry = entryTree('my-project', tree);
 				return [await fromDirectoryEntry(entry), entry];
@@ -313,6 +339,7 @@ const SUBJECTS = {
 				return open(await serving(scratch()));
 			},
 			broken: () => open(unreachable),
+			failingToWrite: async () => open(unreachable),
 			// This source reads the disk, so a change to `tree` has to be written there.
 			sync: (tree) => writeTree(scratch(), tree)
 		});

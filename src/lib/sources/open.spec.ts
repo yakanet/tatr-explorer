@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { having } from '#tests/support/capabilities.ts';
 import { directory, entryTree, fileList } from '#tests/support/fake-directory.ts';
 import { SOURCES, openSource, parseRepoPath } from './open.ts';
 import { parseForgePath } from '../repo/ref.ts';
 import { isCached, isFollowable, isLinked, isRereadable, isWritable } from './capabilities.ts';
-import { SourceError, type Source } from './contract.ts';
+import { SourceError } from './contract.ts';
 import { fromDirectoryEntry } from './local/directory-entry.ts';
 import { fromDirectoryHandle } from './local/directory-handle.ts';
 import { fromFileList } from './local/folder.ts';
@@ -12,12 +13,6 @@ import { closeFolder, LocalFolderSource, openFolder } from './local/source.ts';
 
 /** The reference to the folder on this machine, as this site's URL names it. */
 const LOCAL = parseRepoPath('local')!;
-
-/** `source`, narrowed to the capability `is` checks, or a throw when it lacks it. */
-function having<T>(source: Source, is: (source: Source) => source is Source & T): Source & T {
-	if (!is(source)) throw new Error(`${source.label} lacks what ${is.name} asks for`);
-	return source;
-}
 
 describe('the registry', () => {
 	it('holds the sources this app has, named', () => {
