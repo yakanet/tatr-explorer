@@ -9,7 +9,7 @@
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
-	import { counted } from '#lib/plural.ts';
+	import { counted, plural } from '#lib/plural.ts';
 	import { newTaskHref } from '#lib/repo/hrefs.ts';
 	import { formatRepoPath, isForgeRef, type ForgeRef } from '#lib/repo/ref.ts';
 	import { isBranched, isFollowable, isRereadable } from '#lib/sources/capabilities.ts';
@@ -73,6 +73,11 @@
 	const rereadable = $derived(isRereadable(repo.source));
 	/** Whether the source reports its own changes, in which case the reading's age is not shown. */
 	const following = $derived(isFollowable(repo.source));
+	/** The files a refresh has read, as the button's tooltip, once it knows how many there are. */
+	const readSoFar = $derived.by(() => {
+		if (repo.total === 0) return undefined;
+		return `${repo.done} / ${repo.total} ${plural(repo.total, 'task file', 'task files')} read`;
+	});
 
 	$effect(() => repo.follow());
 
@@ -197,9 +202,12 @@
 			{/if}
 			{#if rereadable}
 				<!-- The previous reading stays on screen during a refresh, so the
-				     button is the only sign that one is under way. -->
+				     button is the only sign that one is under way, and fills as its
+				     files come in. -->
 				<button
-					class="action"
+					class="action refresh"
+					style:--filled="{repo.percent}%"
+					title={readSoFar}
 					disabled={repo.refreshing}
 					aria-busy={repo.refreshing}
 					onclick={() => repo.refresh()}
@@ -253,6 +261,20 @@
 	.reading {
 		justify-content: flex-end;
 		margin-right: -0.875rem;
+	}
+
+	/* The fill is a background image, so the button keeps its own colour under
+	   it, and it moves only during a refresh, so that it empties at once. The
+	   accent is mixed rather than `--accent-wash`, which barely shows on the
+	   button's surface. */
+	.refresh {
+		background-image: linear-gradient(color-mix(in oklab, var(--accent) 30%, transparent) 0 0);
+		background-repeat: no-repeat;
+		background-size: var(--filled) 100%;
+	}
+
+	.refresh[aria-busy='true'] {
+		transition: background-size 150ms linear;
 	}
 
 	.brand {

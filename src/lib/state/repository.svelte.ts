@@ -100,9 +100,14 @@ export class RepositoryState {
 	tasks = $state.raw<Task[]>([]);
 	skipped = $state<{ id: string; reason: string }[]>([]);
 	tags = $state<TagDescriptions>({ descriptions: new Map(), redefined: [] });
-	/** Files read so far and in total, for the progress bar. */
+	/** Files read so far and in total by the reading under way, zero once it ends. */
 	done = $state(0);
 	total = $state(0);
+	/** The share of the task files read, as a percentage. */
+	readonly percent = $derived.by(() => {
+		if (this.total === 0) return 0;
+		return (this.done / this.total) * 100;
+	});
 	/** The reference being read, kept to refresh it and to name it when no source reads it. */
 	ref = $state<RepoRef | null>(null);
 	fromCache = $state(false);
@@ -228,11 +233,11 @@ export class RepositoryState {
 		this.source = source;
 		this.refreshFailure = null;
 		this.refreshing = standing;
+		this.done = 0;
+		this.total = 0;
 		if (!standing) {
 			this.phase = 'listing';
 			this.failure = null;
-			this.done = 0;
-			this.total = 0;
 			// One state serves every view, so a comparison left here would announce
 			// the last repository's changes over the next one's tasks.
 			this.previous = null;
@@ -246,11 +251,10 @@ export class RepositoryState {
 				replaces,
 				signal: controller.signal,
 				onProgress: (done, total) => {
-					// Progress shows only on a page with nothing on it yet.
-					if (controller.signal.aborted || standing) return;
-					this.phase = 'reading';
+					if (controller.signal.aborted) return;
 					this.done = done;
 					this.total = total;
+					if (!standing) this.phase = 'reading';
 				}
 			});
 			if (controller.signal.aborted) return;
@@ -262,10 +266,10 @@ export class RepositoryState {
 			this.storedAt = result.storedAt;
 			this.previous = result.previous;
 			this.phase = 'ready';
-			this.refreshing = false;
+			this.#ended();
 		} catch (error) {
 			if (controller.signal.aborted) return;
-			this.refreshing = false;
+			this.#ended();
 			if (standing) {
 				// The reading on screen and its comparison stay untouched.
 				this.refreshFailure = describe(error);
@@ -274,6 +278,13 @@ export class RepositoryState {
 			this.failure = describe(error);
 			this.phase = 'failed';
 		}
+	}
+
+	/** Clears what only a reading under way shows: the refresh flag and the file counts. */
+	#ended(): void {
+		this.refreshing = false;
+		this.done = 0;
+		this.total = 0;
 	}
 
 	/**

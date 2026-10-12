@@ -12,10 +12,6 @@
 
 	let { repo, ref }: Props = $props();
 
-	const percent = $derived.by(() => {
-		if (repo.total === 0) return 0;
-		return Math.round((repo.done / repo.total) * 100);
-	});
 	/** What a reading costs, in the source's words: a request, or nothing. */
 	const cost = $derived(repo.source?.cost);
 	/** The gesture that opens the source again, where trying again cannot. */
@@ -35,7 +31,7 @@
 			{#if repo.total > 0}<span class="hint">{repo.done} / {repo.total}</span>{/if}
 		</p>
 		{#if repo.total > 0}
-			<div class="bar"><div class="fill" style:width="{percent}%"></div></div>
+			<div class="bar"><div class="fill" style:width="{repo.percent}%"></div></div>
 		{/if}
 		{#if cost}<p class="note">{cost.files}</p>{/if}
 	</section>

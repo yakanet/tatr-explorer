@@ -114,6 +114,17 @@ describe('a refresh', () => {
 		expect(repo.refreshing).toBe(false);
 	});
 
+	it('counts its files from none, and leaves nothing counted once the reading is on screen', async () => {
+		const repo = new RepositoryState();
+		await repo.load(await picked());
+
+		const pending = repo.refresh();
+		expect([repo.done, repo.total]).toEqual([0, 0]);
+
+		await pending;
+		expect([repo.done, repo.total]).toEqual([0, 0]);
+	});
+
 	it('compares with the reading on screen, which a folder has too', async () => {
 		const repo = new RepositoryState();
 		await repo.load(await picked());
