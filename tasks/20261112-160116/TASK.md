@@ -9,11 +9,20 @@ did not exist. Wanted: public repositories stay readable without signing in,
 and a reader who wants more gives the site read access to the private
 repositories they choose, and to those only.
 
-**"Sign in with GitHub" cannot work without a server.** OAuth ends by trading a
-code for a token at `github.com/login/oauth/access_token`, and the device flow
-starts at `github.com/login/device/code`; both answer a CORS preflight with 404
-and no CORS headers (checked), so a page cannot call them. The code exchange
-also takes the client secret, PKCE or not. GitHub has planned the fix, a "SPA"
+**"Sign in with GitHub" cannot work without a server**, whether the site
+declares an OAuth app or a GitHub App:
+
+- _The web flow_ trades a code for a token at
+  `github.com/login/oauth/access_token`, which takes the client secret, PKCE or
+  not, and sends no CORS headers.
+- _The device flow_ needs no secret, and a GitHub App may enable it, but neither
+  `github.com/login/device/code` nor the token endpoint sends CORS headers: they
+  answer a real client id, and the browser keeps the answer from the page
+  (checked).
+- _An installation token_ is signed with the App's private key, which a page
+  would hand to every visitor.
+
+GitHub has planned the fix, a "SPA"
 client type for GitHub Apps with PKCE, no secret and CORS on `/access_token`
 (github/roadmap#1153), but marked it paused in August 2026. If it ships, a real
 "Sign in" needs no server, and becomes a second way to obtain the same token.
@@ -73,3 +82,33 @@ that instance, so a pasted token is the general answer there too. That rests on
 20261011-170750, which also notes that many self-hosted instances send no CORS
 headers at all. This task is about GitHub; it only has to keep tokens per host,
 so another forge's fits beside it.
+
+**Documentation:**
+
+- The token:
+  - [Pre-filling a fine-grained token through URL parameters](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters),
+    and the [changelog](https://github.blog/changelog/2025-08-26-template-urls-for-fine-grained-pats-and-updated-permissions-ui/)
+    that introduced it
+  - [Permissions required for fine-grained tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens),
+    to confirm "Contents: read-only" covers every call made
+- The REST API with a token:
+  - [Authenticating to the REST API](https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api)
+  - [Cross-origin requests](https://docs.github.com/en/rest/using-the-rest-api/using-cors-and-jsonp-to-make-cross-origin-requests)
+  - [Rate limits for authenticated users](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#primary-rate-limit-for-authenticated-users)
+  - [Get the authenticated user](https://docs.github.com/en/rest/users/users#get-the-authenticated-user),
+    for the account the header shows
+  - [Git trees](https://docs.github.com/en/rest/git/trees), the listing already
+    used, and [repository content](https://docs.github.com/en/rest/repos/contents#get-repository-content),
+    whose raw media type replaces the CDN file by file
+- GraphQL, to read every task in one query:
+  - [Forming calls with GraphQL](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql)
+  - [Rate limits and query limits](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api)
+- The browser side:
+  - [`sessionStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)
+  - [The `paste` event](https://developer.mozilla.org/en-US/docs/Web/API/Element/paste_event),
+    for submitting on paste
+- What would allow a real "Sign in":
+  - [github/roadmap#1153](https://github.com/github/roadmap/issues/1153), the
+    SPA client type for GitHub Apps
+  - [The device flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow),
+    to retry once its endpoints send CORS headers
