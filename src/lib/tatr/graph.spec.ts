@@ -28,7 +28,6 @@ describe('conformance with `tatr graph`', () => {
 
 	it('counts the links the way the .dot file does', () => {
 		expect(buildGraph(all).citationCount).toBe(expected.length);
-		expect(buildGraph(all).citationCount).toBe(36);
 	});
 
 	it('ignores ids naming no task, journal timestamps included', () => {
@@ -47,12 +46,12 @@ describe('buildGraph', () => {
 
 	it('finds the connected components of the real repository', () => {
 		expect(graph.clusters.map((cluster) => cluster.nodes.length)).toEqual([
-			10, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2
+			14, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2
 		]);
 	});
 
 	it('leaves out the tasks nothing connects', () => {
-		expect(graph.isolated).toHaveLength(43);
+		expect(graph.isolated).toHaveLength(48);
 		expect(graph.isolated.map((task) => task.id)).toEqual(
 			[...graph.isolated].map((task) => task.id).sort()
 		);
@@ -60,7 +59,7 @@ describe('buildGraph', () => {
 
 	it('accounts for every task exactly once', () => {
 		const inClusters = graph.clusters.flatMap((cluster) => cluster.nodes.length);
-		expect(inClusters.reduce((n, size) => n + size, 0) + graph.isolated.length).toBe(79);
+		expect(inClusters.reduce((n, size) => n + size, 0) + graph.isolated.length).toBe(all.length);
 	});
 
 	it('draws a mutual citation once', () => {
@@ -148,7 +147,7 @@ describe('star cards', () => {
 	});
 
 	it('starts from the task with the most links, on the real repository', () => {
-		expect(cards).toHaveLength(15);
+		expect(cards).toHaveLength(19);
 		expect(cards[0].pivot.id).toBe('20260828-211200');
 		expect(around(cards[0])).toHaveLength(8);
 	});

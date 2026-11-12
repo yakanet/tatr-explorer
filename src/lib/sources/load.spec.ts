@@ -15,7 +15,10 @@ const sources = rawTasks as Record<string, string>;
 /** The path of a task's file, by its id. */
 const at = (id: string) => `tasks/${id}/TASK.md`;
 
-/** The fixture's 79 tasks and a tags file, as the repository holds them. */
+/** How many tasks the fixture holds. */
+const TASKS = Object.keys(sources).length;
+
+/** The fixture's tasks and a tags file, as the repository holds them. */
 const TREE: Readonly<Record<string, string>> = {
 	...Object.fromEntries(Object.entries(sources).map(([id, text]) => [at(id), text])),
 	'tasks/tags': 'bug , unintended behavior\nrelease , planned for the next release\n',
@@ -66,8 +69,8 @@ beforeEach(() => {
 describe('loadRepository', () => {
 	it('reads every task in the repository', async () => {
 		const result = await loadRepository(new Holding(), { store });
-		expect(result.tasks).toHaveLength(79);
-		expect(result.tasks.filter((task) => !task.closed)).toHaveLength(33);
+		expect(result.tasks).toHaveLength(TASKS);
+		expect(result.tasks.filter((task) => !task.closed)).toHaveLength(27);
 		expect(result.skipped).toEqual([]);
 	});
 
@@ -82,8 +85,8 @@ describe('loadRepository', () => {
 			store,
 			onProgress
 		});
-		expect(onProgress).toHaveBeenCalledTimes(79);
-		expect(onProgress).toHaveBeenLastCalledWith(79, 79);
+		expect(onProgress).toHaveBeenCalledTimes(TASKS);
+		expect(onProgress).toHaveBeenLastCalledWith(TASKS, TASKS);
 	});
 
 	it('honours the concurrency limit', async () => {
@@ -118,7 +121,7 @@ describe('loadRepository', () => {
 		})();
 
 		const result = await loadRepository(flaky, { store });
-		expect(result.tasks).toHaveLength(78);
+		expect(result.tasks).toHaveLength(TASKS - 1);
 		expect(result.skipped).toEqual([{ id: '20260826-200847', reason: 'Could not be read' }]);
 	});
 
@@ -144,7 +147,7 @@ describe('caching', () => {
 
 		const second = await loadRepository(source, { store });
 		expect(second.fromCache).toBe(true);
-		expect(second.tasks).toHaveLength(79);
+		expect(second.tasks).toHaveLength(TASKS);
 		// The listing is the only rate-limited call; it must not happen twice.
 		expect(source.listings).toBe(1);
 	});
@@ -186,7 +189,7 @@ describe('caching', () => {
 
 	it('works with no storage at all, as in a private window', async () => {
 		const result = await loadRepository(new Holding(), { store: memoryStore() });
-		expect(result.tasks).toHaveLength(79);
+		expect(result.tasks).toHaveLength(TASKS);
 		expect(result.fromCache).toBe(false);
 	});
 });

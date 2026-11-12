@@ -540,9 +540,7 @@ describe('editing a task', () => {
 			const repo = await editing();
 			expect(await repo.create({ ...NEW_TASK, title: 'Created', tags: ['ui'] })).toBe(CREATED);
 
-			expect(disk[createdPath]).toBe(
-				'# Created\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: ui\n\nNo description.\n'
-			);
+			expect(disk[createdPath]).toBe('# Created\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: ui\n');
 			expect(repo.tasks.map((task) => task.id)).toContain(CREATED);
 			expect(repo.notice).toEqual({ text: `${CREATED}: created.`, failed: false, undoable: false });
 		});

@@ -6,7 +6,7 @@ import { compareByPriority, readTask, type Task } from './task.ts';
 /**
  * Compares the parser with the reference implementation over tsoding/tatr.
  *
- * `tsoding-tatr-raw.json` holds its 79 `TASK.md` files verbatim, and
+ * `tsoding-tatr-raw.json` holds its `TASK.md` files verbatim, and
  * `tatr-ls-output.json` what the compiled `tatr ls` printed for them. Every
  * field the CLI shows (status, priority, tags, title) is compared, so a
  * divergence from the C parser fails the suite. `pnpm run fixtures` regenerates
@@ -30,8 +30,7 @@ function earlier(a: Task, b: Task): Task {
 
 describe('conformance with the tatr parser', () => {
 	it('covers the whole repository', () => {
-		expect(rows).toHaveLength(79);
-		expect(Object.keys(sources)).toHaveLength(79);
+		expect(rows).toHaveLength(Object.keys(sources).length);
 	});
 
 	it.each(rows)('$id parses to what the CLI prints', (row) => {
@@ -85,7 +84,7 @@ describe('conformance with the tatr parser', () => {
 			.map(([id, source]) => readTask(id, source)!)
 			.filter((task) => !task.closed)
 			.sort(compareByPriority);
-		expect(open[0].priority).toBe(110);
+		expect(open[0].priority).toBe(100);
 		expect(open.at(-1)!.priority).toBe(10);
 	});
 
@@ -100,8 +99,8 @@ describe('conformance with the tatr parser', () => {
 
 		// These counts need team suffixes: `20260826-204052` cites
 		// `20260830-000838-rexim`, which a pattern without the suffix misses.
-		expect(edges).toHaveLength(36);
-		expect(nodes.size).toBe(36);
+		expect(edges).toHaveLength(45);
+		expect(nodes.size).toBe(46);
 
 		// Upstream's mass-update task is cited by eight others, one of them
 		// (20260912-102943) only in its title, which a body-only scan would miss.

@@ -13,16 +13,16 @@ const ids = (tasks: Task[]) => tasks.map((task) => task.id);
 describe('toColumns', () => {
 	it('splits the real repository three ways', () => {
 		const [backlog, progress, done] = toColumns(all);
-		expect(backlog.tasks).toHaveLength(26);
-		expect(progress.tasks).toHaveLength(7);
-		expect(done.tasks).toHaveLength(46);
+		expect(backlog.tasks).toHaveLength(22);
+		expect(progress.tasks).toHaveLength(5);
+		expect(done.tasks).toHaveLength(67);
 	});
 
 	it('accounts for every task exactly once', () => {
 		const columns = toColumns(all);
 		const placed = columns.flatMap((column) => ids(column.tasks));
-		expect(placed).toHaveLength(79);
-		expect(new Set(placed).size).toBe(79);
+		expect(placed).toHaveLength(all.length);
+		expect(new Set(placed).size).toBe(all.length);
 	});
 
 	it('puts a task carrying the tag in progress', () => {
@@ -77,7 +77,7 @@ describe('toColumns', () => {
 	});
 
 	it('totals what a column holds before the query', () => {
-		expect(toColumns(all).map((column) => column.total)).toEqual([26, 7, 46]);
+		expect(toColumns(all).map((column) => column.total)).toEqual([22, 5, 67]);
 	});
 });
 
@@ -86,17 +86,17 @@ describe('toColumns under a query', () => {
 
 	it('narrows each column and keeps its total', () => {
 		const [backlog, progress, done] = toColumns(all, scoped);
-		expect(progress.tasks).toHaveLength(7);
-		expect(progress.total).toBe(7);
+		expect(progress.tasks).toHaveLength(5);
+		expect(progress.total).toBe(5);
 		// No other task carries the tag, yet the totals still count them.
-		expect([backlog.tasks.length, backlog.total]).toEqual([0, 26]);
-		expect([done.tasks.length, done.total]).toEqual([0, 46]);
+		expect([backlog.tasks.length, backlog.total]).toEqual([0, 22]);
+		expect([done.tasks.length, done.total]).toEqual([0, 67]);
 	});
 
 	it('leaves the totals alone when nothing matches', () => {
 		const columns = toColumns(all, () => false);
 		expect(columns.map((column) => column.tasks.length)).toEqual([0, 0, 0]);
-		expect(columns.map((column) => column.total)).toEqual([26, 7, 46]);
+		expect(columns.map((column) => column.total)).toEqual([22, 5, 67]);
 	});
 
 	it('counts a task in the column it belongs to, matched or not', () => {

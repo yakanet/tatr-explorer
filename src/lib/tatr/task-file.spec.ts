@@ -54,7 +54,7 @@ describe('editing a task file', () => {
 		expect(editTaskMd(PLAIN, withTag('scope'))).toBe(PLAIN.replace('data,ui', 'data,ui,scope'));
 	});
 
-	it('removes a tag as `tatr untag` does, the last one taking its place', () => {
+	it('removes a tag as `tatr ls -update` does, the last one taking its place', () => {
 		const tagged = PLAIN.replace('data,ui', 'scope,data,ui');
 		expect(editTaskMd(tagged, withoutTag('scope'))).toBe(PLAIN.replace('data,ui', 'ui,data'));
 		expect(editTaskMd(tagged, withoutTag('ui'))).toBe(PLAIN.replace('data,ui', 'scope,data'));

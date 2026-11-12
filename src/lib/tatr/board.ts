@@ -3,7 +3,7 @@
  * and done.
  *
  * A column per tag would not work: upstream tags are categories (`bug`, `ui`,
- * `tql`), and 11 of the 79 tasks in tsoding/tatr carry several, so a card would
+ * `tql`), and a dozen tasks in tsoding/tatr carry several, so a card would
  * appear twice. `scope` is the one tag that means a stage, "currently working
  * on", and upstream task 20260826-200847 proposes tags for a kanban.
  *

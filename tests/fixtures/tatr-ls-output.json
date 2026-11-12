@@ -1,28 +1,33 @@
 [
  {
-  "id": "20260830-041724",
+  "id": "20260906-040857",
   "status": "OPEN",
-  "priority": 110,
+  "priority": 100,
+  "tags": [
+   "spec"
+  ],
+  "title": "Task archiving"
+ },
+ {
+  "id": "20260825-162925",
+  "status": "OPEN",
+  "priority": 100,
   "tags": [],
-  "title": "Mass rename a tag"
+  "title": "double check with python that path_normalize is implemented correctly"
  },
  {
-  "id": "20260912-085629",
+  "id": "20260904-041951",
   "status": "OPEN",
-  "priority": 105,
-  "tags": [
-   "scope"
-  ],
-  "title": "`tatr-untag` must report each modification with a compiler style report pointing at the line where the `TAGS` property is located"
+  "priority": 100,
+  "tags": [],
+  "title": "List both closed and open tasks somehow"
  },
  {
-  "id": "20260910-181239",
+  "id": "20260826-200345",
   "status": "OPEN",
-  "priority": 101,
-  "tags": [
-   "scope"
-  ],
-  "title": "`tatr ls -debug` should be a separate command"
+  "priority": 100,
+  "tags": [],
+  "title": "`tatr ls` should print how many tasks were filtered out"
  },
  {
   "id": "20260901-063204",
@@ -41,72 +46,22 @@
   "title": "The syntax of tags in the query language is confusing"
  },
  {
-  "id": "20260906-040857",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "Task archiving"
- },
- {
-  "id": "20260912-125818",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [
-   "scope"
-  ],
-  "title": "Implement `tatr-tag`"
- },
- {
-  "id": "20260825-162925",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "double check with python that path_normalize is implemented correctly"
- },
- {
-  "id": "20260901-051445",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "If git state is dirty the baked git hash should indicate that"
- },
- {
-  "id": "20260826-200345",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "`tatr ls` should print how many tasks were filtered out"
- },
- {
-  "id": "20260910-113917",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "Not sure why we use nob_log for reporting useful info to the user"
- },
- {
-  "id": "20260910-171120",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [
-   "bug"
-  ],
-  "title": "tatr-new -s flag does not validate the suffix"
- },
- {
   "id": "20260912-110420",
   "status": "OPEN",
   "priority": 100,
   "tags": [
-   "bug"
+   "bug",
+   "scope"
   ],
-  "title": "Invalid tasks are filter out when `tatr-ls` is called with non-default query"
+  "title": "Invalid tasks are filtered out when `tatr-ls` is called with non-default query"
  },
  {
   "id": "20260901-051338",
   "status": "OPEN",
   "priority": 100,
-  "tags": [],
+  "tags": [
+   "scope"
+  ],
   "title": "Make the grep command configurable for `tatr-ref`"
  },
  {
@@ -117,13 +72,6 @@
   "title": "Build a graph of issues crossreferring to each other"
  },
  {
-  "id": "20260910-063140",
-  "status": "OPEN",
-  "priority": 100,
-  "tags": [],
-  "title": "Can we make the executable fully static and ship it in the GitHub releases?"
- },
- {
   "id": "20260910-143535",
   "status": "OPEN",
   "priority": 100,
@@ -131,51 +79,68 @@
   "title": "Some sort of lock-file mechanism"
  },
  {
-  "id": "20260904-041951",
+  "id": "20261010-012606",
   "status": "OPEN",
   "priority": 100,
   "tags": [],
-  "title": "List both closed and open tasks somehow"
+  "title": "Some way to initialize priority, tags and body for tasks created with `tatr-todo`"
  },
  {
-  "id": "20260826-200847",
+  "id": "20260910-063140",
   "status": "OPEN",
   "priority": 100,
   "tags": [],
-  "title": "Support more statuses along with `OPEN` and `CLOSED`"
+  "title": "Can we make the executable fully static and ship it in the GitHub releases?"
  },
  {
-  "id": "20260912-125912",
+  "id": "20261015-212300",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [],
+  "title": "UOP_UNTAG should probably perform an ordered remove instead of an unordered one"
+ },
+ {
+  "id": "20261017-045007",
   "status": "OPEN",
   "priority": 100,
   "tags": [
    "scope"
   ],
-  "title": "Implement `tatr-close`"
+  "title": "`tatr help ls` should provide reference for TQL and TUL"
+ },
+ {
+  "id": "20260826-200847",
+  "status": "OPEN",
+  "priority": 100,
+  "tags": [
+   "spec"
+  ],
+  "title": "Support more statuses along with `OPEN` and `CLOSED`"
  },
  {
   "id": "20260829-063210",
   "status": "OPEN",
   "priority": 100,
   "tags": [],
-  "title": "Get rid of Md struct and replace it with String_View"
+  "title": "Get rid of `Md` struct and replace it with `String_View`"
  },
  {
   "id": "20260825-170729",
   "status": "OPEN",
   "priority": 100,
-  "tags": [],
+  "tags": [
+   "scope"
+  ],
   "title": "Windows support"
  },
  {
-  "id": "20260913-063421",
+  "id": "20260910-171120",
   "status": "OPEN",
-  "priority": 90,
+  "priority": 100,
   "tags": [
-   "scope",
    "bug"
   ],
-  "title": "`append_task_md_content()` doesn't take into account `Task.body`"
+  "title": "tatr-new -s flag does not validate the suffix"
  },
  {
   "id": "20260304-115038",
@@ -194,59 +159,44 @@
   "title": "All comparison operators could work with booleans too"
  },
  {
-  "id": "20260913-140450",
-  "status": "OPEN",
-  "priority": 80,
-  "tags": [
-   "scope"
-  ],
-  "title": "Introduce `tatr-id` command"
- },
- {
   "id": "20260914-105224",
   "status": "OPEN",
   "priority": 80,
-  "tags": [
-   "scope"
-  ],
+  "tags": [],
   "title": "JSON reports"
  },
  {
-  "id": "20260316-142209",
+  "id": "20260919-135303",
   "status": "OPEN",
-  "priority": 50,
+  "priority": 80,
   "tags": [],
-  "title": "Subtasks"
+  "title": "Record/replay testing"
  },
  {
   "id": "20260305-120316",
   "status": "OPEN",
   "priority": 50,
-  "tags": [],
+  "tags": [
+   "spec",
+   "scope"
+  ],
   "title": "An ability to actually store `tasks` folder outside of the main repo"
  },
  {
-  "id": "20260826-200648",
+  "id": "20260316-142209",
   "status": "OPEN",
-  "priority": 30,
-  "tags": [],
-  "title": "TUI?"
- },
- {
-  "id": "20260316-214021",
-  "status": "OPEN",
-  "priority": 30,
-  "tags": [],
-  "title": "Web interface?"
- },
- {
-  "id": "20260315-160917",
-  "status": "OPEN",
-  "priority": 10,
+  "priority": 50,
   "tags": [
-   "bug"
+   "spec"
   ],
-  "title": "When you have several TASK.md opened, it's unclear which issues they belong to"
+  "title": "Subtasks"
+ },
+ {
+  "id": "20260830-041724",
+  "status": "OPEN",
+  "priority": 50,
+  "tags": [],
+  "title": "Mass rename a tag"
  },
  {
   "id": "20260308-171346",
@@ -254,6 +204,43 @@
   "priority": 10,
   "tags": [],
   "title": "There should be a command that reports all the skipped weird folders and files found in the tasks/ folder"
+ },
+ {
+  "id": "20260315-160917",
+  "status": "OPEN",
+  "priority": 10,
+  "tags": [
+   "bug",
+   "spec"
+  ],
+  "title": "When you have several TASK.md opened, it's unclear which issues they belong to"
+ },
+ {
+  "id": "20260921-115400",
+  "status": "CLOSED",
+  "priority": 200,
+  "tags": [
+   "bug"
+  ],
+  "title": "Crash during `tatr-new`"
+ },
+ {
+  "id": "20260304-182334",
+  "status": "CLOSED",
+  "priority": 200,
+  "tags": [
+   "bug"
+  ],
+  "title": "Accidental double `tatr new` in Emacs"
+ },
+ {
+  "id": "20261016-074116",
+  "status": "CLOSED",
+  "priority": 200,
+  "tags": [
+   "bug"
+  ],
+  "title": "Hit assertion on sowon2"
  },
  {
   "id": "20260321-181305",
@@ -275,6 +262,15 @@
   "title": "Mass updating tasks by a query (`tatr-untag`)"
  },
  {
+  "id": "20260912-124403",
+  "status": "CLOSED",
+  "priority": 110,
+  "tags": [
+   "tql"
+  ],
+  "title": "TQL expression that matches a task with a specific ID"
+ },
+ {
   "id": "20260912-102943",
   "status": "CLOSED",
   "priority": 110,
@@ -285,13 +281,27 @@
   "title": "Test task with custom properties for 20260828-211200"
  },
  {
-  "id": "20260912-124403",
+  "id": "20260913-063421",
   "status": "CLOSED",
   "priority": 110,
   "tags": [
-   "tql"
+   "bug"
   ],
-  "title": "TQL expression that matches a task with a specific ID"
+  "title": "`append_task_md_content()` doesn't take into account `Task.body`"
+ },
+ {
+  "id": "20261015-223830",
+  "status": "CLOSED",
+  "priority": 110,
+  "tags": [],
+  "title": "Deprecate `tatr-tag` and `tatr-untag` commands"
+ },
+ {
+  "id": "20260912-085629",
+  "status": "CLOSED",
+  "priority": 105,
+  "tags": [],
+  "title": "`tatr-untag` must report each modification with a compiler style report pointing at the line where the `TAGS` property is located"
  },
  {
   "id": "20260311-201635",
@@ -317,13 +327,18 @@
   "title": "A command to search referers of a task"
  },
  {
-  "id": "20260826-204052",
+  "id": "20260912-125818",
   "status": "CLOSED",
   "priority": 100,
-  "tags": [
-   "release"
-  ],
-  "title": "Extended HUID"
+  "tags": [],
+  "title": "Implement `tatr-tag`"
+ },
+ {
+  "id": "20260901-051445",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "If git state is dirty the baked git hash should indicate that"
  },
  {
   "id": "20260312-174535",
@@ -351,6 +366,13 @@
   "title": "Test on several compilers like ht.h"
  },
  {
+  "id": "20261011-182715",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "The update language"
+ },
+ {
   "id": "20260826-142921",
   "status": "CLOSED",
   "priority": 100,
@@ -360,21 +382,11 @@
   "title": "Add things like `priority > 10` to tatr query language"
  },
  {
-  "id": "20260830-000838-rexim",
+  "id": "20260910-113917",
   "status": "CLOSED",
   "priority": 100,
   "tags": [],
-  "title": "Test task with Extended ID"
- },
- {
-  "id": "20260829-200218",
-  "status": "CLOSED",
-  "priority": 100,
-  "tags": [
-   "release",
-   "tql"
-  ],
-  "title": "The comparison operators in Query Language are lame"
+  "title": "Not sure why we use nob_log for reporting useful info to the user"
  },
  {
   "id": "20260826-152351",
@@ -398,6 +410,13 @@
   "priority": 100,
   "tags": [],
   "title": "Sort tasks by id"
+ },
+ {
+  "id": "20261010-012138",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "make the id suffix customizable in `tatr-todo` command."
  },
  {
   "id": "20260829-221717",
@@ -430,6 +449,13 @@
   "title": "Move the relative path tests into a separate unit"
  },
  {
+  "id": "20261015-203224",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "all the op names related to the query language should change their names from `op` to `qop` similarly to update ops being `uop`"
+ },
+ {
   "id": "20260311-185002",
   "status": "CLOSED",
   "priority": 100,
@@ -446,6 +472,15 @@
    "release"
   ],
   "title": "use String_View for Task.title and Task.status that refer to the TASK.md content"
+ },
+ {
+  "id": "20260826-204052",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [
+   "release"
+  ],
+  "title": "Extended HUID"
  },
  {
   "id": "20260825-133942",
@@ -492,6 +527,13 @@
   "title": "Add -help to every tatr subcommand"
  },
  {
+  "id": "20261010-205005",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "`tatr-todo` should show more context on each prompt"
+ },
+ {
   "id": "20260829-224812",
   "status": "CLOSED",
   "priority": 100,
@@ -499,6 +541,13 @@
    "tql"
   ],
   "title": "Implement traditional comparison operators for the Query Language"
+ },
+ {
+  "id": "20261010-012147",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "`tatr-todo` prompt should accept more options"
  },
  {
   "id": "20260823-172022",
@@ -509,6 +558,22 @@
    "release"
   ],
   "title": "Lot's of 'undefined behavior' reports fro UBsan lately"
+ },
+ {
+  "id": "20261010-193140",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [
+   "bug"
+  ],
+  "title": "When you ^C `tatr-todo` the modified file maybe lost"
+ },
+ {
+  "id": "20260913-140450",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [],
+  "title": "Introduce `tatr-id` command"
  },
  {
   "id": "20260304-005955",
@@ -525,6 +590,15 @@
    "bug"
   ],
   "title": "Ascending order with `tatr ls -a` does not actually reverse the result"
+ },
+ {
+  "id": "20260912-125912",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [
+   "wontfix"
+  ],
+  "title": "Implement `tatr-close`"
  },
  {
   "id": "20260830-065446",
@@ -556,18 +630,37 @@
   "title": "The way `tatr-ls` constructs queries is confusing"
  },
  {
-  "id": "20260310-023343",
+  "id": "20260830-000838-rexim",
   "status": "CLOSED",
-  "priority": 90,
+  "priority": 100,
   "tags": [],
-  "title": "Description for tags"
+  "title": "Test task with Extended ID"
  },
  {
-  "id": "20260308-165759",
+  "id": "20260829-200218",
+  "status": "CLOSED",
+  "priority": 100,
+  "tags": [
+   "release",
+   "tql"
+  ],
+  "title": "The comparison operators in Query Language are lame"
+ },
+ {
+  "id": "20260304-175116",
   "status": "CLOSED",
   "priority": 90,
   "tags": [],
-  "title": "Some sort of automatic test system"
+  "title": "An ability to list all the untagged tasks with `ls`"
+ },
+ {
+  "id": "20260910-181239",
+  "status": "CLOSED",
+  "priority": 90,
+  "tags": [
+   "wontfix"
+  ],
+  "title": "`tatr ls -debug` should be a separate command"
  },
  {
   "id": "20260304-174730",
@@ -575,6 +668,13 @@
   "priority": 90,
   "tags": [],
   "title": "An ability to exclude tags from `ls` output"
+ },
+ {
+  "id": "20260308-165759",
+  "status": "CLOSED",
+  "priority": 90,
+  "tags": [],
+  "title": "Some sort of automatic test system"
  },
  {
   "id": "20260304-175344",
@@ -586,21 +686,25 @@
   "title": "`tatr new` prints the full path to TASK.md instead of relative one like `tatr ls`"
  },
  {
-  "id": "20260304-175116",
+  "id": "20260310-023343",
   "status": "CLOSED",
   "priority": 90,
   "tags": [],
-  "title": "An ability to list all the untagged tasks with `ls`"
+  "title": "Description for tags"
  },
  {
-  "id": "20260304-182334",
+  "id": "20260918-192707",
+  "status": "CLOSED",
+  "priority": 80,
+  "tags": [],
+  "title": "Task sorting by priority is doing a very stupid thing."
+ },
+ {
+  "id": "20260919-171620",
   "status": "CLOSED",
   "priority": 70,
-  "tags": [
-   "bug",
-   "wontfix"
-  ],
-  "title": "Accidental double `tatr new` in Emacs"
+  "tags": [],
+  "title": "Some sort of way to create Tasks from TODOs"
  },
  {
   "id": "20260305-120049",
@@ -628,13 +732,13 @@
   "title": "find the tasks/ folder similar to how tasks.el does it"
  },
  {
-  "id": "20260308-163429",
+  "id": "20260316-214021",
   "status": "CLOSED",
   "priority": 30,
   "tags": [
    "wontfix"
   ],
-  "title": "Tasks array should be a hash table"
+  "title": "Web interface?"
  },
  {
   "id": "20260305-120131",
@@ -644,6 +748,24 @@
    "release"
   ],
   "title": "`tatr version` command that prints current version, date of build and git commit hash"
+ },
+ {
+  "id": "20260826-200648",
+  "status": "CLOSED",
+  "priority": 30,
+  "tags": [
+   "wontfix"
+  ],
+  "title": "TUI?"
+ },
+ {
+  "id": "20260308-163429",
+  "status": "CLOSED",
+  "priority": 30,
+  "tags": [
+   "wontfix"
+  ],
+  "title": "Tasks array should be a hash table"
  },
  {
   "id": "20260417-070156",

@@ -1,6 +1,6 @@
 /**
- * Rewrites a `TASK.md` the way `tatr untag` does, the one command of the CLI
- * that rewrites a task: it loads the file as `load_tasks` does, changes its
+ * Rewrites a `TASK.md` the way `tatr ls -update` does, the one command of the
+ * CLI that rewrites a task: it loads the file as `load_tasks` does, changes its
  * properties, and renders it whole with `render_task_md`.
  *
  * Rendering normalises every property to `- KEY: value` in its original order,
@@ -126,8 +126,9 @@ export function tagged(tags: readonly string[], tag: string): string[] {
 }
 
 /**
- * The tags without any `tag`, removed as `tatr untag` removes them: the last
- * tag moves into each place freed, so the file is the one the CLI would write.
+ * The tags without any `tag`, removed as `tatr ls -update -<tag>` removes them:
+ * the last tag moves into each place freed, so the file is the one the CLI would
+ * write.
  */
 export function untagged(tags: readonly string[], tag: string): string[] {
 	const left = [...tags];

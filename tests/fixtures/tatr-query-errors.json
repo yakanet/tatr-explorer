@@ -7,12 +7,14 @@
  {
   "query": "priority and",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority and\n            ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority and\n            ^\nERROR: Primary expression is expected here.",
+  "kept": "tatr leaves the token unset at the end of the query since ae8b5cf, so it computes the caret from a null pointer and dies of SIGBUS"
  },
  {
   "query": "priority lt",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority lt\n           ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\npriority lt\n           ^\nERROR: Primary expression is expected here.",
+  "kept": "tatr leaves the token unset at the end of the query since ae8b5cf, so it computes the caret from a null pointer and dies of SIGBUS"
  },
  {
   "query": "nope",
@@ -27,12 +29,14 @@
  {
   "query": "[",
   "exit": 1,
-  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n[\n ^\nERROR: Primary expression is expected here."
+  "stderr": "What are primary expressions:\n\n    :<tag>         - checks if task has a tag\n    [ <expr> ]     - same as previous but for Bash users\n    not <primary>  - negation of a primary expression\n    any            - expression that always returns true\n    tagged         - checks if a task is tagged\n    priority       - priority of a task as an integer\n    <number>       - signed integer\n    <huid>         - valid id of a task\n\n[\n ^\nERROR: Primary expression is expected here.",
+  "kept": "tatr leaves the token unset at the end of the query since ae8b5cf, so it computes the caret from a null pointer and dies of SIGBUS"
  },
  {
   "query": "[:bug",
   "exit": 1,
-  "stderr": "[:bug\n     ^\nERROR: Expected `]`."
+  "stderr": "[:bug\n     ^\nERROR: Expected `]`.",
+  "kept": "tatr leaves the token unset at the end of the query since ae8b5cf, so it computes the caret from a null pointer and puts it under the `[`"
  },
  {
   "query": ":bug not :ui",

@@ -20,7 +20,7 @@ interface CliCase {
 
 describe('conformance with the tatr CLI', () => {
 	it('exercises a real repository', () => {
-		expect(tasks).toHaveLength(79);
+		expect(tasks.length).toBeGreaterThan(20);
 		expect(cliCases.length).toBeGreaterThan(20);
 	});
 

@@ -19,7 +19,7 @@ const open = all.filter((task) => !task.closed);
 
 describe('counts', () => {
 	it('matches the real repository', () => {
-		expect(counts(all)).toEqual({ total: 79, open: 33, closed: 46, untagged: 34 });
+		expect(counts(all)).toEqual({ total: 94, open: 27, closed: 67, untagged: 41 });
 	});
 
 	it('is all zeroes for nothing', () => {
@@ -30,20 +30,16 @@ describe('counts', () => {
 describe('byPriority', () => {
 	it('matches the real open tasks, highest first', () => {
 		expect(byPriority(open)).toEqual([
-			{ priority: 110, count: 1 },
-			{ priority: 105, count: 1 },
-			{ priority: 101, count: 1 },
-			{ priority: 100, count: 19 },
-			{ priority: 90, count: 3 },
+			{ priority: 100, count: 18 },
+			{ priority: 90, count: 2 },
 			{ priority: 80, count: 2 },
-			{ priority: 50, count: 2 },
-			{ priority: 30, count: 2 },
+			{ priority: 50, count: 3 },
 			{ priority: 10, count: 2 }
 		]);
 	});
 
 	it('sums to the number of tasks', () => {
-		expect(byPriority(all).reduce((n, b) => n + b.count, 0)).toBe(79);
+		expect(byPriority(all).reduce((n, b) => n + b.count, 0)).toBe(all.length);
 	});
 
 	it('shows whatever priorities a repository actually uses', () => {
@@ -58,11 +54,12 @@ describe('byTag', () => {
 	it('matches the real repository, most used first', () => {
 		expect(byTag(all)).toEqual([
 			{ tag: 'release', count: 21 },
-			{ tag: 'bug', count: 12 },
+			{ tag: 'bug', count: 15 },
 			{ tag: 'tql', count: 9 },
-			{ tag: 'scope', count: 7 },
+			{ tag: 'wontfix', count: 6 },
+			{ tag: 'scope', count: 5 },
+			{ tag: 'spec', count: 5 },
 			{ tag: 'stream', count: 3 },
-			{ tag: 'wontfix', count: 3 },
 			{ tag: 'bar', count: 1 },
 			{ tag: 'emacs', count: 1 },
 			{ tag: 'foo', count: 1 }
@@ -84,18 +81,19 @@ describe('byTag', () => {
 
 describe('byMonth', () => {
 	it('matches the real repository, including its bursts', () => {
-		// Only five months have tasks.
+		// Only six months have tasks.
 		expect(byMonth(all)).toEqual([
 			{ month: '2025-12', open: 0, closed: 2 },
 			{ month: '2026-01', open: 0, closed: 0 },
 			{ month: '2026-02', open: 0, closed: 0 },
-			{ month: '2026-03', open: 7, closed: 17 },
+			{ month: '2026-03', open: 6, closed: 18 },
 			{ month: '2026-04', open: 0, closed: 2 },
 			{ month: '2026-05', open: 0, closed: 0 },
 			{ month: '2026-06', open: 0, closed: 0 },
 			{ month: '2026-07', open: 0, closed: 0 },
-			{ month: '2026-08', open: 9, closed: 20 },
-			{ month: '2026-09', open: 17, closed: 5 }
+			{ month: '2026-08', open: 8, closed: 21 },
+			{ month: '2026-09', open: 10, closed: 16 },
+			{ month: '2026-10', open: 3, closed: 8 }
 		]);
 	});
 
@@ -121,7 +119,7 @@ describe('byMonth', () => {
 
 	it('sums to the number of tasks', () => {
 		const months = byMonth(all);
-		expect(months.reduce((n, m) => n + m.open + m.closed, 0)).toBe(79);
+		expect(months.reduce((n, m) => n + m.open + m.closed, 0)).toBe(all.length);
 	});
 });
 
@@ -133,36 +131,40 @@ describe('monthName', () => {
 
 describe('topByPriority', () => {
 	it('takes the most urgent first', () => {
-		expect(topByPriority(open, 2).map((task) => task.priority)).toEqual([110, 105]);
+		const tasks = [
+			makeTask('20260101-000001', 10),
+			makeTask('20260101-000002', 110),
+			makeTask('20260101-000003', 50)
+		];
+		expect(topByPriority(tasks, 2).map((task) => task.priority)).toEqual([110, 50]);
 	});
 
 	it('breaks ties by id, so the order is stable', () => {
-		// The first three priorities are unique; the fourth and fifth are the
-		// lowest ids of the nineteen open tasks tied at 100.
+		// The five are the lowest ids of the eighteen open tasks tied at 100.
 		expect(topByPriority(open, 5).map((task) => task.id)).toEqual([
-			'20260830-041724',
-			'20260912-085629',
-			'20260910-181239',
 			'20260315-160715',
-			'20260825-162925'
+			'20260825-162925',
+			'20260825-170729',
+			'20260826-200345',
+			'20260826-200847'
 		]);
 	});
 
 	it('returns everything when the limit exceeds the set', () => {
-		expect(topByPriority(open, 500)).toHaveLength(33);
+		expect(topByPriority(open, 500)).toHaveLength(27);
 	});
 });
 
 describe('summarise', () => {
 	it('states the real repository in a sentence', () => {
 		const summary = summarise(all, new Date('2026-10-09T00:00:00Z'));
-		expect(summary.lead).toBe('33 tasks still open');
-		expect(summary.detail).toBe('46 of the 79 are already closed');
+		expect(summary.lead).toBe('27 tasks still open');
+		expect(summary.detail).toBe('67 of the 94 are already closed');
 	});
 
 	it('counts the quiet months correctly', () => {
 		const months = byMonth(all);
-		expect(months).toHaveLength(10);
+		expect(months).toHaveLength(11);
 		expect(months.filter((m) => m.open + m.closed === 0)).toHaveLength(5);
 	});
 

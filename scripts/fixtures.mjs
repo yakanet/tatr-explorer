@@ -6,20 +6,24 @@
  * `../tatr` (or `TATR_CHECKOUT`), built beforehand with `cc -o nob nob.c &&
  * ./nob`. That is why this is a manual step and not part of the suite or CI.
  *
- * Two repositories are recorded. tatr's own, whose 79 tasks are written by the
+ * Two repositories are recorded. tatr's own, whose tasks are written by the
  * format's author and carry the accidents no one would think to invent. And
  * `corpus-raw.json`, a handful of tasks of ours that each hold an edge case the
  * first one lacks; it is laid out in a temporary folder for the run, so that no
  * `tasks/` folder sits in this repository for the CLI or a reader to mistake
  * for a backlog.
  *
- * Both are rewritten by `tatr untag` too, which pins the file this viewer writes
- * when it edits a task. And `tatr new` runs in an empty repository, which pins
- * the file it writes when it creates one.
+ * Both are rewritten by `tatr ls -update -<tag>` too, which pins the file this
+ * viewer writes when it edits a task. And `tatr new` runs in an empty
+ * repository, which pins the file it writes when it creates one.
  *
  * Every recording keeps its own questions: the queries are read back from the
  * file before it is written again. To add a case, add an entry with an empty
  * answer and run this; the binary fills it in.
+ *
+ * A diagnostic the CLI gets wrong carries `kept`, the reason, and keeps its last
+ * right answer: this viewer follows the C source, not a crash of it. A crash
+ * not yet marked stops the run rather than being recorded as an answer.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -93,9 +97,9 @@ function compareById(a, b) {
 }
 
 /**
- * What `tatr untag` writes: for each tag of each task in `rows`, the file once
- * that tag alone is removed. `cwd` must be a copy: each file is put back before
- * the next run, so that every run removes one tag.
+ * What `tatr ls -update -<tag>` writes: for each tag of each task in `rows`, the
+ * file once that tag alone is removed. `cwd` must be a copy: each file is put
+ * back before the next run, so that every run removes one tag.
  */
 function untagged(cwd, rows) {
 	const cases = [];
@@ -103,11 +107,12 @@ function untagged(cwd, rows) {
 		const path = join(cwd, 'tasks', id, 'TASK.md');
 		const before = readFileSync(path, 'utf8');
 		for (const tag of new Set(tags)) {
-			const args = ['untag', '-t', tag];
-			// `untag` rewrites the open tasks the query selects, or the closed ones with `-c`.
+			const args = ['ls'];
+			// `ls` rewrites the open tasks the query selects, or the closed ones with `-c`.
 			if (status === 'CLOSED') args.push('-c');
-			const result = run(cwd, [...args, id]);
-			if (result.status !== 0) throw new Error(`tatr untag -t ${tag} ${id}: ${result.stderr}`);
+			args.push('-update', `-${tag}`, id);
+			const result = run(cwd, args);
+			if (result.status !== 0) throw new Error(`tatr ${args.join(' ')}: ${result.stderr}`);
 			cases.push({ id, tag, text: readFileSync(path, 'utf8') });
 			writeFileSync(path, before);
 		}
@@ -190,13 +195,18 @@ function cliCases(cwd, cases, encode) {
 	write('tatr-graph-edges.json', JSON.stringify(edges(checkout), null, 1) + '\n');
 	write('tql-cli-cases.json', cliCases(checkout, read('tql-cli-cases.json'), ascii));
 
-	const errors = read('tatr-query-errors.json').map(({ query }) => {
-		const result = run(checkout, ['ls', query]);
-		return { query, exit: result.status, stderr: result.stderr.replace(/\n+$/, '') };
+	const errors = read('tatr-query-errors.json').map((recorded) => {
+		if (recorded.kept) return recorded;
+		const result = run(checkout, ['ls', recorded.query]);
+		if (result.status === null) {
+			throw new Error(`tatr ls ${recorded.query}: died of ${result.signal}`);
+		}
+		const stderr = result.stderr.replace(/\n+$/, '');
+		return { query: recorded.query, exit: result.status, stderr };
 	});
 	write('tatr-query-errors.json', JSON.stringify(errors, null, 1) + '\n');
 
-	// `untag` writes into the folder it runs in, so it runs over a copy.
+	// `ls -update` writes into the folder it runs in, so it runs over a copy.
 	const copy = mkdtempSync(join(tmpdir(), 'tatr-untag-'));
 	try {
 		cpSync(join(checkout, 'tasks'), join(copy, 'tasks'), { recursive: true });

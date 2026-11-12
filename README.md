@@ -72,7 +72,7 @@ your shell history gives the same answer here.
 > both.
 
 Queries, the file format, the reference graph and every file this site writes
-are tested against the real `tatr`, over the 79 tasks of `tsoding/tatr` and a
+are tested against the real `tatr`, over the tasks of `tsoding/tatr` and a
 corpus of edge cases:
 
 ```shell

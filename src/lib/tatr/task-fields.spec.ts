@@ -94,7 +94,7 @@ describe('saving the fields changed on a sheet', () => {
 describe('the file of a new task', () => {
 	// What `tatr new` writes for a title, a priority and tags is pinned against
 	// the binary in `task-file.conformance.spec.ts`.
-	it('puts a description in place of `No description.`, ended by a line feed', () => {
+	it('puts a description after a blank line, ended by a line feed', () => {
 		const text = newTaskMd({ ...NEW_TASK, title: 'T', description: 'Why.\n\n- not a property' });
 		expect(text).toBe(
 			'# T\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nWhy.\n\n- not a property\n'

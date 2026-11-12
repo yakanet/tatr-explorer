@@ -8,9 +8,9 @@ import { editTaskMd, loadTaskFile, renderTaskMd, withoutTag } from './task-file.
 import { NEW_TASK, newTaskMd } from './task-fields.ts';
 
 /**
- * Compares the rewriting of a task file with `tatr untag`, over tsoding/tatr and
- * over our corpus of edge cases. `scripts/fixtures.mjs` records the file the CLI
- * wrote once each tag of each task was removed, alone.
+ * Compares the rewriting of a task file with `tatr ls -update -<tag>`, over
+ * tsoding/tatr and over our corpus of edge cases. `scripts/fixtures.mjs` records
+ * the file the CLI wrote once each tag of each task was removed, alone.
  */
 interface UntagCase {
 	id: string;
@@ -23,7 +23,7 @@ const REPOSITORIES = [
 	{ name: 'our corpus', raw: corpusRaw, cases: corpusUntag }
 ] as { name: string; raw: Record<string, string>; cases: UntagCase[] }[];
 
-describe.each(REPOSITORIES)('rewriting as `tatr untag` does, over $name', ({ raw, cases }) => {
+describe.each(REPOSITORIES)('rewriting as `tatr ls -update` does, over $name', ({ raw, cases }) => {
 	it.each(cases)('writes $id without :$tag as the CLI does', ({ id, tag, text }) => {
 		expect(editTaskMd(raw[id], withoutTag(tag))).toBe(text);
 	});

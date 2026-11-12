@@ -12,12 +12,7 @@
  {
   "id": "20260304-182334",
   "tag": "bug",
-  "text": "# Accidental double `tatr new` in Emacs\n\n- STATUS: CLOSED\n- PRIORITY: 70\n- TAGS: wontfix\n\nThere is a weird UX problem I keep experiencing in Emacs' compilation\nmode with `tatr new`. I have a habit of switching to `*compilation*`\nbuffer and hitting `g` to rerun the last commands. Sometimes such\ncommands is `tatr new` which leads to creating the same task\ntwice. I'm not sure what to do about it as I feel like I'm probably\nthe only one who will experience this problem even after the tool goes\npublic.\n\nIt probably has a similar problem in Bash if you have a habit of\nhitting up and enter.\n\n---\n\nWith VCS it's not that big of a deal actually.\n"
- },
- {
-  "id": "20260304-182334",
-  "tag": "wontfix",
-  "text": "# Accidental double `tatr new` in Emacs\n\n- STATUS: CLOSED\n- PRIORITY: 70\n- TAGS: bug\n\nThere is a weird UX problem I keep experiencing in Emacs' compilation\nmode with `tatr new`. I have a habit of switching to `*compilation*`\nbuffer and hitting `g` to rerun the last commands. Sometimes such\ncommands is `tatr new` which leads to creating the same task\ntwice. I'm not sure what to do about it as I feel like I'm probably\nthe only one who will experience this problem even after the tool goes\npublic.\n\nIt probably has a similar problem in Bash if you have a habit of\nhitting up and enter.\n\n---\n\nWith VCS it's not that big of a deal actually.\n"
+  "text": "# Accidental double `tatr new` in Emacs\n\n- STATUS: CLOSED\n- PRIORITY: 200\n- TAGS:\n\nThere is a weird UX problem I keep experiencing in Emacs' compilation\nmode with `tatr new`. I have a habit of switching to `*compilation*`\nbuffer and hitting `g` to rerun the last commands. Sometimes such\ncommands is `tatr new` which leads to creating the same task\ntwice. I'm not sure what to do about it as I feel like I'm probably\nthe only one who will experience this problem even after the tool goes\npublic.\n\nIt probably has a similar problem in Bash if you have a habit of\nhitting up and enter.\n\n---\n\nWith VCS it's not that big of a deal actually.\n\n---\n\nIt is annoying though! What I'm thinking could be a passable solution\nis to just add friction when you create a task with the title that\nalready exists (literal byte level equality). Something like a yorn\nprompt \"are you sure?\" would suffice.\n"
  },
  {
   "id": "20260305-120049",
@@ -28,6 +23,16 @@
   "id": "20260305-120131",
   "tag": "release",
   "text": "# `tatr version` command that prints current version, date of build and git commit hash\n\n- STATUS: CLOSED\n- PRIORITY: 30\n- TAGS:\n\nI'm having second thoughts regarding this command. I feel like it adds\ncomplexity without much benefit. Right now the whole build is just one\ncommand (even though it's through nob.c). It's kinda nice to keep it\nthis way. I'm gonna lower the priority of this task and see if\nanything changes later.\n\n---\n\nWtf are you even talking about me from the past?! I just implemented!\n"
+ },
+ {
+  "id": "20260305-120316",
+  "tag": "spec",
+  "text": "# An ability to actually store `tasks` folder outside of the main repo\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: scope\n\nFor security purposes.\n\n---\n\nThe way our system works (HUIDs being relatively unique identifiers)\nmeans we can actually accumulate info tasks from several folders at\nonce. Which might enable interesting usecases.\n\n---\n\nSometimes I want to augment the tasks/ from one project with the\ntasks/ of another, because I copy-pasted significant chunks of code\nbetween them and they share relevant issues.\n\nBut the exact locations of the tasks/ folders are very much user\nspecific. So we can't easily commit this information to the git\nrepos. So this should be something stored in the user config which we\nwill introduce in TASK(20260901-051338)\n"
+ },
+ {
+  "id": "20260305-120316",
+  "tag": "scope",
+  "text": "# An ability to actually store `tasks` folder outside of the main repo\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS: spec\n\nFor security purposes.\n\n---\n\nThe way our system works (HUIDs being relatively unique identifiers)\nmeans we can actually accumulate info tasks from several folders at\nonce. Which might enable interesting usecases.\n\n---\n\nSometimes I want to augment the tasks/ from one project with the\ntasks/ of another, because I copy-pasted significant chunks of code\nbetween them and they share relevant issues.\n\nBut the exact locations of the tasks/ folders are very much user\nspecific. So we can't easily commit this information to the git\nrepos. So this should be something stored in the user config which we\nwill introduce in TASK(20260901-051338)\n"
  },
  {
   "id": "20260308-163429",
@@ -52,7 +57,22 @@
  {
   "id": "20260315-160917",
   "tag": "bug",
-  "text": "# When you have several TASK.md opened, it's unclear which issues they belong to\n\n- STATUS: OPEN\n- PRIORITY: 10\n- TAGS:\n\nThis is more of a bug of the spec of the task database. All the info\nabout the issue is store in a file named \"TASK.md\". In a text editor\n\"TASK.md\" is what's gonna be displayed in the title of a tab or a\nwindow when the file is opened. Which gives zero info about what that\nissues is about when you have several of them opened.\n\nOne solution I see is to extend the name of \"TASK.md\" with an optional\nsuffix \"TASK[-few-word-from-the-title].md\". But that opens up another\nproblem which is now a single Task may have several TASK.md-s.\n\n---\n\nAnother solution is to extend the folder name\n`<HUID>[-few-words-from-the-title]`. But that correspondingly means\nyou can have several tasks with the same HUID. But solution to that\ncould be to make the \"few words\" suffix part of the Task ID. Which\nmakes the Task IDs rather huge on the other hand.\n\nBesides it's unclear how do you automatically form such IDs. It must\nbe up to the tool to do that. We getting into the territory of\nlanguage models which is a huge complexity for the problem I'm trying\nto solve.\n\n---\n\nThe `<HUID>[-few-words-from-the-title]` idea is implemented with\nExtended HUID. See TASK(20260826-204052). But it's intended as a\nmechanism for resolving collisions when working in a team. So I'm not\nsure how much it is applicable here.\n"
+  "text": "# When you have several TASK.md opened, it's unclear which issues they belong to\n\n- STATUS: OPEN\n- PRIORITY: 10\n- TAGS: spec\n\nThis is more of a bug of the spec of the task database. All the info\nabout the issue is store in a file named \"TASK.md\". In a text editor\n\"TASK.md\" is what's gonna be displayed in the title of a tab or a\nwindow when the file is opened. Which gives zero info about what that\nissues is about when you have several of them opened.\n\nOne solution I see is to extend the name of \"TASK.md\" with an optional\nsuffix \"TASK[-few-word-from-the-title].md\". But that opens up another\nproblem which is now a single Task may have several TASK.md-s.\n\n---\n\nAnother solution is to extend the folder name\n`<HUID>[-few-words-from-the-title]`. But that correspondingly means\nyou can have several tasks with the same HUID. But solution to that\ncould be to make the \"few words\" suffix part of the Task ID. Which\nmakes the Task IDs rather huge on the other hand.\n\nBesides it's unclear how do you automatically form such IDs. It must\nbe up to the tool to do that. We getting into the territory of\nlanguage models which is a huge complexity for the problem I'm trying\nto solve.\n\n---\n\nThe `<HUID>[-few-words-from-the-title]` idea is implemented with\nExtended HUID. See TASK(20260826-204052). But it's intended as a\nmechanism for resolving collisions when working in a team. So I'm not\nsure how much it is applicable here.\n"
+ },
+ {
+  "id": "20260315-160917",
+  "tag": "spec",
+  "text": "# When you have several TASK.md opened, it's unclear which issues they belong to\n\n- STATUS: OPEN\n- PRIORITY: 10\n- TAGS: bug\n\nThis is more of a bug of the spec of the task database. All the info\nabout the issue is store in a file named \"TASK.md\". In a text editor\n\"TASK.md\" is what's gonna be displayed in the title of a tab or a\nwindow when the file is opened. Which gives zero info about what that\nissues is about when you have several of them opened.\n\nOne solution I see is to extend the name of \"TASK.md\" with an optional\nsuffix \"TASK[-few-word-from-the-title].md\". But that opens up another\nproblem which is now a single Task may have several TASK.md-s.\n\n---\n\nAnother solution is to extend the folder name\n`<HUID>[-few-words-from-the-title]`. But that correspondingly means\nyou can have several tasks with the same HUID. But solution to that\ncould be to make the \"few words\" suffix part of the Task ID. Which\nmakes the Task IDs rather huge on the other hand.\n\nBesides it's unclear how do you automatically form such IDs. It must\nbe up to the tool to do that. We getting into the territory of\nlanguage models which is a huge complexity for the problem I'm trying\nto solve.\n\n---\n\nThe `<HUID>[-few-words-from-the-title]` idea is implemented with\nExtended HUID. See TASK(20260826-204052). But it's intended as a\nmechanism for resolving collisions when working in a team. So I'm not\nsure how much it is applicable here.\n"
+ },
+ {
+  "id": "20260316-142209",
+  "tag": "spec",
+  "text": "# Subtasks\n\n- STATUS: OPEN\n- PRIORITY: 50\n- TAGS:\n\nIf you create a `tasks/` folder inside of `tasks/<HUID>` you naturally\nget subtasks. We need to explore this emergent behavior of the\nspec.\n"
+ },
+ {
+  "id": "20260316-214021",
+  "tag": "wontfix",
+  "text": "# Web interface?\n\n- STATUS: CLOSED\n- PRIORITY: 30\n- TAGS:\n\nSimilar to how I do that in tore.\n\n```console\n$ tatr serve\nListening to http://localhost:6969\n```\n\nOpen up `http://localhost:6969` in a browser and it's just dynamically\nrendering all the tasks as HTML pages and what not.\n\n---\n\nOutside of the scope of this project.\n"
  },
  {
   "id": "20260321-181305",
@@ -100,6 +120,11 @@
   "text": "# Test on several compilers like ht.h\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nA tried to add chibicc support along with gcc, clang, and tcc, but it\ncrashes trying to compile our codebase which I guess disqualifies it\nfor now. I may add it later if I have time to debug it. What's\nimportant is that the general multi-compiler support is in place.\n"
  },
  {
+  "id": "20260825-170729",
+  "tag": "scope",
+  "text": "# Windows support\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nNo description.\n"
+ },
+ {
   "id": "20260825-195942",
   "tag": "release",
   "text": "# Move the relative path tests into a separate unit\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nDecided not to move anything to separate unit. But just cleaned it all up a little bit.\n"
@@ -118,6 +143,16 @@
   "id": "20260826-152351",
   "tag": "release",
   "text": "# Stress-test the markdown parser\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nI usually don't put anything unusual into TASK.md myself, but other\npeople might. So I need to test how it all works on random junk.\n\n---\n\nAs a result of working on this issue md parsing completely got rid of\nerror reporting. It is now similar to how we load songs in\nsowon2. Invalid task is just a task that is still incorporated in the\nresults, but has a screaming appearance.\n\nWe may even consider doing just this instead of introducing separate\ncommand for reporting weird task folders 20260308-171346.\n\n## Problems to fix in this issue\n\n### [FIXED] If `TAGS` is missing and the body starts with a list item, the parser thinks we provided an invalid property.\n\n```\n# title\n- STATUS: OPEN\n- PRIORITY: 69\n\n- foo\n- bar\n- baz\n```\n\nIt thinks `foo` is another property and fails. Not sure what to do about this.\n\n### [FIXED] Properties can be defined only in a specific order.\n\nHuge oversight. Should allow properties in any order and also\nduplicated properties. In case of duplicates take the value of the\nlast one.\n\nUnsupported properties should be probably just ignored.\n\n### [MOVED] Invalid status value just silently does nothing and hides the task\n\nI think this should be addressed by 20260826-200847\n"
+ },
+ {
+  "id": "20260826-200648",
+  "tag": "wontfix",
+  "text": "# TUI?\n\n- STATUS: CLOSED\n- PRIORITY: 30\n- TAGS:\n\nConflicts with 20260316-214021? TUI is certainly easier to implement. Maintaining both may require too much effort.\n\n---\n\nOutside of the scope of this project.\n"
+ },
+ {
+  "id": "20260826-200847",
+  "tag": "spec",
+  "text": "# Support more statuses along with `OPEN` and `CLOSED`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nCephon wanted to kanban this whole thing. I guess we could've just\ntreated any not \"CLOSED\" status as opened and let the user put\nwhatever they want here.\n\n---\n\nAs we discovered in 20260826-152351 this is also important in case the\nuser provided \"invalid\" status.\n\n---\n\nThe status string should be also somehow incorporated into the result\noutput.\n\n---\n\nHaving more than 2 status means that we may also wanna filter by\nthem. But at that point status becomes just another tag but\nspecial. Not sure what to do about it.\n\nMaybe if the people want to kanban this entire thing they should just\nuse tags for that?\n\n---\n\n`STATUS` is just yet another tag. What if we just consider a task closed\nif it has tag `CLOSED` and for backward compatibility, during the\nparsing just append the value of `STATUS` to the `TAGS` list?\n\n---\n\nOne advantage a separate `STATUS` property gives is that the task\ncan't be `OPEN` and `CLOSED` simultaneously.\n\n---\n\nHaving `STATUS` being another tag messes with `tatr-summary` command:\n\n![2026-08-29-163436_1106x308_scrot.png](./2026-08-29-163436_1106x308_scrot.png)\n\n---\n\nFor now I just implemented it so when the status is not \"CLOSED\" it's\nconsidered \"OPEN\". No filtering by specific status string is provided\nbecause status can be only either \"OPEN\" or \"CLOSED\". An invalid\nstatus string is treated as \"OPEN\" purely for convenience so the user\ndoesn't lose the invalid task from their sight.\n\nI'm unscheduling this task from the release. Will see what can be done\nin here later.\n"
  },
  {
   "id": "20260826-204052",
@@ -215,6 +250,11 @@
   "text": "# tasks/tags file should have the separator comma optional\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nFor the consistentcy with how we define the tags in the `TAGS`\nproperty after implementing TASK(20260830-163947).\n"
  },
  {
+  "id": "20260901-051338",
+  "tag": "scope",
+  "text": "# Make the grep command configurable for `tatr-ref`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nMaybe some sort of a config file in home folder. It must be per user, not per repo. You may need to use https://github.com/tsoding/shlex.h for this.\n\n---\n\nAlso put the suffix in there (the default value for the `-s` flag of `tatr-new`)\n"
+ },
+ {
   "id": "20260901-052356",
   "tag": "release",
   "text": "# Add -help to every tatr subcommand\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nThough, `tatr-help` and `tatr-version` probably don't need it right now.\n"
@@ -225,19 +265,19 @@
   "text": "# Ascending order with `tatr ls -a` does not actually reverse the result\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\n![2026-09-01-140226_937x249_scrot.png](2026-09-01-140226_937x249_scrot.png)\n\nScreenshot taken at commit 10701d45c843a1acd56a29f35ff8a90a7c500361.\n\n---\n\nMaybe we should just literally reverse the array of tasks after sorting them in descending order?\n"
  },
  {
+  "id": "20260906-040857",
+  "tag": "spec",
+  "text": "# Task archiving\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nAs the amount of tasks grows over time I expect a lot of closed\nirrelevant tasks accumulating in the `tasks/` folder slowing down\n`tatr-ls` and `tatr-summary` since they need to visit each folder and\nparse each `TASK.md` file. We should implement some sort of mechanism\n(maybe in a form of `tatr-archive` subcommand) that zips them all up\ninto a single file.\n\nSince we are using HUIDs which are based on the current UTC time it's\nrelatively straightforward to just archive old enough tasks based\nentirely on their HUIDs.\n\nThis obviously evicts all the archived tasks metadata out of `tatr-ls`\nand `tatr-summary` reports. We can solve that by placing all the\narchived metadata into a single text file upon calling\n`tatr-archive`. Parsing a single text file should be much faster than\na bunch of files scattered across several folders.\n\nWe haven't reached the point where this kind of stuff is necessary,\nbut in case we do I just wanna have some sort of plan for that. Hence\ncreating this task and putting all my thoughts about the problem in\nit.\n"
+ },
+ {
   "id": "20260910-171120",
   "tag": "bug",
   "text": "# tatr-new -s flag does not validate the suffix\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nNo description.\n"
  },
  {
   "id": "20260910-181239",
-  "tag": "scope",
-  "text": "# `tatr ls -debug` should be a separate command\n\n- TAGS:\n- PRIORITY: 101\n- STATUS: OPEN\n\nSince now we have two commands that accept TQL. So it only makes sense that query debugging is a separate command.\n"
- },
- {
-  "id": "20260912-085629",
-  "tag": "scope",
-  "text": "# `tatr-untag` must report each modification with a compiler style report pointing at the line where the `TAGS` property is located\n\n- STATUS: OPEN\n- PRIORITY: 105\n- TAGS:\n\nGrep for refs.\n\nIntroduced by TASK(20260828-211200).\n\nWe need to keep track of the property locations for that.\n\nSame should be applied to all the other mass update commands.\n"
+  "tag": "wontfix",
+  "text": "# `tatr ls -debug` should be a separate command\n\n- TAGS:\n- PRIORITY: 90\n- STATUS: CLOSED\n\nSince now we have several commands that accept TQL. So it only makes sense that query debugging is a separate command.\n\n---\n\nSince TASK(20261011-182715) update and query languages are all going through `tatr-ls` so the `-debug` flag makes sense again.\n"
  },
  {
   "id": "20260912-102943",
@@ -252,7 +292,12 @@
  {
   "id": "20260912-110420",
   "tag": "bug",
-  "text": "# Invalid tasks are filter out when `tatr-ls` is called with non-default query\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nThe idea was that incorrectly formatted tasks are included in the `tatr-ls` result but have high priority and screaming title so to force you to go and fix them. But currently such invalid tasks are easily filtered out by `OP_TAG` (since they don't have any tags). We need to make them unfliterable. Maybe introduce a special flag into `Task` structure like `Task.invalid` which makes it very special during filtering and rendering and stuff.\n"
+  "text": "# Invalid tasks are filtered out when `tatr-ls` is called with non-default query\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: scope\n\nThe idea was that incorrectly formatted tasks are included in the `tatr-ls` result but have high priority and screaming title so to force you to go and fix them. But currently such invalid tasks are easily filtered out by `OP_TAG` (since they don't have any tags). We need to make them unfliterable. Maybe introduce a special flag into `Task` structure like `Task.invalid` which makes it very special during filtering and rendering and stuff.\n"
+ },
+ {
+  "id": "20260912-110420",
+  "tag": "scope",
+  "text": "# Invalid tasks are filtered out when `tatr-ls` is called with non-default query\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS: bug\n\nThe idea was that incorrectly formatted tasks are included in the `tatr-ls` result but have high priority and screaming title so to force you to go and fix them. But currently such invalid tasks are easily filtered out by `OP_TAG` (since they don't have any tags). We need to make them unfliterable. Maybe introduce a special flag into `Task` structure like `Task.invalid` which makes it very special during filtering and rendering and stuff.\n"
  },
  {
   "id": "20260912-124403",
@@ -260,33 +305,33 @@
   "text": "# TQL expression that matches a task with a specific ID\n\n- STATUS: CLOSED\n- PRIORITY: 110\n- TAGS:\n\nExtracted from 20260828-211200\n\nIt feels like sometimes mass update operations (like `tatr-untag`, etc) should be able to work on a single task.\n\nLike I wanna be able to do:\n\n```console\n$ tatr close 20260912-102943\n```\n\nSo we need to think how to accomdate this use case.\n\n---\n\nI'm thinking about extending TQL with `OP_ID` which is compiled from a keyword that is a valid HUID. That is something like `20260912-102943` is a syntactically valid TQL query which matches one task with that exact ID.\n\n---\n\nI just realized that TQL expression like `20260912-125818 or 20260912-125912` will be absolutely valid and will match two tasks. In fact you will be able to match any amount of specific tasks this way. Awesome!\n\n---\n\nBecause of that `tatr ls 20260912-125818` and `tatr find 20260912-125818` become equivalent which turns `tatr-find` kind obsolete.\n\n---\n\nActually they are not equivalent. `tatr-find` will also give you closed tasks, while `tatr-ls` requires `-c` flag for that.\n"
  },
  {
-  "id": "20260912-125818",
-  "tag": "scope",
-  "text": "# Implement `tatr-tag`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nExtracted from 20260828-211200.\n\nAdding everything with priority 100 and higher to the scope:\n\n```console\n$ tatr tag -t scope priority gte 100\n```\n"
- },
- {
   "id": "20260912-125912",
-  "tag": "scope",
-  "text": "# Implement `tatr-close`\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n\nExtracted from 20260828-211200\n\nClosing all the bugs:\n\n```console\n$ tatr close :bug\n```\n"
- },
- {
-  "id": "20260913-063421",
-  "tag": "scope",
-  "text": "# `append_task_md_content()` doesn't take into account `Task.body`\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: bug\n\nFurthermore, looks like `append_task_md_content()` duplicates functionality of `render_task_md()`. We should probably just remove `append_task_md_content()` and use `render_task_md()` instead.\n\n---\n\nIn the whole `TASK.md` updating/rendering system there is an important invariant that is never really checked anywhere which is `TAGS`, `STATUS`, and `PRIORITY` must be always present in `Task.properties`. We shall resolve that in the scope of this task somehow (not really sure how yet).\n\n---\n\nI feel like I'm encountering the same property syncing problem as I had in TASK(20260828-211200). When I'm constructing the `Task` structure not from a `TASK.md` file I need to duplicate the `Task.tags`, `Task.status` and `Task.priority` in `Task.properties` which requires allocating separate memory on the heap (in case of `TASK.md` all that memory is stored within the buffer which we read the file into). And it's generally feels really fragile. I feel like we are just using a wrong data structure here.\n\nPlus `Task.task_md_content` just doesn't make any sense when you are constructuing the `Task` structure not from a `TASK.md` file. Another red flag.\n"
+  "tag": "wontfix",
+  "text": "# Implement `tatr-close`\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nExtracted from 20260828-211200\n\nClosing all the bugs:\n\n```console\n$ tatr close :bug\n```\n\n---\n\nMade irrelevant by TASK(20261011-182715)\n"
  },
  {
   "id": "20260913-063421",
   "tag": "bug",
-  "text": "# `append_task_md_content()` doesn't take into account `Task.body`\n\n- STATUS: OPEN\n- PRIORITY: 90\n- TAGS: scope\n\nFurthermore, looks like `append_task_md_content()` duplicates functionality of `render_task_md()`. We should probably just remove `append_task_md_content()` and use `render_task_md()` instead.\n\n---\n\nIn the whole `TASK.md` updating/rendering system there is an important invariant that is never really checked anywhere which is `TAGS`, `STATUS`, and `PRIORITY` must be always present in `Task.properties`. We shall resolve that in the scope of this task somehow (not really sure how yet).\n\n---\n\nI feel like I'm encountering the same property syncing problem as I had in TASK(20260828-211200). When I'm constructing the `Task` structure not from a `TASK.md` file I need to duplicate the `Task.tags`, `Task.status` and `Task.priority` in `Task.properties` which requires allocating separate memory on the heap (in case of `TASK.md` all that memory is stored within the buffer which we read the file into). And it's generally feels really fragile. I feel like we are just using a wrong data structure here.\n\nPlus `Task.task_md_content` just doesn't make any sense when you are constructuing the `Task` structure not from a `TASK.md` file. Another red flag.\n"
+  "text": "# `append_task_md_content()` doesn't take into account `Task.body`\n\n- STATUS: CLOSED\n- PRIORITY: 110\n- TAGS:\n\nFurthermore, looks like `append_task_md_content()` duplicates functionality of `render_task_md()`. We should probably just remove `append_task_md_content()` and use `render_task_md()` instead.\n\n---\n\nIn the whole `TASK.md` updating/rendering system there is an important invariant that is never really checked anywhere which is `TAGS`, `STATUS`, and `PRIORITY` must be always present in `Task.properties`. We shall resolve that in the scope of this task somehow (not really sure how yet).\n\n---\n\nI feel like I'm encountering the same property syncing problem as I had in TASK(20260828-211200). When I'm constructing the `Task` structure not from a `TASK.md` file I need to duplicate the `Task.tags`, `Task.status` and `Task.priority` in `Task.properties` which requires allocating separate memory on the heap (in case of `TASK.md` all that memory is stored within the buffer which we read the file into). And it's generally feels really fragile. I feel like we are just using a wrong data structure here.\n\nPlus `Task.task_md_content` just doesn't make any sense when you are constructuing the `Task` structure not from a `TASK.md` file. Another red flag.\n\n---\n\n`Task.task_md_content` is needed for that freaking `tatr-graph` command 9_9. Let's keep it for now.\n"
  },
  {
-  "id": "20260913-140450",
-  "tag": "scope",
-  "text": "# Introduce `tatr-id` command\n\n- STATUS: OPEN\n- PRIORITY: 80\n- TAGS:\n\nWhen executed inside of a task folder prints its id to stdout.\n\nConsider this workflow\n\n```console\n$ tatr id | xclip\n```\n"
+  "id": "20260921-115400",
+  "tag": "bug",
+  "text": "# Crash during `tatr-new`\n\n- STATUS: CLOSED\n- PRIORITY: 200\n- TAGS:\n\n```console\n$ tatr new -p 50 -t scope Stream songs from a remote service\n[INFO] created directory `./tasks/20260921-112854`\nMemorySanitizer:DEADLYSIGNAL\n==26268==ERROR: MemorySanitizer: SEGV on unknown address 0x000000000000 (pc 0x55873fd1d0a2 bp 0x7ffd737b6cd0 sp 0x7ffd737b6820 T26268)\n==26268==The signal is caused by a WRITE memory access.\n==26268==Hint: address points to the zero page.\n    #0 0x55873fd1d0a2 in render_task_md /home/rexim/Programming/tsoding/tatr/src/task.c:211:33\n    #1 0x55873fd28038 in new_run /home/rexim/Programming/tsoding/tatr/src/tatr.c:514:5\n    #2 0x55873fd3c4a8 in main /home/rexim/Programming/tsoding/tatr/src/tatr.c:1038:18\n    #3 0x7fc968189bfb in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16\n    #4 0x7fc968189cb4 in __libc_start_main@GLIBC_2.2.5 csu/../csu/libc-start.c:360:3\n    #5 0x55873fc66420 in _start /builddir/glibc-2.41/csu/../sysdeps/x86_64/start.S:115\n\nMemorySanitizer can not provide additional info.\nSUMMARY: MemorySanitizer: SEGV /home/rexim/Programming/tsoding/tatr/src/task.c:211:33 in render_task_md\n==26268==ABORTING\n$ tatr version\ntatr commit 7d5934f\nBuild time: Sun, 20 Sep 2026 16:20:23 +07\nCompiler: clang version 18.1.8\n```\n\n---\n\nCan't reproduce this in the current version:\n\n```console\n$ tatr version\ntatr commit f125408\nBuild time: Fri, 16 Oct 2026 07:16:42 +07\nCompiler: clang version 18.1.8\n```\n"
  },
  {
-  "id": "20260914-105224",
+  "id": "20261010-193140",
+  "tag": "bug",
+  "text": "# When you ^C `tatr-todo` the modified file maybe lost\n\n- STATUS: CLOSED\n- PRIORITY: 100\n- TAGS:\n\nThis is because we don't save the file upon on each created task.\n"
+ },
+ {
+  "id": "20261016-074116",
+  "tag": "bug",
+  "text": "# Hit assertion on sowon2\n\n- STATUS: CLOSED\n- PRIORITY: 200\n- TAGS:\n\n```console\n-*- mode: compilation; default-directory: \"~/Programming/tsoding/sowon2/\" -*-\nCompilation started at Fri Oct 16 14:40:29\n\n$ tatr ls -update +aboba not tagged\ntatr: src/task.c:203: void render_task_md(Task, Nob_String_Builder *, int *): Assertion `properties_get(&task.properties, SVLIT(\"TAGS\"))' failed.\n\nCompilation aborted at Fri Oct 16 14:40:29, duration 0.03 s\n```\n\n```console\ntatr version\ntatr commit e93298f\nBuild time: Fri, 16 Oct 2026 13:35:00 +07\nCompiler: clang version 18.1.8\n```\n\n---\n\nI managed to reproduce this on this exact repo with TASK(20260308-171346):\n\n```console\ntatr ls -update +aboba 20260308-171346\ntatr: src/task.c:203: void render_task_md(Task, Nob_String_Builder *, int *): Assertion `properties_get(&task.properties, SVLIT(\"TAGS\"))' failed.\n```\n\nTASK(20260308-171346) doesn't have a `TAGS` property which I thought would be handled by the parsing process somehow...\n"
+ },
+ {
+  "id": "20261017-045007",
   "tag": "scope",
-  "text": "# JSON reports\n\n- STATUS: OPEN\n- PRIORITY: 80\n- TAGS:\n\nInteresting use case:\n\n![image.png](./image.png)\n\nWe could also implement all sorts of machine-friendly formats for the reports. Like XML and what not. But in the scope of this task let's focus on JSON only.\n"
+  "text": "# `tatr help ls` should provide reference for TQL and TUL\n\n- STATUS: OPEN\n- PRIORITY: 100\n- TAGS:\n"
  }
 ]

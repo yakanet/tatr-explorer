@@ -76,23 +76,23 @@ export const NEW_TASK: Readonly<TaskFields> = {
 export const UNTITLED = 'New Task';
 
 /**
- * The file `tatr new` writes for these fields, as `append_task_md_content`
- * renders it: {@link UNTITLED} for an empty title, and the description in place
- * of its `No description.`, as an edit would put it. Each field is written as
- * a save writes it, so a new field cannot be left out.
+ * The file `tatr new` writes for these fields, as `render_task_md` renders it:
+ * {@link UNTITLED} for an empty title, and no body, where the description goes
+ * as an edit would put it. Each field is written as a save writes it, so a new
+ * field cannot be left out.
  */
 export function newTaskMd(fields: TaskFields): string {
 	const draft = {
 		...fields,
 		title: fields.title || UNTITLED,
-		description: withFinalNewline(fields.description || 'No description.')
+		description: withFinalNewline(fields.description)
 	};
 	const writes = (Object.keys(FIELDS) as Field[]).map((field) => FIELDS[field].write(draft, '\n'));
 	return renderTaskMd(chain(...writes)({ title: '', properties: new Map(), body: '' }));
 }
 
 function withFinalNewline(text: string): string {
-	if (text.endsWith('\n')) return text;
+	if (text === '' || text.endsWith('\n')) return text;
 	return `${text}\n`;
 }
 
