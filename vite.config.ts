@@ -7,10 +7,9 @@ import { iconify } from '#lib/icons.server.ts';
 import { tatrServedFolder } from '#lib/sources/served/folder.server.ts';
 
 /**
- * The base path the site is served under, from `BASE_PATH`, which the deploy
- * workflow sets to the repository name. The custom domain, github.broutin.dev,
- * belongs to the account's user site, so GitHub serves each project under its
- * repository name there.
+ * The base path the site is served under, from `BASE_PATH`. The deploy leaves
+ * it unset, since the site has a domain of its own; it is needed only to serve
+ * the site under a sub-path, as GitHub Pages does for a project without one.
  */
 function basePath(): '' | `/${string}` {
 	if (process.argv.includes('dev')) return '';
