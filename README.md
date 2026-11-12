@@ -5,8 +5,8 @@
 **Any repository's `tasks/` folder, read like an issue tracker.**<br>
 In the browser. No server, no backend, no clone.
 
-[**Open it →**](https://github.broutin.dev/tatr-explorer) &nbsp;·&nbsp;
-[Watch it read its own backlog](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer) &nbsp;·&nbsp;
+[**Open it →**](https://tatr-explorer.broutin.dev) &nbsp;·&nbsp;
+[Watch it read its own backlog](https://tatr-explorer.broutin.dev/yakanet/tatr-explorer) &nbsp;·&nbsp;
 [What is tatr?](https://github.com/tsoding/tatr)
 
 [![Deploy](https://github.com/yakanet/tatr-explorer/actions/workflows/deploy.yml/badge.svg)](https://github.com/yakanet/tatr-explorer/actions/workflows/deploy.yml)
@@ -19,7 +19,7 @@ In the browser. No server, no backend, no clone.
 
 ## Try it
 
-Nothing to install: [open it](https://github.broutin.dev/tatr-explorer) and
+Nothing to install: [open it](https://tatr-explorer.broutin.dev) and
 paste a repository name. To run it on your machine, with
 [pnpm](https://pnpm.io):
 
@@ -115,7 +115,7 @@ in your browser.
 ```shell
 pnpm run check                            # svelte-check, kept at zero errors
 pnpm test                                 # the specs, beside the code as *.spec.ts
-BASE_PATH=/tatr-explorer pnpm run build   # what CI builds; a push to main deploys it
+pnpm run build                            # what CI builds; a push to main deploys it
 ```
 
 Built with SvelteKit 3, Svelte 5 runes, Vite 8, markdown-it and Vitest. What the
@@ -131,7 +131,7 @@ rest, and `contract.spec.ts` runs it through the tests every source passes.
 ## Credits
 
 This repository tracks its own work with tatr:
-[here is its backlog](https://github.broutin.dev/tatr-explorer/yakanet/tatr-explorer/list).
+[here is its backlog](https://tatr-explorer.broutin.dev/yakanet/tatr-explorer/list).
 
 The format, the CLI and the query language are
 [tsoding's](https://github.com/tsoding/tatr). MIT licensed: see

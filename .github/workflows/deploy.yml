@@ -36,9 +36,8 @@ jobs:
         run: pnpm test
 
       - name: Build
-        env:
-          # The site is served from https://github.broutin.dev/<repository name>
-          BASE_PATH: '/${{ github.event.repository.name }}'
+        # No BASE_PATH: the repository has its own custom domain,
+        # tatr-explorer.broutin.dev, which serves the site from the root.
         run: pnpm run build
 
       - name: Upload artifact
