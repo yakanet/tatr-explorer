@@ -16,9 +16,9 @@ import { readTask, taskPath, type Task } from '../tatr/task.ts';
 import { parseTaskMd } from '../tatr/task-md.ts';
 import { parseTagsFile, TAGS_FILE, type TagDescriptions } from '../tatr/tags-file.ts';
 import { isValidHuid } from '../tatr/huid.ts';
-import { isCached, isRereadable } from './capabilities.ts';
+import { credentialOf, isCached, isRereadable } from './capabilities.ts';
 import { SourceError, type Listing, type Source } from './contract.ts';
-import { openStore, type RepoStore } from './store.ts';
+import { openStore, type RepoStore, type StoredRepo } from './store.ts';
 
 export interface LoadOptions {
 	/** Overrides the source's `concurrency`, for a spec. */
@@ -134,17 +134,20 @@ export async function loadRepository(
 
 	const store = options.store ?? openStore();
 
-	if (isCached(source) && !options.refresh) {
-		const cached = await store.read<CachedLoad>(source.cacheKey);
-		if (cached) {
-			return {
-				...cached.value,
-				// A record stored before `previous` existed lacks it.
-				previous: cached.value.previous ?? null,
-				fromCache: true,
-				storedAt: cached.storedAt
-			};
-		}
+	// The token decides the source's addresses, so it is read before anything
+	// else is asked of the source; the cache does not depend on it.
+	const [, cached] = await Promise.all([
+		credentialOf(source),
+		cachedReading(source, store, options)
+	]);
+	if (cached) {
+		return {
+			...cached.value,
+			// A record stored before `previous` existed lacks it.
+			previous: cached.value.previous ?? null,
+			fromCache: true,
+			storedAt: cached.storedAt
+		};
 	}
 
 	const listing = await source.list(options.signal);
@@ -163,7 +166,8 @@ export async function loadRepository(
 		taskFiles,
 		options.concurrency ?? source.concurrency,
 		async (entry) => {
-			const text = await source.read(entry.path, options.signal);
+			const text =
+				listing.texts?.get(entry.path) ?? (await source.read(entry.path, options.signal));
 			options.onProgress?.(++done, taskFiles.length);
 			return { path: entry.path, text };
 		}
@@ -190,6 +194,16 @@ export async function loadRepository(
 	return { ...payload, fromCache: false, storedAt };
 }
 
+/** The cached reading of a `Cached` source, unless `refresh` skips the cache. */
+async function cachedReading(
+	source: Source,
+	store: RepoStore,
+	options: LoadOptions
+): Promise<StoredRepo<CachedLoad> | null> {
+	if (!isCached(source) || options.refresh) return null;
+	return store.read<CachedLoad>(source.cacheKey);
+}
+
 /** Reads `tasks/tags`, or gives null when the repository has none. */
 async function readTagsFile(
 	source: Source,
@@ -199,7 +213,7 @@ async function readTagsFile(
 	if (!listing.entries.some((entry) => entry.path === TAGS_FILE)) {
 		return null;
 	}
-	return source.read(TAGS_FILE, signal);
+	return listing.texts?.get(TAGS_FILE) ?? source.read(TAGS_FILE, signal);
 }
 
 /** Reads one task's description on demand, for the detail view, as the cache does not keep it. */

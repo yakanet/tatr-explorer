@@ -94,10 +94,29 @@ pnpm test           # replays every recording against this viewer: a divergence 
   task's folder.
 
 Save writes only what you changed, and never over a change it did not read. A
-file is rewritten as `tatr untag` rewrites one, so a file the CLI wrote comes
+file is rewritten as `tatr ls -update` rewrites one, so a file the CLI wrote comes
 back byte for byte. Undo puts the task's file back.
 
 ![One task, being edited](docs/task.jpg)
+
+## Private repositories
+
+A private repository answers as if it did not exist, so its page offers to read
+it with a token of your own:
+
+1. **Create a token on GitHub** from the link. The page comes filled in: contents
+   read-only, for 90 days. Tick the repository under "Only select repositories",
+   then generate it.
+2. **Paste it** back. The field has the focus when you return, and pasting is
+   enough.
+
+The token is tried on the repository before it is kept. A token reads every
+repository of its owner you ticked, so another repository of the same owner
+offers it first. Its account and a padlock show in the header and on the home
+page.
+
+Images in a private repository's tasks are not shown: GitHub serves its files
+only to a reader signed in there, so they open from their links instead.
 
 ## Private by construction
 
@@ -105,7 +124,11 @@ No account, no cookie, no analytics: there is no server, and what you read stays
 in your browser.
 
 - **Only task metadata is cached**, in your browser's IndexedDB, and read again
-  only when you press Refresh.
+  only when you press Refresh. A private repository's is cached too, beside its
+  token, until you remove the repository from the home page, which forgets
+  both.
+- **A token goes to `api.github.com` and nowhere else**: never to `ungh.cc`, and
+  the page's Content-Security-Policy lets it connect to no other host.
 - **GitHub's budget is spared**: one request lists a whole repository, contents
   come from its CDN, which does not count, and `ungh.cc` is asked only once the
   budget is spent.

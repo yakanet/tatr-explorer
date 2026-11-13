@@ -179,3 +179,11 @@ function branchSuffix(branch: string | undefined): string {
 export function repoKey(address: ForgeAddress): string {
 	return `${address.host}/${address.owner}/${address.name}@${address.branch ?? ''}`;
 }
+
+/**
+ * The key of a repository whatever its branch, under which its token is kept:
+ * the key of its default branch, which every other branch's key starts with.
+ */
+export function repositoryKey(address: ForgeAddress): string {
+	return repoKey({ ...address, branch: undefined });
+}

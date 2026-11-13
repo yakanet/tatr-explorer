@@ -131,6 +131,28 @@ describe('loadRepository', () => {
 		expect(result.skipped).toEqual([{ id: 'notes', reason: 'Folder name is not a task id' }]);
 	});
 
+	it('takes the texts a listing read along, and reads only the files it lacks', async () => {
+		const read: string[] = [];
+		const along = new (class extends Holding {
+			override async list() {
+				const listing = await super.list();
+				const texts = new Map(
+					Object.entries(TREE).filter(([path]) => path !== at('20260826-200847'))
+				);
+				return { ...listing, texts };
+			}
+			override async read(path: string) {
+				read.push(path);
+				return super.read(path);
+			}
+		})();
+
+		const result = await loadRepository(along, { store });
+		expect(result.tasks).toHaveLength(TASKS);
+		expect(result.tags.descriptions.get('release')).toBe('planned for the next release');
+		expect(read).toEqual([at('20260826-200847')]);
+	});
+
 	it('works when the repository has no tags file', async () => {
 		const noTags = Object.entries(TREE).filter(([path]) => path !== 'tasks/tags');
 		const result = await loadRepository(new Holding(Object.fromEntries(noTags)), { store });

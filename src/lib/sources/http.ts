@@ -6,14 +6,18 @@ export function encodePath(path: string): string {
 	return path.split('/').map(encodeURIComponent).join('/');
 }
 
-/** One file as text, or null when it is refused, missing, or the network fails. */
+/**
+ * One file as text, or null when it is refused, missing, or the network fails.
+ * `headers` carry a token and the media type, for a file read through an API.
+ */
 export async function readText(
 	network: typeof fetch,
 	url: string,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	headers?: Record<string, string>
 ): Promise<string | null> {
 	try {
-		const response = await network(url, { signal });
+		const response = await network(url, { signal, headers });
 		if (!response.ok) {
 			return null;
 		}

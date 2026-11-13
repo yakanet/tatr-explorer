@@ -2,7 +2,7 @@
 
 - STATUS: OPEN
 - PRIORITY: 60
-- TAGS: data,ui
+- TAGS: data,ui,scope
 
 Every repository is read anonymously, so a private one answers 404, as if it
 did not exist. Wanted: public repositories stay readable without signing in,

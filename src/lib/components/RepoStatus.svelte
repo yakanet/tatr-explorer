@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
+	import TokenForm from '#lib/components/TokenForm.svelte';
 	import { onBranch } from '#lib/repo/branch.ts';
 	import type { RepoRef } from '#lib/repo/ref.ts';
 	import { FAILURE_HEADINGS, type RepositoryState } from '#lib/state/repository.svelte.ts';
@@ -59,6 +60,9 @@
 			{/if}
 			<a href={resolve('/')}>Another repository</a>
 		</div>
+		{#if repo.tokenMayHelp}
+			<TokenForm {repo} />
+		{/if}
 	</section>
 {/if}
 

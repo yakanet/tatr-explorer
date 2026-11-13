@@ -144,7 +144,7 @@ a.action:hover {
 	box-shadow: var(--shadow-card);
 }
 
-.input-pill input:not([type]) {
+.input-pill input:is(:not([type]), [type='password']) {
 	font-family: var(--font-mono);
 	font-size: 0.875rem;
 	color: inherit;

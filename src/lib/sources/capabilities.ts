@@ -6,6 +6,7 @@
  * that no source's specifics leak into the pages.
  */
 import type { Source } from './contract.ts';
+import type { Token } from './store.ts';
 
 /**
  * A source whose readings are cached, under `cacheKey`.
@@ -66,7 +67,8 @@ export interface Linked {
  * so an editor's save is never lost and no file is replaced unread. It answers
  * `refused` when the reader did not allow writing, which is not asked again. A
  * write that cannot be made at all throws a `SourceError`. A forge never
- * writes, as that takes an account and this site asks for none.
+ * writes: that takes a token that may write, and the only token this site asks
+ * for reads.
  */
 export interface Writable {
 	/** `contents` is text, or a `Blob` for an image. */
@@ -80,6 +82,33 @@ export interface Writable {
 }
 
 export type WriteAnswer = 'written' | 'changed' | 'refused';
+
+/**
+ * A source a reader can give a token for, which is how a private repository is
+ * read. The token is the reader's own and reads only the repositories they
+ * chose, so this site needs no account and no server of its own.
+ */
+export interface Authorizable {
+	/**
+	 * The token kept for this repository, or null when it is read anonymously.
+	 * It is read from the store once. `assetUrl` and `cost` depend on it, so the
+	 * loader awaits it before anything else.
+	 */
+	credential(): Promise<Token | null>;
+	/** The forge's page that creates a token for this repository, filled in. */
+	readonly tokenPage: string;
+	/**
+	 * The other repositories of the same owner a token is kept for, by name: a
+	 * token is issued for one owner, and may already read this repository too.
+	 */
+	neighbours(): Promise<string[]>;
+	/**
+	 * Reads the repository with `token`, or with the token kept for the
+	 * neighbour `from`, and keeps it for this repository. Throws a `SourceError`
+	 * saying why when it cannot.
+	 */
+	authorize(given: { token: string } | { from: string }, signal?: AbortSignal): Promise<void>;
+}
 
 /**
  * The member `name` of `source`, which the `Source` type does not declare.
@@ -113,4 +142,14 @@ export function isLinked(source: Source | null): source is Source & Linked {
 
 export function isWritable(source: Source | null): source is Source & Writable {
 	return typeof memberOf(source, 'write') === 'function';
+}
+
+export function isAuthorizable(source: Source | null): source is Source & Authorizable {
+	return typeof memberOf(source, 'authorize') === 'function';
+}
+
+/** The token a source reads with, or null for one read anonymously or that takes none. */
+export function credentialOf(source: Source): Promise<Token | null> {
+	if (!isAuthorizable(source)) return Promise.resolve(null);
+	return source.credential();
 }

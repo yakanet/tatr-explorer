@@ -4,6 +4,7 @@ import { makeTask } from '#tests/support/tasks.ts';
 import { describeAge, RepositoryState } from './repository.svelte.ts';
 import { snapshot } from '../tatr/changes.ts';
 import { parseRepoPath } from '../sources/open.ts';
+import { openStore } from '../sources/store.ts';
 import { fromDirectoryEntry } from '../sources/local/directory-entry.ts';
 import { fromDirectoryHandle } from '../sources/local/directory-handle.ts';
 import { fromFileList } from '../sources/local/folder.ts';
@@ -286,6 +287,75 @@ describe('a refresh that fails', () => {
 		await repo.refresh();
 		expect(repo.refreshFailure).toBeNull();
 		expect(repo.phase).toBe('ready');
+	});
+});
+
+describe('a private repository', () => {
+	const repository = 'github.com/owner/private@';
+	const text = '# A secret\n\n- STATUS: OPEN\n';
+	/** Whether GitHub lets the token `github_pat_good` read the repository. */
+	let granted = true;
+
+	beforeEach(() => {
+		granted = true;
+		vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+			const url = new URL(input);
+			const authorization = new Headers(init?.headers).get('authorization');
+			// Anonymous, the repository answers 404 as a private one does; a token
+			// GitHub does not know answers 401.
+			if (url.hostname !== 'api.github.com' || !authorization) {
+				return new Response(null, { status: 404 });
+			}
+			if (!granted || authorization !== 'Bearer github_pat_good') {
+				return new Response(null, { status: 401 });
+			}
+			if (url.pathname === '/user') return Response.json({ login: 'someone' });
+			if (url.pathname === '/graphql') {
+				const task = {
+					name: '20260101-000001',
+					object: { entries: [{ name: 'TASK.md', object: { text } }] }
+				};
+				return Response.json({ data: { repository: { object: { entries: [task] } } } });
+			}
+			const tree = [{ path: 'tasks/20260101-000001/TASK.md', type: 'blob' }];
+			return Response.json({ tree, truncated: false });
+		});
+	});
+
+	afterEach(async () => {
+		vi.unstubAllGlobals();
+		await openStore().forget(repository, repository);
+	});
+
+	it('is read with the token given once it was not found, and names its account', async () => {
+		const repo = new RepositoryState();
+		await repo.load(parseRepoPath('owner/private')!);
+		expect(repo.failure?.kind).toBe('not-found');
+		expect(repo.account).toBeNull();
+
+		expect(await repo.authorize({ token: 'github_pat_good' })).toBeNull();
+		expect(repo.phase).toBe('ready');
+		expect(repo.tasks.map((task) => task.title)).toEqual(['A secret']);
+		expect(repo.account).toBe('someone');
+	});
+
+	it('says why a token was not kept, and stays where it was', async () => {
+		const repo = new RepositoryState();
+		await repo.load(parseRepoPath('owner/private')!);
+		expect(await repo.authorize({ token: 'github_pat_bad' })).toMatch(/refused the token/);
+		expect(repo.phase).toBe('failed');
+	});
+
+	it('keeps the reading on screen when the token kept is refused, and says so', async () => {
+		await openStore().keepToken(repository, { value: 'github_pat_good', login: 'someone' });
+		const repo = new RepositoryState();
+		await repo.load(parseRepoPath('owner/private')!);
+		expect(repo.account).toBe('someone');
+
+		granted = false;
+		await repo.refresh();
+		expect(repo.phase).toBe('ready');
+		expect(repo.refreshFailure?.kind).toBe('unauthorized');
 	});
 });
 

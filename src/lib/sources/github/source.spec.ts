@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { unreachable } from '#tests/support/network.ts';
+import { memoryStore } from '../store.ts';
 import { GitHubRepositorySource } from './source.ts';
 import { parseRepoInput } from '../../repo/ref.ts';
 
@@ -121,5 +122,198 @@ describe('listing, falling back on ungh', () => {
 		await expect(hour.source.list()).rejects.toThrow(/has used them all/);
 		const tooOften = hosts({ 'api.github.com': status(429), 'ungh.cc': status(500) });
 		await expect(tooOften.source.list()).rejects.toThrow(/for asking too often/);
+	});
+});
+
+describe('a private repository, read with its token', () => {
+	const kept = { value: 'github_pat_kept', login: 'someone' };
+	const taskText = '# a task\n\n- STATUS: OPEN\n';
+
+	interface Asked {
+		url: string;
+		authorization: string | null;
+		accept: string | null;
+	}
+
+	/**
+	 * A source whose GitHub answers as told, by the start of the path asked on
+	 * `api.github.com`, with `token` kept for `owner/repo` and `neighbour` for
+	 * another repository of the owner, and every request it was asked.
+	 */
+	const github = (
+		answers: Record<string, () => Response>,
+		{ token = kept as typeof kept | null, neighbour = null as typeof kept | null } = {}
+	) => {
+		const store = memoryStore();
+		if (token) void store.keepToken('github.com/owner/repo@', token);
+		if (neighbour) void store.keepToken('github.com/owner/other@', neighbour);
+		void store.keepToken('github.com/stranger/repo@', kept);
+		const asked: Asked[] = [];
+		const network = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = new URL(String(input));
+			const headers = new Headers(init?.headers);
+			asked.push({
+				url: String(input),
+				authorization: headers.get('authorization'),
+				accept: headers.get('accept')
+			});
+			if (url.hostname !== 'api.github.com') return new Response(null, { status: 418 });
+			const answer = Object.entries(answers).find(([start]) => url.pathname.startsWith(start));
+			if (!answer) return new Response(null, { status: 404 });
+			return answer[1]();
+		}) as unknown as typeof fetch;
+		return { source: new GitHubRepositorySource(ref, network, store), asked, store };
+	};
+
+	const tree = () => Response.json({ tree: [{ path, type: 'blob' }], truncated: false });
+	const texts = () =>
+		Response.json({
+			data: {
+				repository: {
+					object: {
+						entries: [
+							{ name: 'tags', object: { text: 'bug, a bug\n' } },
+							{
+								name: '20260304-115038',
+								object: {
+									entries: [
+										{ name: 'TASK.md', object: { text: taskText } },
+										{ name: 'shot.png', object: { text: null, isBinary: true } }
+									]
+								}
+							}
+						]
+					}
+				}
+			}
+		});
+	const user = () => Response.json({ login: 'someone' });
+	const status = (code: number) => () => new Response(null, { status: code });
+	const listing = { '/repos/owner/repo/git/trees/': tree, '/graphql': texts };
+
+	it('lists it and reads its tasks along, in two requests to the API alone', async () => {
+		const { source, asked } = github(listing);
+		const { entries, texts } = await source.list();
+		expect(entries).toEqual([{ path }]);
+		expect(texts?.get(path)).toBe(taskText);
+		expect(texts?.get('tasks/tags')).toBe('bug, a bug\n');
+		expect(texts?.has('tasks/20260304-115038/shot.png')).toBe(false);
+		expect(asked.map((one) => new URL(one.url).pathname).sort()).toEqual([
+			'/graphql',
+			'/repos/owner/repo/git/trees/HEAD'
+		]);
+		expect(asked.map((one) => one.authorization)).toEqual([
+			'Bearer github_pat_kept',
+			'Bearer github_pat_kept'
+		]);
+	});
+
+	it('says what it costs: the token, not the CDN', async () => {
+		const { source } = github(listing);
+		await source.credential();
+		expect(source.cost.listing).toBe('two requests');
+	});
+
+	it('reads a file the listing did not read along through the API, with the token', async () => {
+		const { source, asked } = github({
+			'/repos/owner/repo/contents/': () => new Response('a note\n')
+		});
+		expect(await source.read('tasks/20260304-115038/notes/a.md')).toBe('a note\n');
+		expect(asked).toEqual([
+			{
+				url: 'https://api.github.com/repos/owner/repo/contents/tasks/20260304-115038/notes/a.md?ref=HEAD',
+				authorization: 'Bearer github_pat_kept',
+				accept: 'application/vnd.github.raw+json'
+			}
+		]);
+	});
+
+	it('never asks ungh, whatever GitHub answers', async () => {
+		const { source, asked } = github({ '/repos/': status(500), '/graphql': status(500) });
+		await expect(source.list()).rejects.toThrow('GitHub answered 500.');
+		expect(asked.map((one) => new URL(one.url).hostname)).toEqual([
+			'api.github.com',
+			'api.github.com'
+		]);
+	});
+
+	it('says whose token cannot see it when GitHub answers 404', async () => {
+		const { source } = github({ '/repos/': status(404), '/graphql': texts });
+		await expect(source.list()).rejects.toMatchObject({ failure: 'not-found' });
+		await expect(source.list()).rejects.toThrow(/The token of someone cannot see owner\/repo/);
+	});
+
+	it('reports a token GitHub refuses as unauthorized', async () => {
+		const { source } = github({ '/repos/': status(401), '/graphql': status(401) });
+		await expect(source.list()).rejects.toMatchObject({ failure: 'unauthorized' });
+	});
+
+	it('reports a token that may not read the files as unauthorized, not as a spent budget', async () => {
+		const { source } = github({ '/repos/': status(403), '/graphql': texts });
+		await expect(source.list()).rejects.toThrow(/Contents: read-only/);
+	});
+
+	it('links a file through GitHub, which serves a private one to a reader signed in there', async () => {
+		const { source } = github(listing);
+		await source.credential();
+		expect(source.assetUrl(path)).toBe(`https://github.com/owner/repo/raw/HEAD/${path}`);
+	});
+
+	it('sends no token for a repository it was not given one for', async () => {
+		const { source, asked } = github({ '/repos/': tree }, { token: null });
+		await source.list();
+		expect(asked.map((one) => one.authorization)).toEqual([null]);
+		expect(source.assetUrl(path)).toContain('raw.githubusercontent.com');
+	});
+
+	describe('given a token', () => {
+		const verifying = { '/user': user, '/repos/owner/repo/git/trees/': tree };
+
+		it('keeps one that reads the repository, under the account it belongs to', async () => {
+			const { source, store } = github(verifying, { token: null });
+			await source.authorize({ token: ' github_pat_new \n' });
+			expect(await store.token('github.com/owner/repo@')).toEqual({
+				value: 'github_pat_new',
+				login: 'someone'
+			});
+			expect(await source.credential()).toEqual({ value: 'github_pat_new', login: 'someone' });
+		});
+
+		it('refuses one GitHub does not know, and keeps nothing', async () => {
+			const { source, store } = github({ '/user': status(401) }, { token: null });
+			await expect(source.authorize({ token: 'github_pat_bad' })).rejects.toThrow(
+				/refused the token/
+			);
+			expect(await store.token('github.com/owner/repo@')).toBeNull();
+		});
+
+		it('refuses one that cannot see the repository, naming its account', async () => {
+			const { source } = github({ '/user': user, '/repos/': status(404) }, { token: null });
+			await expect(source.authorize({ token: 'github_pat_other' })).rejects.toThrow(
+				'The token of someone cannot see owner/repo: tick the repository among those the ' +
+					'token reads, on GitHub, or check its name.'
+			);
+		});
+
+		it("offers the tokens of the owner's other repositories, and reads with one", async () => {
+			const neighbour = { value: 'github_pat_neighbour', login: 'someone' };
+			const { source, store } = github(verifying, { token: null, neighbour });
+			expect(await source.neighbours()).toEqual(['other']);
+			await source.authorize({ from: 'other' });
+			expect((await store.token('github.com/owner/repo@'))?.value).toBe('github_pat_neighbour');
+		});
+	});
+
+	it('fills in the page that creates a token to read this repository only', () => {
+		const page = new URL(open().tokenPage);
+		expect(page.origin + page.pathname).toBe(
+			'https://github.com/settings/personal-access-tokens/new'
+		);
+		expect(Object.fromEntries(page.searchParams)).toMatchObject({
+			name: 'tatr owner/repo',
+			target_name: 'owner',
+			expires_in: '90',
+			contents: 'read'
+		});
 	});
 });

@@ -21,17 +21,25 @@ export interface Listing {
 	 * asynchronously. A source opened at a branch is `Branched`.
 	 */
 	branch: string;
+	/**
+	 * The text of files the listing read along, by path, which the loader takes
+	 * rather than reading them one by one: a private repository's come in the
+	 * same request.
+	 */
+	texts?: ReadonlyMap<string, string>;
 }
 
 /**
  * Why a reading or a write failed, as one of the cases the page has a heading
  * for. `no-source` is a source with nothing behind it, such as a folder after a
  * reload. `not-written` is a write the disk refused, which the page reports by
- * its message alone, as it does every failed edit.
+ * its message alone, as it does every failed edit. `unauthorized` is a token
+ * the forge refused, or one that may not read the files.
  */
 export type SourceFailure =
 	| 'rate-limited'
 	| 'not-found'
+	| 'unauthorized'
 	| 'network'
 	| 'unsupported-host'
 	| 'malformed'

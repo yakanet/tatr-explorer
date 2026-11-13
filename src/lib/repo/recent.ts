@@ -4,7 +4,7 @@
  * too. With nothing cached, this project's own repository is offered, since it
  * follows the tatr layout. Kept apart from the page so it can be tested.
  */
-import { parseForgePath, repoKey, type ForgeAddress } from './ref.ts';
+import { parseForgePath, repositoryKey, type ForgeAddress } from './ref.ts';
 
 /** The part of a cache row that a card needs. */
 export interface CachedShape {
@@ -13,6 +13,8 @@ export interface CachedShape {
 
 export interface Suggestion {
 	ref: ForgeAddress;
+	/** Whether a token is kept for it, which makes it a private repository. */
+	locked: boolean;
 	/** The path in the site's URLs, used as both the link and the label. */
 	path: string;
 	total: number;
@@ -35,18 +37,23 @@ export const FALLBACK: ForgeAddress = {
  * offers it as `HEAD`.
  */
 export function branchesOf(ref: ForgeAddress, keys: readonly string[]): string[] {
-	// `repoKey` ends the name with `@`, so the prefix cannot match a longer name
+	// The key ends the name with `@`, so the prefix cannot match a longer name
 	// that starts the same.
-	const prefix = repoKey({ ...ref, branch: undefined });
+	const prefix = repositoryKey(ref);
 	return keys
 		.filter((key) => key.startsWith(prefix) && key !== prefix)
 		.map((key) => key.slice(prefix.length))
 		.sort();
 }
 
+/**
+ * A card for each reading in `rows`, locked where `locked` holds the
+ * `repositoryKey` of its repository, or the fallback when there is none.
+ */
 export function toSuggestions(
 	rows: readonly { key: string; value: CachedShape; storedAt: number }[],
-	format: (ref: ForgeAddress) => string
+	format: (ref: ForgeAddress) => string,
+	locked: ReadonlySet<string> = new Set()
 ): Suggestion[] {
 	const found = rows.flatMap((row) => {
 		// `repoKey` writes a forge path, so parsing it gives the reference back. A
@@ -57,6 +64,7 @@ export function toSuggestions(
 		return [
 			{
 				ref,
+				locked: locked.has(repositoryKey(ref)),
 				path: format(ref),
 				total: row.value.tasks.length,
 				open: row.value.tasks.filter((task) => !task.closed).length,
@@ -67,5 +75,14 @@ export function toSuggestions(
 
 	if (found.length > 0) return found;
 
-	return [{ ref: FALLBACK, path: format(FALLBACK), total: 0, open: 0, storedAt: null }];
+	return [
+		{
+			ref: FALLBACK,
+			locked: false,
+			path: format(FALLBACK),
+			total: 0,
+			open: 0,
+			storedAt: null
+		}
+	];
 }

@@ -3,6 +3,8 @@
  * so the UI can tell a rate-limited listing apart from task files streaming in.
  */
 import {
+	credentialOf,
+	isAuthorizable,
 	isFollowable,
 	isLinked,
 	isRereadable,
@@ -47,6 +49,7 @@ export interface Failure {
 export const FAILURE_HEADINGS = {
 	'rate-limited': 'rate limit reached',
 	'not-found': 'not found',
+	unauthorized: 'access refused',
 	network: 'unavailable',
 	'unsupported-host': 'not supported yet',
 	malformed: 'not understood',
@@ -139,6 +142,12 @@ export class RepositoryState {
 	/** What the last edit came to, until another edit or another source replaces it. */
 	notice = $state<EditNotice | null>(null);
 
+	/**
+	 * The account whose token reads the repository, or null when it is read
+	 * anonymously, which is how the header tells a private repository.
+	 */
+	account = $state<string | null>(null);
+
 	#controller: AbortController | null = null;
 	/** True once the reader refused to let this page write, until the source is opened again. */
 	#refused = $state(false);
@@ -154,6 +163,18 @@ export class RepositoryState {
 	readonly name = $derived(this.source?.label ?? nameOf(this.ref));
 
 	readonly open = $derived(this.tasks.filter((task) => !task.closed));
+
+	/**
+	 * Whether a token may mend the last failure, the reading's or a refresh's:
+	 * the forge answers 404 alike for a private repository and a missing one,
+	 * and refuses a token that expired.
+	 */
+	readonly tokenMayHelp = $derived(
+		isAuthorizable(this.source) &&
+			[this.failure, this.refreshFailure].some(
+				(failure) => failure?.kind === 'not-found' || failure?.kind === 'unauthorized'
+			)
+	);
 
 	/**
 	 * Whether the views offer to edit: the source writes and the reader has not
@@ -188,6 +209,7 @@ export class RepositoryState {
 		this.notice = null;
 		this.#refused = false;
 		this.#written = null;
+		this.account = null;
 		return this.#read(ref, { refresh: false, source: null, replaces: null });
 	}
 
@@ -245,7 +267,11 @@ export class RepositoryState {
 
 		try {
 			const read = source ?? openSource(ref);
+			// Before the source is shown, as what it says it costs depends on its token.
+			const token = await credentialOf(read);
+			if (controller.signal.aborted) return;
 			this.source = read;
+			this.account = token?.login ?? null;
 			const result = await loadRepository(read, {
 				refresh,
 				replaces,
@@ -278,6 +304,23 @@ export class RepositoryState {
 			this.failure = describe(error);
 			this.phase = 'failed';
 		}
+	}
+
+	/**
+	 * Reads the repository with `given`, a token or a neighbour's, and keeps it
+	 * when it can, then reads the repository again with it. Resolves to null
+	 * once kept, or to the sentence that says why it was not.
+	 */
+	async authorize(given: { token: string } | { from: string }): Promise<string | null> {
+		const source = this.source;
+		if (!isAuthorizable(source)) return 'This repository takes no token.';
+		try {
+			await source.authorize(given);
+		} catch (error) {
+			return messageOf(error);
+		}
+		if (source === this.source) await this.refresh();
+		return null;
 	}
 
 	/** Clears what only a reading under way shows: the refresh flag and the file counts. */

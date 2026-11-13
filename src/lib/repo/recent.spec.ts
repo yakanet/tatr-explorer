@@ -20,6 +20,7 @@ describe('toSuggestions', () => {
 		expect(suggest([row('github.com/owner/repo@', 41, 23)])).toEqual([
 			{
 				ref: { host: 'github.com', owner: 'owner', name: 'repo' },
+				locked: false,
 				path: 'owner/repo',
 				total: 64,
 				open: 23,
@@ -48,8 +49,28 @@ describe('toSuggestions', () => {
 
 	it("falls back to this project's own repository on an empty cache", () => {
 		expect(suggest([])).toEqual([
-			{ ref: FALLBACK, path: formatRepoPath(FALLBACK), total: 0, open: 0, storedAt: null }
+			{
+				ref: FALLBACK,
+				locked: false,
+				path: formatRepoPath(FALLBACK),
+				total: 0,
+				open: 0,
+				storedAt: null
+			}
 		]);
+	});
+
+	it('locks every reading of a repository a token is kept for, whatever its branch', () => {
+		const found = toSuggestions(
+			[
+				row('github.com/owner/private@', 0, 1),
+				row('github.com/owner/private@dev', 0, 1),
+				row('github.com/owner/public@', 0, 1)
+			],
+			formatRepoPath,
+			new Set(['github.com/owner/private@'])
+		);
+		expect(found.map((one) => one.locked)).toEqual([true, true, false]);
 	});
 
 	it('falls back when every key is unreadable, not just when there are none', () => {

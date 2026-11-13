@@ -5,7 +5,7 @@
 	import RepositoryList from './RepositoryList.svelte';
 	import { counted } from '#lib/plural.ts';
 	import { toSuggestions, type CachedShape, type Suggestion } from '#lib/repo/recent.ts';
-	import { formatRepoPath } from '#lib/repo/ref.ts';
+	import { formatRepoPath, repoKey, repositoryKey } from '#lib/repo/ref.ts';
 	import { openStore } from '#lib/sources/store.ts';
 	import { describeAge } from '#lib/state/repository.svelte.ts';
 
@@ -18,19 +18,38 @@
 	 */
 	$effect(() => {
 		let alive = true;
-		openStore()
-			.list<CachedShape>()
-			.then((rows) => {
-				if (alive) suggestions = toSuggestions(rows, formatRepoPath);
-			})
-			.catch(() => {
-				// Storage can be unavailable, and the fallback is still worth showing.
-				if (alive) suggestions = toSuggestions([], formatRepoPath);
-			});
+		suggested().then((found) => {
+			if (alive) suggestions = found;
+		});
 		return () => {
 			alive = false;
 		};
 	});
+
+	/** The readings in the cache, each locked when a token is kept for its repository. */
+	async function suggested(): Promise<Suggestion[]> {
+		const store = openStore();
+		try {
+			const [rows, tokens] = await Promise.all([store.list<CachedShape>(), store.tokenKeys()]);
+			return toSuggestions(rows, formatRepoPath, new Set(tokens));
+		} catch {
+			// Storage can be unavailable, and the fallback is still worth showing.
+			return toSuggestions([], formatRepoPath);
+		}
+	}
+
+	/**
+	 * What removes a card's reading from the cache, with the token of its
+	 * repository once no reading of it is left, or nothing for the fallback,
+	 * which is not cached.
+	 */
+	function removerOf(one: Suggestion): (() => Promise<void>) | undefined {
+		if (one.storedAt === null) return undefined;
+		return async () => {
+			await openStore().forget(repoKey(one.ref), repositoryKey(one.ref));
+			suggestions = await suggested();
+		};
+	}
 
 	/**
 	 * The list's heading. The first suggestion tells which list it is, since the
@@ -53,7 +72,7 @@
 {#if suggestions.length > 0}
 	<RepositoryList heading={headingOf(suggestions[0])}>
 		{#each suggestions as one (one.path)}
-			<RepositoryCard path={one.path}>
+			<RepositoryCard path={one.path} locked={one.locked} onremove={removerOf(one)}>
 				{describe(one)}
 				{#if one.storedAt !== null}
 					<span class="age">· read {describeAge(one.storedAt)}</span>

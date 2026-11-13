@@ -65,6 +65,54 @@ describe('memoryStore', () => {
 	});
 });
 
+describe('the tokens of private repositories', () => {
+	const token = { value: 'github_pat_x', login: 'someone' };
+
+	it('keeps a token apart from the readings, which listing them never shows', async () => {
+		const store = memoryStore();
+		await store.keepToken('github.com/owner/repo@', token);
+		expect(await store.token('github.com/owner/repo@')).toEqual(token);
+		expect(await store.list()).toEqual([]);
+		expect(await store.tokenKeys()).toEqual(['github.com/owner/repo@']);
+	});
+
+	it('has none for a repository it was not given one for', async () => {
+		expect(await memoryStore().token('github.com/owner/repo@')).toBeNull();
+	});
+
+	it('keeps it when a reading is cleared, as a refresh does', async () => {
+		const store = memoryStore();
+		await store.write('github.com/owner/repo@', 1);
+		await store.keepToken('github.com/owner/repo@', token);
+		await store.clear('github.com/owner/repo@');
+		expect(await store.token('github.com/owner/repo@')).toEqual(token);
+	});
+
+	it('forgets it with the last reading of its repository, and not before', async () => {
+		const store = memoryStore();
+		await store.write('github.com/owner/repo@', 1);
+		await store.write('github.com/owner/repo@dev', 2);
+		await store.keepToken('github.com/owner/repo@', token);
+
+		await store.forget('github.com/owner/repo@dev', 'github.com/owner/repo@');
+		expect(await store.read('github.com/owner/repo@dev')).toBeNull();
+		expect(await store.token('github.com/owner/repo@')).toEqual(token);
+
+		await store.forget('github.com/owner/repo@', 'github.com/owner/repo@');
+		expect(await store.list()).toEqual([]);
+		expect(await store.token('github.com/owner/repo@')).toBeNull();
+	});
+
+	it('does not count a longer name that starts the same as a reading of it', async () => {
+		const store = memoryStore();
+		await store.write('github.com/owner/repo@', 1);
+		await store.write('github.com/owner/repo-two@', 2);
+		await store.keepToken('github.com/owner/repo@', token);
+		await store.forget('github.com/owner/repo@', 'github.com/owner/repo@');
+		expect(await store.token('github.com/owner/repo@')).toBeNull();
+	});
+});
+
 describe('openStore', () => {
 	it('degrades to memory where IndexedDB does not exist, rather than throwing', async () => {
 		// Node has no IndexedDB, the same situation as the prerender pass.

@@ -6,13 +6,24 @@
  * localStorage is synchronous, so parsing such an entry blocks rendering; and
  * IndexedDB stores structured clones, so `Date` and `Map` come back intact.
  *
+ * It also keeps the token a reader gave for a private repository, beside that
+ * repository's readings, so that removing the repository forgets both at once.
+ *
  * Storage is unavailable in private windows, embedded contexts, the prerender
  * pass and tests, so every path falls back to memory rather than failing.
  */
 
 const DB_NAME = 'tatr';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'repositories';
+/** The tokens, by the key of their repository whatever its branch. */
+const TOKENS = 'tokens';
+
+/** A token a reader gave to read a private repository, and the account it belongs to. */
+export interface Token {
+	value: string;
+	login: string;
+}
 
 export interface StoredRepo<T> {
 	value: T;
@@ -35,6 +46,17 @@ export interface RepoStore {
 	 * which branches are cached.
 	 */
 	keys(): Promise<string[]>;
+	/** The token kept for `repository`, a `repositoryKey`, or null for none. */
+	token(repository: string): Promise<Token | null>;
+	/** The repositories a token is kept for, without the tokens. */
+	tokenKeys(): Promise<string[]>;
+	keepToken(repository: string, token: Token): Promise<void>;
+	/**
+	 * Forgets the reading under `key`, and the token of `repository` once no
+	 * reading of it is left, in one transaction, so that a token never outlives
+	 * the last card that shows it.
+	 */
+	forget(key: string, repository: string): Promise<void>;
 }
 
 const newestFirst = (a: { storedAt: number }, b: { storedAt: number }) => b.storedAt - a.storedAt;
@@ -42,6 +64,7 @@ const newestFirst = (a: { storedAt: number }, b: { storedAt: number }) => b.stor
 /** A store that lives for the lifetime of the page. Always available. */
 export function memoryStore(): RepoStore {
 	const map = new Map<string, StoredRepo<unknown>>();
+	const tokens = new Map<string, Token>();
 	return {
 		async read<T>(key: string) {
 			return (map.get(key) as StoredRepo<T> | undefined) ?? null;
@@ -60,8 +83,29 @@ export function memoryStore(): RepoStore {
 			return [...map.entries()]
 				.map(([key, stored]) => ({ key, value: stored.value as T, storedAt: stored.storedAt }))
 				.sort(newestFirst);
+		},
+		async token(repository: string) {
+			return tokens.get(repository) ?? null;
+		},
+		async tokenKeys() {
+			return [...tokens.keys()];
+		},
+		async keepToken(repository: string, token: Token) {
+			tokens.set(repository, token);
+		},
+		async forget(key: string, repository: string) {
+			map.delete(key);
+			if (!holdsReadingOf(map.keys(), repository)) tokens.delete(repository);
 		}
 	};
+}
+
+/** Whether a key among `keys` is a reading of `repository`, whose keys all start with it. */
+function holdsReadingOf(keys: Iterable<IDBValidKey>, repository: string): boolean {
+	for (const key of keys) {
+		if (String(key).startsWith(repository)) return true;
+	}
+	return false;
 }
 
 /**
@@ -109,7 +153,9 @@ function openDatabase(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const req = indexedDB.open(DB_NAME, DB_VERSION);
 		req.onupgradeneeded = () => {
-			if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+			for (const name of [STORE, TOKENS]) {
+				if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name);
+			}
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
@@ -154,12 +200,13 @@ function persistentStore(): RepoStore {
 	 */
 	const transact = async <T>(
 		mode: IDBTransactionMode,
-		run: (store: IDBObjectStore) => Promise<T>
+		run: (store: IDBObjectStore) => Promise<T>,
+		name = STORE
 	): Promise<T | undefined> => {
 		const handle = await database();
 		if (!handle) return undefined;
 		try {
-			return await run(handle.transaction(STORE, mode).objectStore(STORE));
+			return await run(handle.transaction(name, mode).objectStore(name));
 		} catch {
 			return undefined;
 		}
@@ -210,6 +257,62 @@ function persistentStore(): RepoStore {
 				if (key === undefined) return request(store.clear());
 				return request(store.delete(key));
 			});
+		},
+
+		async token(repository: string) {
+			const handle = await database();
+			if (!handle) return fallback.token(repository);
+			const token = await transact(
+				'readonly',
+				(store) => request<Token | undefined>(store.get(repository)),
+				TOKENS
+			);
+			return token ?? null;
+		},
+
+		async tokenKeys() {
+			const handle = await database();
+			if (!handle) return fallback.tokenKeys();
+			const keys = await transact('readonly', (store) => request(store.getAllKeys()), TOKENS);
+			return (keys ?? []).map(String);
+		},
+
+		async keepToken(repository: string, token: Token) {
+			const handle = await database();
+			if (!handle) return fallback.keepToken(repository, token);
+			await transact('readwrite', (store) => request(store.put(token, repository)), TOKENS);
+		},
+
+		async forget(key: string, repository: string) {
+			const handle = await database();
+			if (!handle) return fallback.forget(key, repository);
+			try {
+				await forgetIn(handle.transaction([STORE, TOKENS], 'readwrite'), key, repository);
+			} catch {
+				// As every write here: the cache is an optimisation, and failing is quiet.
+			}
 		}
 	};
+}
+
+/**
+ * Deletes the reading under `key`, then the token of `repository` when the
+ * readings left hold none of it, within `transaction`, and resolves once it
+ * commits. The next request is made from the previous one's success handler, as
+ * the transaction commits as soon as it has none pending.
+ */
+function forgetIn(transaction: IDBTransaction, key: string, repository: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const readings = transaction.objectStore(STORE);
+		readings.delete(key).onsuccess = () => {
+			const left = readings.getAllKeys();
+			left.onsuccess = () => {
+				if (!holdsReadingOf(left.result, repository))
+					transaction.objectStore(TOKENS).delete(repository);
+			};
+		};
+		transaction.oncomplete = () => resolve();
+		transaction.onerror = () => reject(transaction.error);
+		transaction.onabort = () => reject(transaction.error);
+	});
 }

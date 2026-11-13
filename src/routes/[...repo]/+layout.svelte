@@ -8,6 +8,7 @@
 	import KeyHelp from '#lib/components/KeyHelp.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Shortcuts from '#lib/components/Shortcuts.svelte';
+	import TokenForm from '#lib/components/TokenForm.svelte';
 	import { reopenerOf } from '#lib/components/reopeners.ts';
 	import { counted, plural } from '#lib/plural.ts';
 	import { newTaskHref } from '#lib/repo/hrefs.ts';
@@ -20,6 +21,7 @@
 		REPOSITORY
 	} from '#lib/state/repository.svelte.ts';
 	import { QUERY, QueryState } from '#lib/state/query.svelte.ts';
+	import lock from 'virtual:icons/lucide:lock.svg';
 
 	let { data, children } = $props();
 	const ref = $derived(data.ref);
@@ -161,6 +163,15 @@
 		{:else}
 			<span class="repo">{repo.name}</span>
 		{/if}
+		{#if repo.account}
+			<span class="private" title="Private, read with the token of {repo.account}">
+				<svg viewBox={lock.viewBox} width="1em" height="1em" aria-hidden="true"
+					>{@html lock.body}</svg
+				>
+				<span class="sr">Private, read with the token of</span>
+				{repo.account}
+			</span>
+		{/if}
 	</div>
 
 	<nav class="segmented">
@@ -223,6 +234,18 @@
 		{/if}
 	</div>
 </header>
+
+<!-- A refused token keeps the reading on screen, as any failed refresh does,
+     and is the one refresh failure the reader can mend from here. -->
+{#if repo.refreshFailure && repo.tokenMayHelp}
+	<div class="lost">
+		<section class="panel">
+			<h2>{FAILURE_HEADINGS[repo.refreshFailure.kind]}</h2>
+			<p>{repo.refreshFailure.message} The tasks below are those last read.</p>
+			<TokenForm {repo} />
+		</section>
+	</div>
+{/if}
 
 {@render children()}
 
@@ -299,6 +322,41 @@
 
 	.stale {
 		color: var(--warning);
+	}
+
+	.private {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.8125rem;
+		color: var(--muted);
+	}
+
+	/* As wide as the overview's column, the views' widths being their own. */
+	.lost {
+		max-width: calc(64rem + 2 * var(--gutter));
+		margin: 0 auto;
+		padding: 1.75rem var(--gutter) 0;
+	}
+
+	.lost .panel {
+		padding: 1.25rem 1.5rem;
+		border-color: var(--warning);
+	}
+
+	.lost h2 {
+		margin: 0 0 0.6rem;
+		font-size: 1rem;
+	}
+
+	/* The headings are lower case because the header reuses them mid-sentence. */
+	.lost h2::first-letter {
+		text-transform: uppercase;
+	}
+
+	.lost p {
+		margin: 0;
+		line-height: 1.6;
 	}
 
 	/* Below 64rem the three zones do not fit on one line. The views take their
