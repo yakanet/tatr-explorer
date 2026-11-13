@@ -149,7 +149,13 @@ export function collect<T>(store: IDBObjectStore): Promise<{ key: IDBValidKey; v
 	});
 }
 
-function openDatabase(): Promise<IDBDatabase> {
+/**
+ * Opens the database, or gives null when another tab blocks its upgrade by
+ * holding an older version open. It closes again when a newer version of the
+ * site asks to upgrade it, which a connection left open would block, and
+ * `onclosed` hears it.
+ */
+function openDatabase(onclosed: () => void): Promise<IDBDatabase | null> {
 	return new Promise((resolve, reject) => {
 		const req = indexedDB.open(DB_NAME, DB_VERSION);
 		req.onupgradeneeded = () => {
@@ -157,10 +163,19 @@ function openDatabase(): Promise<IDBDatabase> {
 				if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name);
 			}
 		};
-		req.onsuccess = () => resolve(req.result);
+		req.onsuccess = () => {
+			const handle = req.result;
+			handle.onversionchange = () => {
+				handle.close();
+				onclosed();
+			};
+			resolve(handle);
+		};
 		req.onerror = () => reject(req.error);
-		// Firefox in private mode fires neither success nor error, and the page must not hang.
-		req.onblocked = () => reject(new Error('IndexedDB blocked'));
+		// Firefox in private mode fires neither success nor error, and the page must
+		// not hang. A blocked upgrade stays pending, and every later open would
+		// queue behind it without an answer, so its null is kept for the page.
+		req.onblocked = () => resolve(null);
 	});
 }
 
@@ -180,11 +195,15 @@ export function openStore(): RepoStore {
 
 function persistentStore(): RepoStore {
 	const fallback = memoryStore();
-	let db: Promise<IDBDatabase> | null = null;
+	let db: Promise<IDBDatabase | null> | null = null;
 
 	const database = async (): Promise<IDBDatabase | null> => {
 		if (typeof indexedDB === 'undefined') return null;
-		db ??= openDatabase();
+		// Once a newer version took the database over, this page's own version can
+		// no longer open it, so it keeps to memory.
+		db ??= openDatabase(() => {
+			db = Promise.resolve(null);
+		});
 		try {
 			return await db;
 		} catch {
